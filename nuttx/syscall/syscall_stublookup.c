@@ -345,6 +345,15 @@ uintptr_t STUB_uip_ping(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t par
 uintptr_t STUB_exec_getsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_exec_setsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);
 
+uintptr_t STUB_builtin_for_index(int nbr, uintptr_t parm1);
+uintptr_t STUB_builtin_getname(int nbr, uintptr_t parm1);
+uintptr_t STUB_builtin_isavail(int nbr, uintptr_t parm1);
+
+uintptr_t STUB_task_spawn(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6, uintptr_t parm7);
+
+uintptr_t STUB_usbhost_initialize(int nbr, uintptr_t parm1);
+uintptr_t STUB_usbhost_kbdinit(int nbr);
+	
 /****************************************************************************
  * Public Data
  ****************************************************************************/

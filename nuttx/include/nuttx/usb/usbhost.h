@@ -920,6 +920,9 @@ int usbhost_wlaninit(void);
 int usbhost_enumerate(FAR struct usbhost_driver_s *drvr, uint8_t funcaddr,
                       FAR struct usbhost_class_s **class);
 
+
+FAR struct usbhost_connection_s *usbhost_initialize(int controller);
+	
 #undef EXTERN
 #if defined(__cplusplus)
 }

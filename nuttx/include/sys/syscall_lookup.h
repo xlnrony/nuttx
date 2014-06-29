@@ -56,6 +56,7 @@ SYSCALL_LOOKUP(sched_setparam,            sched_setparam,            2, STUB_sch
 SYSCALL_LOOKUP(sched_setscheduler,        sched_setscheduler,        3, STUB_sched_setscheduler)
 SYSCALL_LOOKUP(sched_unlock,              sched_unlock,              0, STUB_sched_unlock)
 SYSCALL_LOOKUP(sched_yield,               sched_yield,               0, STUB_sched_yield)
+SYSCALL_LOOKUP(sched_foreach,		   	   sched_foreach,		   	   2, STUB_sched_foreach)
 SYSCALL_LOOKUP(sem_close,                 sem_close,                 1, STUB_sem_close)
 SYSCALL_LOOKUP(sem_destroy,               sem_destroy,               2, STUB_sem_destroy)
 SYSCALL_LOOKUP(sem_open,                  sem_open,                  6, STUB_sem_open)
@@ -68,11 +69,19 @@ SYSCALL_LOOKUP(set_errno,                 set_errno,                 1, STUB_set
 SYSCALL_LOOKUP(task_create,               task_create,               5, STUB_task_create)
 SYSCALL_LOOKUP(task_delete,               task_delete,               1, STUB_task_delete)
 SYSCALL_LOOKUP(task_restart,              task_restart,              1, STUB_task_restart)
+SYSCALL_LOOKUP(task_spawn,              task_spawn,              7, STUB_task_spawn)
 SYSCALL_LOOKUP(up_assert,                 up_assert,                 2, STUB_up_assert)
 
 SYSCALL_LOOKUP(register_driver,		   register_driver,		   4, STUB_register_driver)
 SYSCALL_LOOKUP(unregister_driver,		   unregister_driver,		   1, STUB_unregister_driver)
-SYSCALL_LOOKUP(sched_foreach,		   	   sched_foreach,		   	   2, STUB_sched_foreach)
+
+SYSCALL_LOOKUP(up_progmem_ispageerased,		   up_progmem_ispageerased,		   1, STUB_up_progmem_ispageerased)
+SYSCALL_LOOKUP(up_progmem_getaddr,		   	   up_progmem_getaddr,		   		   1, STUB_up_progmem_getaddr)
+SYSCALL_LOOKUP(up_progmem_write,		   		   up_progmem_write,		                 3, STUB_up_progmem_write)
+SYSCALL_LOOKUP(up_progmem_getpage,		          up_progmem_getpage,		   		   1, STUB_up_progmem_getpage)
+SYSCALL_LOOKUP(up_progmem_erasepage,		          up_progmem_erasepage,		   	   1, STUB_up_progmem_erasepage)
+SYSCALL_LOOKUP(up_progmem_pagesize,		          up_progmem_pagesize,		   	   1, STUB_up_progmem_pagesize)
+SYSCALL_LOOKUP(up_progmem_isuniform,		          up_progmem_isuniform,		          0, STUB_up_progmem_isuniform)
 
 /* The following can be individually enabled */
 
@@ -100,17 +109,26 @@ SYSCALL_LOOKUP(sched_foreach,		   	   sched_foreach,		   	   2, STUB_sched_forea
  * programs from a file system.
  */
 
-#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)
-#  ifdef CONFIG_BINFMT_EXEPATH
-  SYSCALL_LOOKUP(posix_spawnp,            posix_spawnp,            6, STUB_posix_spawnp)
-#  else
-  SYSCALL_LOOKUP(posix_spawn,             posix_spawn,             6, STUB_posix_spawn)
-#  endif
-  SYSCALL_LOOKUP(execv,                   execv,                   2, STUB_execv)
-  SYSCALL_LOOKUP(execl,                   execl,                   6, STUB_execl)
+#if !defined(CONFIG_BINFMT_DISABLE)
+  SYSCALL_LOOKUP(load_module,                   load_module,                   1, STUB_load_module)
+  SYSCALL_LOOKUP(exec_module,                  exec_module,                   1, STUB_exec_module)  
+  SYSCALL_LOOKUP(unload_module,               unload_module,               1, STUB_unload_module) 
+  #if defined(CONFIG_LIBC_EXECFUNCS)
+    #  ifdef CONFIG_BINFMT_EXEPATH
+      SYSCALL_LOOKUP(posix_spawnp,            posix_spawnp,            6, STUB_posix_spawnp)
+    #  else
+      SYSCALL_LOOKUP(posix_spawn,             posix_spawn,             6, STUB_posix_spawn)
+    #  endif
+    SYSCALL_LOOKUP(execv,                   execv,                   2, STUB_execv)
+    SYSCALL_LOOKUP(execl,                   execl,                   6, STUB_execl)
 
-  SYSCALL_LOOKUP(exec_getsymtab,		exec_getsymtab,			2, STUB_exec_getsymtab)
-  SYSCALL_LOOKUP(exec_setsymtab,		exec_setsymtab,     		2, STUB_exec_setsymtab)  
+    SYSCALL_LOOKUP(exec_getsymtab,		exec_getsymtab,			2, STUB_exec_getsymtab)
+    SYSCALL_LOOKUP(exec_setsymtab,		exec_setsymtab,     		2, STUB_exec_setsymtab)  
+  #endif
+  #if defined(CONFIG_NXFLAT)
+      SYSCALL_LOOKUP(nxflat_initialize,		nxflat_initialize,     		0, STUB_nxflat_initialize)  
+      SYSCALL_LOOKUP(nxflat_uninitialize,	nxflat_uninitialize,     	0, STUB_nxflat_uninitialize)    
+  #endif
 #endif
 
 /* The following are only defined is signals are supported in the NuttX
@@ -325,6 +343,18 @@ SYSCALL_LOOKUP(romdisk_register,	   romdisk_register,	   4, STUB_romdisk_registe
 SYSCALL_LOOKUP(uip_ping,	   		   uip_ping,	   		   5, STUB_uip_ping)
 #endif
 
+#if defined(CONFIG_BUILTIN)
+SYSCALL_LOOKUP(builtin_getname,	   		   builtin_getname,	   		   1, STUB_builtin_getname)
+SYSCALL_LOOKUP(builtin_isavail,	   		   builtin_isavail,	   		   	   1, STUB_builtin_isavail)
+SYSCALL_LOOKUP(builtin_for_index,	      	   builtin_for_index,	   		   1, STUB_builtin_for_index)
+#endif
+
+#if defined(CONFIG_USBHOST)
+SYSCALL_LOOKUP(usbhost_initialize,	      	   usbhost_initialize,	   		   1, STUB_usbhost_initialize)
+  #if defined(CONFIG_USBHOST_HIDKBD)
+    SYSCALL_LOOKUP(usbhost_kbdinit,	      	   usbhost_kbdinit,	   		   0, STUB_usbhost_kbdinit)
+  #endif
+#endif
 
 
 /****************************************************************************

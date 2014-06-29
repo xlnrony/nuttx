@@ -299,7 +299,7 @@ int hidkbd_main(int argc, char *argv[])
    */
 
   printf("hidkbd_main: Initialize USB host keyboard driver\n");
-  g_usbconn = usbhost_initialize(0);
+  g_usbconn = usbhost_initialize();
   if (g_usbconn)
     {
       /* Start a thread to handle device connection. */

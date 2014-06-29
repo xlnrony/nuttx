@@ -49,7 +49,7 @@ SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
 SYMTAB = nsh_symtab.h
-CSV 	 = $(TOPDIR)/syscall/syscall.csv $(TOPDIR)/libc/lib.csv
+CSV 	 = $(TOPDIR)/syscall/syscall.csv $(TOPDIR)/libc/lib.csv $(TOPDIR)/libc/math.csv
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\..\libapps$(LIBEXT)
@@ -90,6 +90,7 @@ context:
 .depend: Makefile $(SRCS)
 	@touch $(SYMTAB)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
+	$(call DELFILE, $(SYMTAB))			
 	@touch $@
 
 depend: .depend
@@ -100,7 +101,6 @@ clean:
 	$(call CLEAN)
 
 distclean: clean
-	$(call DELFILE, $(SYMTAB))		
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
 

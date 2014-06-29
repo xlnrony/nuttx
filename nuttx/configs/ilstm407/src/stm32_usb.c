@@ -310,30 +310,3 @@ void stm32_usbsuspend(FAR struct usbdev_s *dev, bool resume)
 #endif
 
 #endif /* CONFIG_STM32_OTGFS */
-
-#if defined(CONFIG_USBHOST) && defined(CONFIG_EXAMPLES_HIDKBD)
-
-/****************************************************************************
- * Pre-Processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: arch_usbhost_initialize
- *
- * Description:
- *   The apps/example/hidkbd test requires that platform-specific code
- *   provide a wrapper called arch_usbhost_initialize() that will perform
- *   the actual USB host initialization.
- *
- ****************************************************************************/
-
-struct usbhost_connection_s *arch_usbhost_initialize(void)
-{
-  return stm32_otgfshost_initialize(0);
-}
-#endif /* CONFIG_LPC17_USBHOST && CONFIG_USBHOST && CONFIG_EXAMPLES_HIDKBD */
-

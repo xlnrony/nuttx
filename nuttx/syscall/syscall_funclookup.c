@@ -80,6 +80,7 @@
 #include <nuttx/fs/mkfatfs.h>
 #include <nuttx/fs/ramdisk.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/binfmt/builtin.h>
 
 
 /* clock_systimer is a special case:  In the kernel build, proxying for

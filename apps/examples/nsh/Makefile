@@ -49,7 +49,7 @@ SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
 SYMTAB = nsh_symtab.h
-CSV 	 = $(TOPDIR)/syscall/syscall.csv $(TOPDIR)/libc/lib.csv
+CSV 	 = $(TOPDIR)/syscall/syscall.csv $(TOPDIR)/libc/libc.csv $(TOPDIR)/libc/math.csv
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\..\libapps$(LIBEXT)
