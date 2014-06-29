@@ -51,7 +51,7 @@
 #include <nuttx/net/tcp.h>
 #include <nuttx/net/netstats.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "tcp/tcp.h"
 
 /****************************************************************************
@@ -77,7 +77,7 @@
  ****************************************************************************/
 
 static inline uint16_t
-uip_dataevent(FAR struct uip_driver_s *dev, FAR struct tcp_conn_s *conn,
+uip_dataevent(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
               uint16_t flags)
 {
   uint16_t ret;
@@ -148,7 +148,7 @@ uip_dataevent(FAR struct uip_driver_s *dev, FAR struct tcp_conn_s *conn,
  *
  ****************************************************************************/
 
-uint16_t tcp_callback(FAR struct uip_driver_s *dev, FAR struct tcp_conn_s *conn,
+uint16_t tcp_callback(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                       uint16_t flags)
 {
   /* Preserve the UIP_ACKDATA, UIP_CLOSE, and UIP_ABORT in the response.
@@ -178,7 +178,7 @@ uint16_t tcp_callback(FAR struct uip_driver_s *dev, FAR struct tcp_conn_s *conn,
    *                 dev->d_len should also be cleared).
    */
 
-  flags = uip_callbackexecute(dev, conn, flags, conn->list);
+  flags = devif_callback_execute(dev, conn, flags, conn->list);
 
   /* There may be no new data handler in place at them moment that the new
    * incoming data is received.  If the new incoming data was not handled, then

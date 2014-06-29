@@ -51,7 +51,7 @@
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/tcp.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "tcp/tcp.h"
 
 /****************************************************************************
@@ -247,7 +247,7 @@ bool tcp_islistener(uint16_t portno)
  *
  ****************************************************************************/
 
-int tcp_accept_connection(FAR struct uip_driver_s *dev,
+int tcp_accept_connection(FAR struct net_driver_s *dev,
                           FAR struct tcp_conn_s *conn, uint16_t portno)
 {
   FAR struct tcp_conn_s *listener;

@@ -50,6 +50,11 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* Allocate a new TCP data callback */
+
+#define udp_callback_alloc(conn)   devif_callback_alloc(&conn->list)
+#define udp_callback_free(conn,cb) devif_callback_free(cb, &conn->list)
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
@@ -81,19 +86,19 @@ FAR struct udp_conn_s *uip_nextudpconn(FAR struct udp_conn_s *conn);
 
 /* Defined in udp_poll.c ****************************************************/
 
-void udp_poll(FAR struct uip_driver_s *dev, FAR struct udp_conn_s *conn);
+void udp_poll(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn);
 
 /* Defined in udp_send.c ****************************************************/
 
-void udp_send(FAR struct uip_driver_s *dev, FAR struct udp_conn_s *conn);
+void udp_send(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn);
 
 /* Defined in udp_input.c ***************************************************/
 
-int udp_input(FAR struct uip_driver_s *dev);
+int udp_input(FAR struct net_driver_s *dev);
 
 /* Defined in udp_callback.c ************************************************/
 
-uint16_t udp_callback(FAR struct uip_driver_s *dev,
+uint16_t udp_callback(FAR struct net_driver_s *dev,
                       FAR struct udp_conn_s *conn, uint16_t flags);
 
 #undef EXTERN

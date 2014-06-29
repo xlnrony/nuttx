@@ -50,6 +50,11 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* Allocate a new packet socket data callback */
+
+#define pkt_callback_alloc(conn)   devif_callback_alloc(&conn->list)
+#define pkt_callback_free(conn,cb) devif_callback_free(cb, &conn->list)
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
@@ -83,14 +88,14 @@ struct pkt_conn_s *uip_nextpktconn(FAR struct pkt_conn_s *conn);
 
 /* Defined in pkt_callback.c ************************************************/
 
-uint16_t pkt_callback(FAR struct uip_driver_s *dev,
+uint16_t pkt_callback(FAR struct net_driver_s *dev,
                       FAR struct pkt_conn_s *conn, uint16_t flags);
 
 /* Defined in pkt_input.c ***************************************************/
 
 /* Defined in pkt_poll.c ****************************************************/
 
-void pkt_poll(FAR struct uip_driver_s *dev, FAR struct pkt_conn_s *conn);
+void pkt_poll(FAR struct net_driver_s *dev, FAR struct pkt_conn_s *conn);
 
 /****************************************************************************
  * Function: psock_pkt_send

@@ -68,9 +68,10 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/tcp.h>
 
-#include "net.h"
+#include "socket/socket.h"
+#include "netdev/netdev.h"
 #include "tcp/tcp.h"
-#include "uip/uip.h"
+#include "devif/devif.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -212,7 +213,7 @@ static inline void psock_lost_connection(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-static uint16_t psock_send_interrupt(FAR struct uip_driver_s *dev,
+static uint16_t psock_send_interrupt(FAR struct net_driver_s *dev,
                                      FAR void *pvconn, FAR void *pvpriv,
                                      uint16_t flags)
 {
@@ -599,7 +600,7 @@ static uint16_t psock_send_interrupt(FAR struct uip_driver_s *dev,
            * won't actually happen until the polling cycle completes).
            */
 
-          uip_iobsend(dev, WRB_IOB(wrb), sndlen, WRB_SENT(wrb));
+          devif_iob_send(dev, WRB_IOB(wrb), sndlen, WRB_SENT(wrb));
 
           /* Remember how much data we send out now so that we know
            * when everything has been acknowledged.  Just increment
@@ -754,7 +755,7 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
 
       if (!psock->s_sndcb)
         {
-          psock->s_sndcb = tcp_callbackalloc(conn);
+          psock->s_sndcb = tcp_callback_alloc(conn);
         }
 
       /* Test if the callback has been allocated */

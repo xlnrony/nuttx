@@ -51,7 +51,7 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/netstats.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "igmp/igmp.h"
 
 #ifdef CONFIG_NET_IGMP
@@ -65,10 +65,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name:  uip_schedsend
+ * Name:  igmp_sched_send
  *
  * Description:
- *   Construct the .
+ *   Construct and send the IGMP message.
  *
  * Returned Value:
  *   Returns a non-zero value if an IGMP message is sent.
@@ -79,7 +79,8 @@
  *
  ****************************************************************************/
 
-static inline void uip_schedsend(FAR struct uip_driver_s *dev, FAR struct igmp_group_s *group)
+static inline void igmp_sched_send(FAR struct net_driver_s *dev,
+                                   FAR struct igmp_group_s *group)
 {
   uip_ipaddr_t *dest;
 
@@ -142,7 +143,7 @@ static inline void uip_schedsend(FAR struct uip_driver_s *dev, FAR struct igmp_g
  *
  ****************************************************************************/
 
-void igmp_poll(FAR struct uip_driver_s *dev)
+void igmp_poll(FAR struct net_driver_s *dev)
 {
   FAR struct igmp_group_s *group;
 
@@ -168,7 +169,7 @@ void igmp_poll(FAR struct uip_driver_s *dev)
         {
           /* Yes, create the IGMP message in the driver buffer */
 
-          uip_schedsend(dev, group);
+          igmp_sched_send(dev, group);
 
           /* Mark the message as sent and break out */
 

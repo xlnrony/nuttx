@@ -63,6 +63,7 @@ Contents
   - Loading Code into SRAM with J-Link
   - Writing to FLASH using SAM-BA
   - Creating and Using DRAMBOOT
+  - Creating and Using AT25BOOT
   - Running NuttX from SDRAM
   - PIO Usage
   - Buttons and LEDs
@@ -419,7 +420,108 @@ Creating and Using DRAMBOOT
 
       NOTES: (1) There is that must be closed to enable use of the AT25
       Serial Flash.  (2) If using SAM-BA, make sure that you load the DRAM
-      boot program into the boot area via the pull-down menu.
+      boot program into the boot area via the pull-down menu.  (3) If
+      you don't have SAM-BA, an alternative is to use the AT25BOOT program
+      described in the next section.
+
+   STATUS:  I don't have a working SAM-BA at the moment and there are issues
+   with my AT25BOOT (see below).  I currently work around these issues by
+   putting DRAMBOOT on a microSD card (as boot.bin).  The RomBOOT loader does
+   boot that image without issue.
+
+Creating and Using AT25BOOT
+===========================
+
+  To work around some SAM-BA availability issues that I had at one time,
+  I created the AT25BOOT program. AT25BOOT is a tiny program that runs in
+  ISRAM.  AT25BOOT will enable SDRAM and configure the AT25 Serial FLASH.
+  It will prompt and then load an Intel HEX program into SDRAM over the
+  serial console. If the program is successfully loaded in SDRAM, AT25BOOT
+  will copy the program at the beginning of the AT26 Serial FLASH.
+  If the jumpering is set correctly, the SAMA5D4 RomBOOT loader will
+  then boot the program from the serial FLASH the next time that it
+  reset.
+
+  The AT25BOOT configuration is described below under "Configurations."
+
+  Here are some general instructions on how to build an use AT25BOOT:
+
+  Building:
+  1. Remove any old configurations (if applicable).
+
+       cd <nuttx>
+       make distclean
+
+  2. Install and build the AT25BOOT configuration.  This steps will establish
+     the AT25BOOT configuration and setup the PATH variable in order to do
+     the build:
+
+       cd tools
+       ./configure.sh sama5d4-ek/at25boot
+       cd -
+       . ./setenv.sh
+
+     Before sourcing the setenv.sh file above, you should examine it and
+     perform edits as necessary so that TOOLCHAIN_BIN is the correct path
+     to the directory than holds your toolchain binaries.
+
+     Then make AT25BOOT:
+
+       make
+
+     This will result in an ELF binary called 'nuttx' and also HEX and
+     binary versions called 'nuttx.hex' and 'nuttx.bin'.
+
+  3. Rename the binaries.  If you want to save this version of AT25BOOT so
+     that it does not get clobbered later, you may want to rename the
+     binaries:
+
+       mv nuttx at25boot
+       mv nuttx.hex at25boot.hex
+       mv nuttx.bin at25boot.bin
+
+   4. Build the "real" DRAMBOOT configuration.  This will create the
+      dramboot.hex that you will write to the AT25 FLASH using AT25BOOT. See
+      the section above entitled "Creating and Using AT25BOOT" for more
+      information.
+
+   5. Restart the system holding DIS_BOOT.  You should see the RomBOOT
+      prompt on the 115200 8N1 serial console (and nothing) more.  Hit
+      the ENTER key with the focus on your terminal window a few time.
+      This will enable JTAG.
+
+   6. Then start the J-Link GDB server and GDB.  In GDB, I do the following:
+
+       (gdb) mon heal                 # Halt the CPU
+       (gdb) load at25boot            # Load AT25BOOT into internal SRAM
+       (gdb) mon go                   # Start AT25BOOT
+
+      You should see this message:
+
+        Send Intel HEX file now
+
+      Load DRAMBOOT by sending the dramboot.hex via the terminal program.
+      At this point you will get messages indicated whether or not the write
+      to the AT25 FLASH was successful or not.  When you reset the board,
+      it should then boot from the AT25 Serial FLASH and you should again
+      get the prompt:
+
+        Send Intel HEX file now
+
+      But now you are being prompted to load the DRAM program under test
+      (See the section above entitled "Creating and Using AT25BOOT").
+
+   7. An better option, if available, is to use the SAM-BA tool to write the
+      DRAMBOOT image into Serial FLASH.
+
+   NOTES: (1) There is that must be closed to enable use of the AT25
+   Serial Flash.  (2) If using SAM-BA, make sure that you load the DRAM
+   boot program into the boot area via the pull-down menu.
+
+   STATUS:  While this program works great and appears to correctly write
+   the binary image onto the AT25 Serial FLASH, the RomBOOT loader will
+   not boot it!  I believe that is because the secure boot loader has some
+   undocumented requirements that I am unaware of. (2014-6-28)
 
 Running NuttX from SDRAM
 ========================
@@ -2526,13 +2628,17 @@ TRNG and /dev/random
 
   NSH can be configured to enable the SAMA5 TRNG peripheral so that it
   provides /dev/random.  The following configuration will enable the TRNG,
-  /dev/random, and the simple test of /dev/random at apps/examples/ranadom:
+  and support for /dev/random:
 
     System Type:
       CONFIG_SAMA5_TRNG=y                 : Enable the TRNG peripheral
 
-    Drivers (automatically selected):
+    Drivers:
       CONFIG_DEV_RANDOM=y                 : Enable /dev/random
+
+  A simple test of /dev/random is available at apps/examples/random and
+  can be enabled as a NSH application via the following additional
+  configuration settings:
 
     Applications -> Examples
       CONFIG_EXAMPLES_RANDOM=y            : Enable apps/examples/random
@@ -2910,6 +3016,10 @@ Configurations
   Summary:  Some of the descriptions below are long and wordy. Here is the
   concise summary of the available SAMA4D4-EK configurations:
 
+    at25boot: This is a little program to write a boot loader into the
+      AT25 serial FLASH (in particular, dramboot).  See the description
+      below and the section above entitled "Creating and Using AT25BOOT"
+      for more information
     dramboot: This is a little program to help debug of code in DRAM.  See
       the description below and the section above entitled "Creating and
       Using DRAMBOOT" for more information
@@ -2926,6 +3036,26 @@ Configurations
   before of the status of individual configurations.
 
   Now for the gory details:
+
+  at25boot:
+
+    To work around some SAM-BA availability issues that I had at one time,
+    I created the at25boot program. at25boot is a tiny program that runs in
+    ISRAM.  at25boot will enable SDRAM and configure the AT25 Serial FLASH.
+    It will prompt and then load an Intel HEX program into SDRAM over the
+    serial console. If the program is successfully loaded in SDRAM, at25boot
+    will copy the program at the beginning of the AT26 Serial FLASH.
+    If the jumpering is set correctly, the SAMA5D4 RomBOOT loader will
+    then boot the program from the serial FLASH the next time that it
+    reset.
+
+    The usage is different, otherwise I believe the notes for the dramboot
+    configuration should all apply.
+
+    STATUS:  While this program works great and appears to correctly write
+    the binary image onto the AT25 Serial FLASH, the RomBOOT loader will
+    not boot it!  I believe that is because the secure boot loader has some
+    undocumented requirements that I am unaware of. (2014-6-28)
 
   dramboot:
 
@@ -3008,6 +3138,11 @@ Configurations
           gdb> mon reg pc (make sure that the PC is 0x200040
           gdb> ... and debug ...
 
+    STATUS:  I don't have a working SAM-BA at the moment and there are issues
+    with my AT25BOOT (see above).  I currently work around these issues by
+    putting DRAMBOOT on a microSD card (as boot.bin).  The RomBOOT loader does
+    boot that image without issue.
+
   nsh:
 
     This configuration directory provide the NuttShell (NSH).  This is a
@@ -3049,61 +3184,139 @@ Configurations
          CONFIG_SAMA5D4EK_DRAM_BOOT=y
 
        See the section above entitled "Creating and Using DRAMBOOT" above
-       for more information.
+       for more information.  Here is a summary of the steps that I used
+       to boot the NSH configuration:
 
-       At times, have have tested with nuttx.bin on an SD card and booting
-       with U-Boot.  These are the commands that I used to boot NuttX from
-       the SD card:
+         a. Create the DRAMBOOT program as described above.  It should be
+            configured with CONFIG_SAMA5D4EK_DRAM_START=y so that DRAMBOOT
+            will immediately start the program.  You may not want to do
+            this is your prefer to break in with GDB.
+
+         b. Write the DRAMBOOT program binary (nuttx.bin) to a microSD
+            card as "boot.bin".  Insert the microSD card into the boar;
+            The ROM Booloader should now boot DRAMBOOT on reset and you
+            should see this message:
+
+              Send Intel HEX file now
+
+         c. Build the NSH version of NuttX.  Send the Intel HEX of NSH
+            at the prompt.  After the file is received, NSH should start
+            automatically.
+
+       At times the past, have have tested with nuttx.bin on an SD card and
+       booting with U-Boot.  These are the commands that I used to boot NuttX
+       from the SD card:
 
          U-Boot> fatload mmc 0 0x20008000 nuttx.bin
          U-Boot> go 0x20008040
 
-    4. This configuration has support for NSH built-in applications enabled.
-       However, no built-in applications are selected in the base configuration.
+    4. This configuration supports /dev/null, /dev/zero, and /dev/random.
 
-    5. This configuration has support for the FAT file system built in.
-       However, by default, there are no block drivers initialized.  The FAT
-       file system can still be used to create RAM disks.
+         CONFIG_DEV_NULL=y    : Enables /dev/null
+         CONFIG_DEV_ZERO=y    : Enabled /dev/zero
 
-    6. The SAMA5D4-EK includes for an AT25 serial DataFlash.  Support for that
+       Support for /dev/random is implemented using the SAMA5D4's True
+       Random Number Generator (TRNG).  See the section above entitled
+       "TRNG and /dev/random" for information about configuring /dev/random.
+
+        CONFIG_SAMA5_TRNG=y   : Enables the TRNG peripheral
+        CONFIG_DEV_RANDOM=y   : Enables /dev/random
+
+    5. This configuration has support for NSH built-in applications enabled.
+
+    6. This configuration has support for the FAT and ROMFS file systems
+       built in.
+
+       The FAT file system includes long file name support.  Please be aware
+       that Microsoft claims patents against the long file name support (see
+       more discussion in the top-level COPYING file).
+
+         CONFIG_FS_FAT=y        : Enables the FAT file system
+         CONFIG_FAT_LCNAMES=y   : Enable lower case 8.3 file names
+         CONFIG_FAT_LFN=y       : Enables long file name support
+         CONFIG_FAT_MAXFNAME=32 : Arbitrarily limits the size of a path
+                                  segment name to 32 bytes
+
+       The ROMFS file system is enabled simply with:
+
+         CONFIG_FS_ROMFS=y      : Enable ROMFS file system
+
+    6. An NSH star-up script is provided by the ROMFS file system.  The ROMFS
+       file system is mounted at /etc and provides:
+
+         |- dev/
+         |   `- ram0
+         `- etc/
+             `- init.d/
+                 `- rcS
+
+       (There will, of course, be other devices uner /dev include /dev/console,
+       /dev/null, /dev/zero, /dev/random, etc.).
+
+       Relevant configuration options include:
+
+         CONFIG_NSH_ROMFSETC=y           : Enable mounting at of startup file system
+         CONFIG_NSH_ROMFSMOUNTPT="/etc"  : Mount at /etc
+         CONFIG_NSH_ROMFSDEVNO=0         : Device is /dev/ram0
+         CONFIG_NSH_ARCHROMFS=y          : ROMFS image is at
+                                           configs/sama5d4-ek/include/nsh_romfsimg.h
+       The content of /etc/init.d/rcS can be see in the file rcS.template that
+       can be found at: configs/sama5d4-ek/include/rcS.template:
+
+         mkrd -m 2 -s 512 1024
+         mkfatfs /dev/ram1
+         mount -t vfat /dev/ram1 /tmp
+
+       The above commands will create a RAM disk block device at /dev/ram1.
+       The RAM disk will take 0.4MiB of memory (512 x 1024).  Then it will
+       create a FAT file system on the ram disk and mount it at /tmp.  So
+       after NSH starts and runs the rcS script, we will have:
+
+         |- dev/
+         |   |- ram0
+         |   `- ram2
+         |- etc/
+         |   `- init.d/
+         |       `- rcS
+          `- tmp/
+
+       The /tmp directory can them be used for and scratch purpose.
+
+    7. The SAMA5D4-EK includes for an AT25 serial DataFlash.  Support for that
        serial FLASH can be enabled by modifying the NuttX configuration as
        described above in the paragraph entitled "AT25 Serial FLASH".
 
-    7. Enabling HSMCI support. The SAMA4D4-EK provides a two SD memory
+    8. Enabling HSMCI support. The SAMA4D4-EK provides a two SD memory
        card slots:  (1) a full size SD card slot (J10), and (2) a microSD
        memory card slot (J11).  The full size SD card slot connects via HSMCI0;
        the microSD connects vi HSMCI1.  Support for both SD slots can be enabled
        with the settings provided in the paragraph entitled "HSMCI Card Slots"
        above.
 
-    8. Support the USB low-, high- and full-speed OHCI host driver can be enabled
+    9. Support the USB low-, high- and full-speed OHCI host driver can be enabled
        by changing the NuttX configuration file as described in the section
        entitled "USB High-Speed Host" above.
 
-    9. Support the USB high-speed USB device driver (UDPHS) can be enabled
+   10. Support the USB high-speed USB device driver (UDPHS) can be enabled
        by changing the NuttX configuration file as described above in the
        section entitled "USB High-Speed Device."
 
-    10. I2C Tool. NuttX supports an I2C tool at apps/system/i2c that can be
-        used to peek and poke I2C devices.  See the discussion above under
-        "I2C Tool" for detailed configuration settings.
+   11. I2C Tool. NuttX supports an I2C tool at apps/system/i2c that can be
+       used to peek and poke I2C devices.  See the discussion above under
+       "I2C Tool" for detailed configuration settings.
 
-    11. Networking support via the can be added to NSH by modifying the
-        configuration.  See the "Networking" section above for detailed
-        configuration settings.
+   12. Networking support via the can be added to NSH by modifying the
+       configuration.  See the "Networking" section above for detailed
+       configuration settings.
 
-    12. The Real Time Clock/Calendar (RTC) may be enabled by reconfiguring NuttX.
-        See the section entitled "RTC" above for detailed configuration settings.
+   13. The Real Time Clock/Calendar (RTC) may be enabled by reconfiguring NuttX.
+       See the section entitled "RTC" above for detailed configuration settings.
 
-    13. This example can be configured to exercise the watchdog timer test
-        (apps/examples/watchdog).  See the detailed configuration settings in
-        the section entitled "Watchdog Timer" above.
+   14. This example can be configured to exercise the watchdog timer test
+       (apps/examples/watchdog).  See the detailed configuration settings in
+       the section entitled "Watchdog Timer" above.
 
-    14. This example can be configured to enable the SAMA5 TRNG peripheral so
-        that it provides /dev/random.  See the section entitled "TRNG and
-        /dev/random" above for detailed configuration information.
-
-    STATUS:
+   STATUS:
        See the To-Do list below
 
   ramtest:

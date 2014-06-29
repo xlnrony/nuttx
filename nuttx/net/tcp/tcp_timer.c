@@ -54,7 +54,7 @@
 #include <nuttx/net/tcp.h>
 #include <nuttx/net/netstats.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "tcp/tcp.h"
 
 /****************************************************************************
@@ -96,7 +96,7 @@
  *
  ****************************************************************************/
 
-void tcp_timer(FAR struct uip_driver_s *dev, FAR struct tcp_conn_s *conn,
+void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                int hsec)
 {
   uint8_t result;

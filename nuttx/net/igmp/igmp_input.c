@@ -52,7 +52,7 @@
 #include <nuttx/net/igmp.h>
 #include <nuttx/net/netstats.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "igmp/igmp.h"
 
 #ifdef CONFIG_NET_IGMP
@@ -113,7 +113,7 @@
  *
  ****************************************************************************/
 
-void igmp_input(struct uip_driver_s *dev)
+void igmp_input(struct net_driver_s *dev)
 {
   FAR struct igmp_group_s *group;
   uip_ipaddr_t destipaddr;
@@ -133,7 +133,7 @@ void igmp_input(struct uip_driver_s *dev)
 
   /* Calculate and check the IGMP checksum */
 
-  if (uip_chksum((uint16_t*)&IGMPBUF->type, UIP_IGMPH_LEN) != 0)
+  if (net_chksum((uint16_t*)&IGMPBUF->type, UIP_IGMPH_LEN) != 0)
     {
       IGMP_STATINCR(g_netstats.igmp.chksum_errors);
       nlldbg("Checksum error\n");

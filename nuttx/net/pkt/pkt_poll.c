@@ -53,7 +53,7 @@
 #include <nuttx/net/udp.h>
 #include <nuttx/net/pkt.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "pkt/pkt.h"
 
 /****************************************************************************
@@ -94,7 +94,7 @@
  *
  ****************************************************************************/
 
-void pkt_poll(FAR struct uip_driver_s *dev, FAR struct pkt_conn_s *conn)
+void pkt_poll(FAR struct net_driver_s *dev, FAR struct pkt_conn_s *conn)
 {
   nlldbg("IN\n");
 
@@ -118,7 +118,7 @@ void pkt_poll(FAR struct uip_driver_s *dev, FAR struct pkt_conn_s *conn)
 
       if (dev->d_sndlen > 0)
         {
-//        uip_pktsend(dev, conn);
+//        devif_pkt_send(dev, conn);
           return;
         }
     }

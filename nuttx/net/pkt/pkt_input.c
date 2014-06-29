@@ -53,7 +53,7 @@
 #include <nuttx/net/arp.h>
 #include <nuttx/net/pkt.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "pkt/pkt.h"
 
 /****************************************************************************
@@ -97,7 +97,7 @@
  *
  ****************************************************************************/
 
-int pkt_input(struct uip_driver_s *dev)
+int pkt_input(struct net_driver_s *dev)
 {
   FAR struct pkt_conn_s *conn;
   FAR struct eth_hdr_s  *pbuf = (struct eth_hdr_s *)dev->d_buf;

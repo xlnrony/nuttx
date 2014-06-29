@@ -66,6 +66,11 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
+struct net_driver_s;      /* Forward reference */
+#if !defined(CONFIG_DISABLE_CLOCK)
+struct timeval;           /* Forward reference */
+#endif
+
 /****************************************************************************
  * Function: net_dsec2timeval
  *
@@ -84,7 +89,73 @@ extern "C"
  *
  ****************************************************************************/
 
+#if !defined(CONFIG_DISABLE_CLOCK)
 void net_dsec2timeval(uint16_t dsec, FAR struct timeval *tv);
+#endif
+
+/****************************************************************************
+ * Function: net_timeval2dsec
+ *
+ * Description:
+ *   Convert a struct timeval to deciseconds.  Needed by setsockopt() to
+ *   save new timeout values.
+ *
+ * Parameters:
+ *   tv   The struct timeval to convert
+ *
+ * Returned Value:
+ *   The converted value
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+#if !defined(CONFIG_DISABLE_CLOCK)
+unsigned int net_timeval2dsec(FAR struct timeval *tv);
+#endif
+
+/****************************************************************************
+ * Name: tcp_chksum
+ *
+ * Description:
+ *   Calculate the TCP checksum of the packet in d_buf and d_appdata.
+ *
+ *   The TCP checksum is the Internet checksum of data contents of the
+ *   TCP segment, and a pseudo-header as defined in RFC793.
+ *
+ *   Note: The d_appdata pointer that points to the packet data may
+ *   point anywhere in memory, so it is not possible to simply calculate
+ *   the Internet checksum of the contents of the d_buf buffer.
+ *
+ * Returned Value:
+ *   The TCP checksum of the TCP segment in d_buf and pointed to by
+ *   d_appdata.
+ *
+ ****************************************************************************/
+
+uint16_t tcp_chksum(FAR struct net_driver_s *dev);
+
+/****************************************************************************
+ * Name: udp_chksum
+ *
+ * Description:
+ *   Calculate the UDP checksum of the packet in d_buf and d_appdata.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_UDP_CHECKSUMS
+uint16_t udp_chksum(FAR struct net_driver_s *dev);
+#endif
+
+/****************************************************************************
+ * Name: icmp_chksum
+ *
+ * Description:
+ *   Calculate the checksum of the ICMP message
+ *
+ ****************************************************************************/
+
+uint16_t icmp_chksum(FAR struct net_driver_s *dev, int len);
 
 #undef EXTERN
 #ifdef __cplusplus

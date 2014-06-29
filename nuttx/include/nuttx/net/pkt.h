@@ -88,17 +88,12 @@ struct pkt_conn_s
 
 FAR struct pkt_conn_s *pkt_alloc(void);
 
-/* Allocate a new packet socket data callback */
-
-#define pkt_callbackalloc(conn)   uip_callbackalloc(&conn->list)
-#define pkt_callbackfree(conn,cb) uip_callbackfree(cb, &conn->list)
-
 /* Free a connection structure that is no longer in use. This should
  * be done by the implementation of close()
  */
 
 void pkt_free(FAR struct pkt_conn_s *conn);
-void pkt_poll(FAR struct uip_driver_s *dev, FAR struct pkt_conn_s *conn);
-int pkt_input(FAR struct uip_driver_s *dev);
+void pkt_poll(FAR struct net_driver_s *dev, FAR struct pkt_conn_s *conn);
+int pkt_input(FAR struct net_driver_s *dev);
 
 #endif /* __INCLUDE_NUTTX_NET_PKT_H */

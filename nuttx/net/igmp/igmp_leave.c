@@ -52,7 +52,7 @@
 #include <nuttx/net/netstats.h>
 #include <nuttx/net/igmp.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "igmp/igmp.h"
 
 #ifdef CONFIG_NET_IGMP
@@ -129,7 +129,7 @@
  *
  ****************************************************************************/
 
-int igmp_leavegroup(struct uip_driver_s *dev, FAR const struct in_addr *grpaddr)
+int igmp_leavegroup(struct net_driver_s *dev, FAR const struct in_addr *grpaddr)
 {
   struct igmp_group_s *group;
   net_lock_t flags;

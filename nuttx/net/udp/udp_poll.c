@@ -52,7 +52,7 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/udp.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "udp/udp.h"
 
 /****************************************************************************
@@ -93,7 +93,7 @@
  *
  ****************************************************************************/
 
-void udp_poll(FAR struct uip_driver_s *dev, FAR struct udp_conn_s *conn)
+void udp_poll(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn)
 {
   /* Verify that the UDP connection is valid */
 

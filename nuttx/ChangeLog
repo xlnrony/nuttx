@@ -7540,4 +7540,32 @@
 	  runs from ISRAM and loads an Intel HEX file into DRAM (2014-6-26).
 	* configs/sama5d4-ek/nsh and scripts/: Setup the SAMA5D4-EK NSHi
 	  configuration to use the DRAMBOOT loader by default (2014-6-26).
-
+	* binfmt: Various changes associated with symbol tables.  Most from Pelle
+	  Windestam (2014-6-27).
+	* Networking: Add network device ioctl to access PHY registers. From Daniel
+	  Lazlo Sitzer (2014-6-27).
+	* net/netdev:  Move net/netdev*.c to net/netdev/netdev*.c (2014-6-27).
+	* arch/arm/src/sam34/chip/sam4cm_ipc.h:  Add SAM4CM IPC register header
+	  file.  From Max Neklyudov (2104-6-27).
+	* arch/arm/src/sam34:  Various fixes PMC and clock configuration for the
+	  SAM4CM port from Max Neklyudov (2104-6-27).
+	* configs/sama5d4-ek/src/dram_main.c: SAMA5D4:  Bootloader needs to flush
+	  D-Cache to memory before disabling the caches (2014-6-27).
+	* net/Makefile: Fix a Make.defs inclusion omitted in a previous check-in
+	  (2014-6-17).
+	* net/utils:  Move net/uip/uip_chksum.c to net/utils/net_chksum.c
+	  (2014-6-17).
+	* configs/sama5d4-ek/at25boot and src/at25_main.c:  Add a configuration
+	  that will load a bootloader into AT25 Serial FLASH (2014-6-28).
+	* libc/math: Change double_t to double in rint().  Add rintf() and rintl()
+	  while we are at it (2014-6-28).
+	* net/iob: Fix some errors in recent network I/O buffering when stack runs
+	  from interrupt level.  Reported by Manuel Stühn (2014-6-28).
+	* net/sockets:  Create the net/sockets directory and hook it into the
+	  build system.  Move all socket-related C files into net/socket.  Move
+	  net/net.h to net/socket/socket.h (2014-6-28).
+	* net/ipv6:  Move IPv6 files from net/uip to net/ipv6 (2014-6-28).
+	* net/devif:  Rename net/uip to net/devif.  Rename uip/uip.h to
+	  devif/devif.h (2014-6-28).
+	* net/devif: Rename many functions in net/devif from uip_* to devif_*
+	  (2014-6-28).

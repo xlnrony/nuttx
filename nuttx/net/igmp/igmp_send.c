@@ -49,7 +49,7 @@
 #include <nuttx/net/ip.h>
 #include <nuttx/net/igmp.h>
 
-#include "uip/uip.h"
+#include "devif/devif.h"
 #include "igmp/igmp.h"
 
 #ifdef CONFIG_NET_IGMP
@@ -91,7 +91,7 @@
 
 static uint16_t igmp_chksum(FAR uint8_t *buffer, int buflen)
 {
-  uint16_t sum = uip_chksum((FAR uint16_t*)buffer, buflen);
+  uint16_t sum = net_chksum((FAR uint16_t*)buffer, buflen);
   return sum ? sum : 0xffff;
 }
 
@@ -120,7 +120,7 @@ static uint16_t igmp_chksum(FAR uint8_t *buffer, int buflen)
  *
  ****************************************************************************/
 
-void igmp_send(FAR struct uip_driver_s *dev, FAR struct igmp_group_s *group,
+void igmp_send(FAR struct net_driver_s *dev, FAR struct igmp_group_s *group,
                FAR uip_ipaddr_t *destipaddr)
 {
   nllvdbg("msgid: %02x destipaddr: %08x\n", group->msgid, (int)*destipaddr);

@@ -172,7 +172,7 @@ typedef uip_ip4addr_t uip_ipaddr_t;
 
 /* The IP header */
 
-struct uip_ip_hdr
+struct net_iphdr_s
 {
 #ifdef CONFIG_NET_IPv6
 
@@ -217,11 +217,11 @@ struct uip_ip_hdr
  *             are and are not handled by the callback.
  */
 
-struct uip_driver_s;       /* Forward reference */
+struct net_driver_s;       /* Forward reference */
 struct uip_callback_s
 {
   FAR struct uip_callback_s *flink;
-  uint16_t (*event)(struct uip_driver_s *dev, void *pvconn, void *pvpriv, uint16_t flags);
+  uint16_t (*event)(struct net_driver_s *dev, void *pvconn, void *pvpriv, uint16_t flags);
   void *priv;
   uint16_t flags;
 };
@@ -233,16 +233,6 @@ struct uip_callback_s
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-
-/* uIP initialization functions
- *
- * The uIP initialization functions are used for booting uIP.
- *
- * This function should be called at boot up to initialize the uIP
- * TCP/IP stack.
- */
-
-void uip_initialize(void);
 
 /* This function may be used at boot time to set the initial ip_id.*/
 

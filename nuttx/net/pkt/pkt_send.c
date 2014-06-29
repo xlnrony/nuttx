@@ -55,8 +55,9 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/pkt.h>
 
-#include "net.h"
-#include "uip/uip.h"
+#include "socket/socket.h"
+#include "netdev/netdev.h"
+#include "devif/devif.h"
 #include "pkt/pkt.h"
 
 /****************************************************************************
@@ -89,7 +90,7 @@ struct send_s
  * Function: psock_send_interrupt
  ****************************************************************************/
 
-static uint16_t psock_send_interrupt(FAR struct uip_driver_s *dev,
+static uint16_t psock_send_interrupt(FAR struct net_driver_s *dev,
                                      FAR void *pvconn,
                                      FAR void *pvpriv, uint16_t flags)
 {
@@ -123,7 +124,7 @@ static uint16_t psock_send_interrupt(FAR struct uip_driver_s *dev,
         {
           /* Copy the packet data into the device packet buffer and send it */
 
-          uip_pktsend(dev, pstate->snd_buffer, pstate->snd_buflen);
+          devif_pkt_send(dev, pstate->snd_buffer, pstate->snd_buflen);
           pstate->snd_sent = pstate->snd_buflen;
         }
 
@@ -242,10 +243,10 @@ ssize_t psock_pkt_send(FAR struct socket *psock, FAR const void *buf,
 
       /* Allocate resource to receive a callback */
 
-      state.snd_cb = pkt_callbackalloc(conn);
+      state.snd_cb = pkt_callback_alloc(conn);
       if (state.snd_cb)
         {
-          FAR struct uip_driver_s *dev;
+          FAR struct net_driver_s *dev;
 
           /* Set up the callback in the connection */
 
@@ -280,7 +281,7 @@ ssize_t psock_pkt_send(FAR struct socket *psock, FAR const void *buf,
 
           /* Make sure that no further interrupts are processed */
 
-          pkt_callbackfree(conn, state.snd_cb);
+          pkt_callback_free(conn, state.snd_cb);
 
           /* Clear the no-ARP bit in the device flags */
 
