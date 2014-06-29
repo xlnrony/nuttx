@@ -233,21 +233,40 @@ EXTERN struct mm_heap_s g_mmheap;
 
 /* Functions contained in mm_initialize.c ***********************************/
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heap_start,
+                   size_t heap_size,int (*__lldbg)(const char *format, ...));
+#else
 void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heap_start,
                    size_t heap_size);
+#endif
+
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
+                  size_t heapsize,int (*__lldbg)(const char *format, ...));
+#else
 void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
                   size_t heapsize);
+#endif
 
 /* Functions contained in umm_initialize.c **********************************/
 
 #if !defined(CONFIG_NUTTX_KERNEL) || !defined(__KERNEL__)
-void umm_initialize(FAR void *heap_start, size_t heap_size);
+#  if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+     void umm_initialize(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...));
+#  else
+     void umm_initialize(FAR void *heap_start, size_t heap_size);
+#  endif
 #endif
 
 /* Functions contained in umm_addregion.c ***********************************/
 
 #if !defined(CONFIG_NUTTX_KERNEL) || !defined(__KERNEL__)
-void umm_addregion(FAR void *heapstart, size_t heapsize);
+#  if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+     void umm_addregion(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...));
+#  else
+     void umm_addregion(FAR void *heap_start, size_t heap_size);
+#  endif
 #endif
 
 /* Functions contained in mm_sem.c ******************************************/

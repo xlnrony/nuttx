@@ -340,7 +340,11 @@ void os_start(void)
      */
 
     up_allocate_heap(&heap_start, &heap_size);
-    kumm_initialize(heap_start, heap_size);
+#if defined(CONFIG_NUTTX_KERNEL) && defined(__KERNEL__)	
+    kumm_initialize(heap_start, heap_size, _mlldbg);
+#else
+		kumm_initialize(heap_start, heap_size);
+#endif
 
 #if defined(CONFIG_NUTTX_KERNEL) && defined(CONFIG_MM_KERNEL_HEAP)
     /* Get the kernel-mode heap from the platform specific code and configure
@@ -448,9 +452,7 @@ void os_start(void)
   /* Initialize the network system */
 
 #ifdef CONFIG_NET
-#if 0
   if (net_initialize != NULL)
-#endif
     {
       net_initialize();
     }

@@ -101,7 +101,6 @@
 #ifdef CONFIG_CPP_HAVE_VARARGS
 
 /* C-99 style variadic macros are supported */
-
 #ifdef CONFIG_DEBUG
 # define dbg(format, ...) \
   syslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
@@ -138,6 +137,38 @@
 
 #endif /* CONFIG_DEBUG */
 
+#ifdef CONFIG_DEBUG
+# define _dbg syslog
+
+# ifdef CONFIG_ARCH_LOWPUTC
+#  define _lldbg lowsyslog
+# else
+#  define _lldbg
+# endif
+
+# ifdef CONFIG_DEBUG_VERBOSE
+#  define _vdbg syslog
+
+#  ifdef CONFIG_ARCH_LOWPUTC
+#    define _llvdbg lowsyslog
+#  else
+#    define _llvdbg
+#  endif
+
+# else
+#  define _vdbg
+#  define _llvdbg
+# endif
+
+#else /* CONFIG_DEBUG */
+
+# define _dbg
+# define _lldbg
+# define _vdbg
+# define _llvdbg
+
+#endif /* CONFIG_DEBUG */
+
 /* Subsystem specific debug */
 
 #ifdef CONFIG_DEBUG_MM
@@ -150,6 +181,18 @@
 # define mlldbg(x...)
 # define mvdbg(x...)
 # define mllvdbg(x...)
+#endif
+
+#ifdef CONFIG_DEBUG_MM
+# define _mdbg    	_dbg
+# define _mlldbg  	_lldbg
+# define _mvdbg   	_vdbg
+# define _mllvdbg 	_llvdbg
+#else
+# define _mdbg
+# define _mlldbg
+# define _mvdbg
+# define _mllvdbg
 #endif
 
 #ifdef CONFIG_DEBUG_SCHED

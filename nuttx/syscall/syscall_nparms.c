@@ -60,10 +60,10 @@
 const uint8_t g_funcnparms[SYS_nsyscalls] =
 {
 #  undef SYSCALL_LOOKUP1
-#  define SYSCALL_LOOKUP1(f,n,p) n
+#  define SYSCALL_LOOKUP1(t,f,n,p) n
 #  undef SYSCALL_LOOKUP
-#  define SYSCALL_LOOKUP(f,n,p)  , n
-#  include "syscall_lookup.h"
+#  define SYSCALL_LOOKUP(t,f,n,p)  , n
+#  include <sys/syscall_lookup.h>
 };
 
 /****************************************************************************

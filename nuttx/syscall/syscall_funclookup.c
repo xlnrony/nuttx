@@ -73,8 +73,14 @@
 #include <spawn.h>
 #include <assert.h>
 #include <errno.h>
+#include <syslog.h>
 
+#include <nuttx/arch.h>
 #include <nuttx/clock.h>
+#include <nuttx/fs/mkfatfs.h>
+#include <nuttx/fs/ramdisk.h>
+#include <nuttx/net/netstats.h>
+
 
 /* clock_systimer is a special case:  In the kernel build, proxying for
  * clock_systimer() must be handled specially.  In the kernel phase of
@@ -107,10 +113,10 @@ uint32_t syscall_clock_systimer(void);
 const uintptr_t g_funclookup[SYS_nsyscalls] =
 {
 #  undef SYSCALL_LOOKUP1
-#  define SYSCALL_LOOKUP1(f,n,p) (uintptr_t)f
+#  define SYSCALL_LOOKUP1(t,f,n,p) (uintptr_t)f
 #  undef SYSCALL_LOOKUP
-#  define SYSCALL_LOOKUP(f,n,p)  , (uintptr_t)f
-#  include "syscall_lookup.h"
+#  define SYSCALL_LOOKUP(t,f,n,p)  , (uintptr_t)f
+#  include <sys/syscall_lookup.h>
 };
 
 /****************************************************************************

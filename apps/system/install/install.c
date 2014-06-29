@@ -73,7 +73,7 @@ static const char *install_help =
     "\t--remove <dest-file>\tRemoves installed application\n"
     "\t--force\t\t\tReplaces existing installation\n"
     "\t--start <page>\t\tInstalls application at or after <page>\n"
-    "\t--margin <pages>\tLeave some free space after the kernel (default 16)\n";
+    "\t--margin <pages>\tLeave some free space after the kernel (default 0)\n";
 
 static const char *install_script_text =
     "# XIP stacksize=%x priority=%x size=%x\n";
@@ -88,7 +88,6 @@ static const char *install_script_exec =
 static int install_getstartpage(int startpage, int pagemargin, int desiredsize)
 {
   uint16_t page = 0, stpage = 0xffff;
-  uint16_t pagesize = 0;
   int      maxlen = -1;
   int      maxlen_start = 0xffff;
   int      status;
@@ -96,7 +95,6 @@ static int install_getstartpage(int startpage, int pagemargin, int desiredsize)
   for (status=0, page=0; status >= 0; page++)
     {
       status   = up_progmem_ispageerased(page);
-      pagesize = up_progmem_pagesize(page);
 
       /* Is this beginning of new free space section */
 
@@ -125,14 +123,14 @@ static int install_getstartpage(int startpage, int pagemargin, int desiredsize)
 
                   if (page > stpage)
                     {
-                      maxlen = page - stpage;
-                      maxlen_start = stpage;
+                      maxlen = up_progmem_getaddr(page) - up_progmem_getaddr(stpage);
+                      maxlen_start = up_progmem_getaddr(stpage);
                     }
 
-                  if (maxlen*pagesize >= desiredsize)
+                  if (maxlen >= desiredsize)
                     {
                       /* printf("Found page at %d ... %d\n", stpage, page); */
-                      return maxlen_start*pagesize;
+                      return maxlen_start;
                     }
                 }
 
@@ -337,7 +335,7 @@ int install_main(int argc, char *argv[])
   int scrsta;
   int stacksize       = 4096;
   int priority        = SCHED_PRIORITY_DEFAULT;
-  int pagemargin      = 16;
+  int pagemargin      = 0;
   int startpage       = 0;
   int startaddr       = 0;
   int action          = ACTION_INSTALL;

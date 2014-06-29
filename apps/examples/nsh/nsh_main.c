@@ -101,7 +101,8 @@
  */
 
 #if defined(CONFIG_LIBC_EXECFUNCS) && defined(CONFIG_EXECFUNCS_SYMTAB)
-const struct symtab_s CONFIG_EXECFUNCS_SYMTAB[1];
+#include "nsh_symtab.h"
+//const struct symtab_s CONFIG_EXECFUNCS_SYMTAB[1];
 #endif
 
 /****************************************************************************
@@ -130,7 +131,7 @@ int nsh_main(int argc, char *argv[])
   /* Make sure that we are using our symbol table */
 
 #if defined(CONFIG_LIBC_EXECFUNCS) && defined(CONFIG_EXECFUNCS_SYMTAB)
-  exec_setsymtab(CONFIG_EXECFUNCS_SYMTAB, 0);
+  exec_setsymtab(CONFIG_EXECFUNCS_SYMTAB, NSYMBOLS);
 #endif
 
   /* Register the BINFS file system */

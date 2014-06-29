@@ -254,3 +254,251 @@ int up_progmem_write(uint32_t addr, const void *buf, size_t count)
 }
 
 #endif /* CONFIG_STM32_STM32F10XX */
+
+#ifdef CONFIG_STM32_STM32F40XX
+
+/************************************************************************************
+ * Pre-processor Definitions
+ ************************************************************************************/
+
+#define FLASH_KEY1      0x45670123
+#define FLASH_KEY2      0xCDEF89AB
+
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
+
+void stm32_flash_unlock(void)
+{
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY)
+    {
+      up_waste();
+    }
+
+  if (getreg32(STM32_FLASH_CR) & FLASH_CR_LOCK)
+    {
+      /* Unlock sequence */
+
+      putreg32(FLASH_KEY1, STM32_FLASH_KEYR);
+      putreg32(FLASH_KEY2, STM32_FLASH_KEYR);
+    }
+}
+
+void stm32_flash_lock(void)
+{
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_LOCK);
+}
+
+/************************************************************************************
+ * Public Functions
+ ************************************************************************************/
+
+uint16_t up_progmem_npages(void)
+{
+  return STM32_FLASH_NPAGES;
+}
+
+bool up_progmem_isuniform(void)
+{
+  return true;
+}
+
+uint32_t up_progmem_pagesize(uint16_t page)
+{
+  if (page <4)
+    {
+      return STM32_FLASH_SMALL_PAGESIZE;
+    }
+  else if (page == 4)
+    {
+      return STM32_FLASH_MEDIUM_PAGESIZE;
+    }
+  else
+    {
+      return STM32_FLASH_LARGE_PAGESIZE;
+    }		
+}
+
+int up_progmem_getpage(uint32_t addr)
+{
+  if (addr >= STM32_FLASH_BASE)
+    {
+      addr -= STM32_FLASH_BASE;
+    }
+
+  if (addr < 4*STM32_FLASH_SMALL_PAGESIZE)
+    {
+      return addr / STM32_FLASH_SMALL_PAGESIZE;	
+    }
+  else if (addr >= (4*STM32_FLASH_SMALL_PAGESIZE) && addr < (4*STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_MEDIUM_PAGESIZE))
+    {
+      return 4;
+    }
+  else if (addr >= (4*STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_MEDIUM_PAGESIZE) && addr < STM32_FLASH_SIZE)
+    {
+      return ((addr - (4*STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_MEDIUM_PAGESIZE))  / STM32_FLASH_LARGE_PAGESIZE) + 5;
+    }
+  else
+    {
+      return -EFAULT;
+    }
+}
+
+int up_progmem_getaddr(uint16_t page)
+{
+  if (page >= STM32_FLASH_NPAGES)
+    {
+      return -EFAULT;
+    }
+
+  if (page <= 4)
+    {
+      return page * STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_BASE;
+    }
+  else
+    {
+      return (page - 5) * STM32_FLASH_LARGE_PAGESIZE + STM32_FLASH_MEDIUM_PAGESIZE + 4 * STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_BASE;
+    }
+}
+
+int up_progmem_erasepage(uint16_t page)
+{
+  uint32_t addr;
+  uint32_t count;
+  uint32_t size;
+
+  if (page >= STM32_FLASH_NPAGES)
+    {
+      return -EFAULT;
+    }
+
+  /* Get flash ready and begin erasing single page */
+
+  if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
+    {
+      return -EPERM;
+    }
+
+  stm32_flash_unlock();
+
+  modifyreg32(STM32_FLASH_CR,FLASH_CR_PSIZE_MASK, FLASH_CR_PSIZE_X8);
+  modifyreg32(STM32_FLASH_CR,FLASH_CR_SNB_MASK,FLASH_CR_SER | (page << FLASH_CR_SNB_SHIFT));
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_STRT);
+
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+  modifyreg32(STM32_FLASH_CR, FLASH_CR_SER, 0);
+
+  /* Verify */
+
+  size = up_progmem_pagesize(page);
+  for (addr = up_progmem_getaddr(page), count = size;
+       count; count-=4, addr += 4)
+    {
+      if (getreg32(addr) != 0xffffffff)
+        {
+          return -EIO;
+        }
+    }
+
+  return size;
+}
+
+int up_progmem_ispageerased(uint16_t page)
+{
+  uint32_t addr;
+  uint32_t count;
+  uint32_t bwritten = 0;
+
+  if (page >= STM32_FLASH_NPAGES)
+    {
+      return -EFAULT;
+    }
+
+  /* Verify */
+  if (page <= 4)
+    {
+      addr = page * STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_BASE;
+      if (page == 4)
+        {
+          count = STM32_FLASH_MEDIUM_PAGESIZE;  
+      	 }
+      else
+      	{
+	  count = STM32_FLASH_SMALL_PAGESIZE;
+      	}
+    }
+  else
+    {
+      addr = (page - 5) * STM32_FLASH_LARGE_PAGESIZE + STM32_FLASH_MEDIUM_PAGESIZE + 4 * STM32_FLASH_SMALL_PAGESIZE + STM32_FLASH_BASE;
+      count = STM32_FLASH_LARGE_PAGESIZE;
+    }		
+  for (;count; count--, addr++)
+    {
+      if (getreg8(addr) != 0xff)
+        {
+          bwritten++;
+        }
+    }
+
+  return bwritten;
+}
+
+int up_progmem_write(uint32_t addr, const void *buf, size_t count)
+{
+  uint8_t *byte = (uint8_t *)buf;
+  size_t written = count;
+
+  /* Check for valid address range */
+
+  if (addr >= STM32_FLASH_BASE)
+    {
+      addr -= STM32_FLASH_BASE;
+    }
+
+  if ((addr+count) >= STM32_FLASH_SIZE)
+    {
+      return -EFAULT;
+    }
+
+  /* Get flash ready and begin flashing */
+
+  if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
+    {
+      return -EPERM;
+    }
+
+  stm32_flash_unlock();
+
+  modifyreg32(STM32_FLASH_CR,FLASH_CR_PSIZE_MASK, FLASH_CR_PSIZE_X8);
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_PG);
+
+  for (addr += STM32_FLASH_BASE; count; count--, byte++, addr++)
+    {
+      /* Write half-word and wait to complete */
+
+      putreg8(*byte, addr);
+
+      while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+      /* Verify */
+
+      if (getreg32(STM32_FLASH_SR) & FLASH_SR_WRPERR)
+        {
+          modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
+          return -EROFS;
+        }
+
+      if (getreg8(addr) != *byte)
+        {
+          modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
+          return -EIO;
+        }
+    }
+
+  modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
+  return written;
+}
+
+#endif /* CONFIG_STM32_STM32F40XX */
+

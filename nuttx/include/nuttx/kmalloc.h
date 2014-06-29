@@ -84,8 +84,16 @@ extern "C"
  * into user-space via a header at the begining of the user-space blob.
  */
 
+#if defined(CONFIG_NUTTX_KERNEL) && defined(__KERNEL__)
+#define kumm_initialize(h,s,d)     umm_initialize(h,s,d)
+#else
 #define kumm_initialize(h,s)     umm_initialize(h,s)
+#endif
+#if defined(CONFIG_NUTTX_KERNEL) && defined(__KERNEL__)
+#define kumm_addregion(h,s,d)      umm_addregion(h,s,d)
+#else
 #define kumm_addregion(h,s)      umm_addregion(h,s)
+#endif
 #define kumm_trysemaphore()      umm_trysemaphore()
 #define kumm_givesemaphore()     umm_givesemaphore()
 

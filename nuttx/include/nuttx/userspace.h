@@ -84,8 +84,8 @@
  */
 
 #if defined(CONFIG_NUTTX_KERNEL) && defined(__KERNEL__)
-#  define umm_initialize(b,s) USERSPACE->mm_initialize(b,s)
-#  define umm_addregion(b,s)  USERSPACE->mm_addregion(b,s)
+#  define umm_initialize(b,s,d) USERSPACE->mm_initialize(b,s,d)
+#  define umm_addregion(b,s,d)  USERSPACE->mm_addregion(b,s,d)
 #  define umm_trysemaphore()  USERSPACE->mm_trysemaphore()
 #  define umm_givesemaphore() USERSPACE->mm_givesemaphore()
 #  define umm_malloc(s)       USERSPACE->mm_malloc(s)
@@ -134,8 +134,8 @@ struct userspace_s
 
   /* Memory manager entry points */
 
-  void (*mm_initialize)(FAR void *heap_start, size_t heap_size);
-  void (*mm_addregion)(FAR void *heap_start, size_t heap_size);
+  void (*mm_initialize)(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...));
+  void (*mm_addregion)(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...));
   int  (*mm_trysemaphore)(void);
   void (*mm_givesemaphore)(void);
 

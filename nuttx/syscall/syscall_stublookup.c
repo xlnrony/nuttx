@@ -90,6 +90,19 @@ uintptr_t STUB_task_create(int nbr, uintptr_t parm1, uintptr_t parm2,
 uintptr_t STUB_task_delete(int nbr, uintptr_t parm1);
 uintptr_t STUB_task_restart(int nbr, uintptr_t parm1);
 uintptr_t STUB_up_assert(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_register_driver(int nbr, uintptr_t parm1, uintptr_t parm2,
+            uintptr_t parm3, uintptr_t parm4);
+uintptr_t STUB_unregister_driver(int nbr, uintptr_t parm1);
+uintptr_t STUB_losetup(int nbr, uintptr_t parm1, uintptr_t parm2,
+            uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+uintptr_t STUB_loteardown(int nbr, uintptr_t parm1);
+uintptr_t STUB_mkfatfs(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_ramdisk_register(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+
+uintptr_t STUB_bchlib_teardown(int nbr, uintptr_t parm1);
+uintptr_t STUB_bchlib_setup(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
+uintptr_t STUB_bchlib_read(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4);
+uintptr_t STUB_bchlib_write(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4);
 
 /* The following can be individually enabled */
 
@@ -315,6 +328,23 @@ uintptr_t STUB_socket(int nbr, uintptr_t parm1, uintptr_t parm2,
 uintptr_t STUB_prctl(int nbr, uintptr_t parm1, uintptr_t parm2,
             uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
 
+uintptr_t STUB_lowsyslog(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6);
+uintptr_t STUB_up_cxxinitialize(int nbr);
+
+
+uintptr_t STUB_psock_send(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4);
+uintptr_t STUB_psock_close(int nbr, uintptr_t parm1);
+uintptr_t STUB_psock_recvfrom(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6);
+uintptr_t STUB_sockfd_socket(int nbr, uintptr_t parm1);
+uintptr_t STUB_net_clone(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_netdev_foreach(int nbr, uintptr_t parm1, uintptr_t parm2);
+
+uintptr_t STUB_sched_foreach(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_uip_ping(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+
+uintptr_t STUB_exec_getsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_exec_setsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -327,10 +357,10 @@ uintptr_t STUB_prctl(int nbr, uintptr_t parm1, uintptr_t parm2,
 const uintptr_t g_stublookup[SYS_nsyscalls] =
 {
 #  undef SYSCALL_LOOKUP1
-#  define SYSCALL_LOOKUP1(f,n,p) (uintptr_t)p
+#  define SYSCALL_LOOKUP1(t,f,n,p) (uintptr_t)p
 #  undef SYSCALL_LOOKUP
-#  define SYSCALL_LOOKUP(f,n,p)  , (uintptr_t)p
-#  include "syscall_lookup.h"
+#  define SYSCALL_LOOKUP(t,f,n,p)  , (uintptr_t)p
+#  include <sys/syscall_lookup.h>
 };
 
 /****************************************************************************

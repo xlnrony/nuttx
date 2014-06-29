@@ -78,9 +78,13 @@
  * Assumptions:
  *
  ****************************************************************************/
-
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
+                  size_t heapsize,int (*__lldbg)(const char *format, ...))
+#else
 void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
                   size_t heapsize)
+#endif
 {
   FAR struct mm_freenode_s *node;
   uintptr_t heapbase;
@@ -108,7 +112,11 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
   heapend  = MM_ALIGN_DOWN((uintptr_t)heapstart + (uintptr_t)heapsize);
   heapsize = heapend - heapbase;
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+  __lldbg("Region %d: base=%p size=%u\n", IDX+1, heapstart, heapsize);
+#else
   mlldbg("Region %d: base=%p size=%u\n", IDX+1, heapstart, heapsize);
+#endif
 
   /* Add the size of this region to the total size of the heap */
 
@@ -163,13 +171,21 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
  * Assumptions:
  *
  ****************************************************************************/
-
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heapstart,
+                   size_t heapsize, int (*__lldbg)(const char *format, ...))
+#else
 void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heapstart,
                    size_t heapsize)
+#endif
 {
   int i;
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+  __lldbg("Heap: start=%p size=%u\n", heapstart, heapsize);
+#else
   mlldbg("Heap: start=%p size=%u\n", heapstart, heapsize);
+#endif
 
   /* The following two lines have cause problems for some older ZiLog
    * compilers in the past (but not the more recent).  Life is easier if we
@@ -206,5 +222,9 @@ void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heapstart,
 
   /* Add the initial region of memory to the heap */
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+  mm_addregion(heap, heapstart, heapsize, __lldbg);
+#else
   mm_addregion(heap, heapstart, heapsize);
+#endif
 }

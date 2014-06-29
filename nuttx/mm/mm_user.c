@@ -84,9 +84,17 @@ struct mm_heap_s g_mmheap;
  *
  ************************************************************************/
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void umm_initialize(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...))
+#else
 void umm_initialize(FAR void *heap_start, size_t heap_size)
+#endif
 {
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+  mm_initialize(&g_mmheap, heap_start, heap_size, lldbg);
+#else
   mm_initialize(&g_mmheap, heap_start, heap_size);
+#endif
 }
 
 /************************************************************************
@@ -106,9 +114,17 @@ void umm_initialize(FAR void *heap_start, size_t heap_size)
  *
  ************************************************************************/
 
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+void umm_addregion(FAR void *heap_start, size_t heap_size, int (*lldbg)(const char *format, ...))
+#else
 void umm_addregion(FAR void *heap_start, size_t heap_size)
+#endif
 {
+#if defined(CONFIG_DEBUG_MM) && defined(CONFIG_NUTTX_KERNEL) && !defined(__KERNEL__)
+  mm_addregion(&g_mmheap, heap_start, heap_size, lldbg);
+#else
   mm_addregion(&g_mmheap, heap_start, heap_size);
+#endif
 }
 
 /************************************************************************

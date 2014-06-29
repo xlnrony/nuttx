@@ -48,6 +48,9 @@ COBJS		= $(CSRCS:.c=$(OBJEXT))
 SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
+SYMTAB = nsh_symtab.h
+CSV 	 = $(TOPDIR)/syscall/syscall.csv $(TOPDIR)/libc/lib.csv
+
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\..\libapps$(LIBEXT)
 else
@@ -72,21 +75,29 @@ $(AOBJS): %$(OBJEXT): %.S
 
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
+	
+$(SYMTAB): $(CSV)
+	@cat $(CSV) | sort > .symtab
+	@$(TOPDIR)/tools/mksymtab.exe .symtab $(SYMTAB)
+	$(call DELFILE, .symtab)	
 
-.built: $(OBJS)
+.built: $(SYMTAB) $(OBJS)
 	$(call ARCHIVE, $(BIN), $(OBJS))
 	@touch .built
 
 context:
 
 .depend: Makefile $(SRCS)
+	@touch $(SYMTAB)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
+	$(call DELFILE, $(SYMTAB))			
 	@touch $@
 
 depend: .depend
 
 clean:
 	$(call DELFILE, .built)
+	$(call DELFILE, $(SYMTAB))		
 	$(call CLEAN)
 
 distclean: clean

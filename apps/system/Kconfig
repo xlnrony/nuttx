@@ -63,6 +63,10 @@ menu "Sysinfo"
 source "$APPSDIR/system/sysinfo/Kconfig"
 endmenu
 
+menu "Syslog_enable"
+source "$APPSDIR/system/syslog_enable/Kconfig"
+endmenu
+
 menu "VI Work-Alike Editor"
 source "$APPSDIR/system/vi/Kconfig"
 endmenu
