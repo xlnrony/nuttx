@@ -5,6 +5,15 @@ README
   development board. This board features the Atmel SAMA5D44 microprocessor.
   See http://www.atmel.com for further information.
 
+  This port was actually performed on a board designated SAMA5D4-MB.  This
+  board should be equivalent to the SAMA5D4-EK.  However, care should be
+  taken when I refer to PIO, Connector, or Jumper Usage in this document.
+  Please consult the schematic for your actual board-in-hand to verify that
+  information.
+
+  SAMA5D44
+  --------
+
     ---------------------------- -------------
     PARAMETER                    SAMA5D44
     ---------------------------- -------------
@@ -988,7 +997,7 @@ PIO Usage
   PE11/A11/TCLK2                 USBB_EN5V_PE11      EN5V_USBB
   PE12/A12/TIOA1/PWMH2           USBC_EN5V_PE12      EN5V_USBC
   PE13/A13/TIOB1/PWML2           PB_USER1_PE13       PB_USER1
-  PE14/A14/TCLK1/PWMH3           MCI1_CD_PE14        MCI1_CD
+  PE14/A14/TCLK1/PWMH3           MCI1_CD_PE14        MCI1_CD              ???
   PE15/A15/SCK3/TIOA0            MCI1_PWR_PE15       MCI1_PWR
   PE16/A16/RXD3/TIOB0            DBGU_RXD3_PE16      DBGU_RXD3 (See JP19)
   PE17/A17/TXD3/TCLK0            DBGU_TXD3_PE17      DBGU_TXD3 (See JP20)
@@ -1447,13 +1456,13 @@ HSMCI Card Slots
   HSMCI1
   ------
   The microSD connects vi HSMCI1.  The card detect discrete is available on
-  PE14 (pulled high).  NOTE that PE15 must be controlled to provide power
+  PE6 (pulled high).  NOTE that PE15 must be controlled to provide power
   to the HSMCI1 slot (the HSMCI0 slot is always powered).
 
   ------------------------------ ------------------- -------------------------
   SAMA5D4 PIO                    SIGNAL              USAGE
   ------------------------------ ------------------- -------------------------
-  PE14/A14/TCLK1/PWMH3           MCI1_CD_PE14        MCI1_CD
+  PE14/A14/TCLK1/PWMH3           MCI1_CD_PE14        MCI1_CD               ???
   PE15/A15/SCK3/TIOA0            MCI1_PWR_PE15       MCI1_PWR
   PE18/A18/TIOA5/MCI1_CK         PE18                MCI1_CK, EXP
   PE19/A19/TIOB5/MCI1_CDA        PE19                MCI1_CDA, EXP
@@ -1476,12 +1485,11 @@ HSMCI Card Slots
     System Type->ATSAMA5 Peripheral Support
       CONFIG_SAMA5_HSMCI0=y                 : Enable HSMCI0 support
       CONFIG_SAMA5_HSMCI1=y                 : Enable HSMCI1 support
-      CONFIG_SAMA5_XDMAC0=y                 : XDMAC0 is needed by HSMCI0 <- REVISIT
-      CONFIG_SAMA5_XDMAC1=y                 : XDMAC1 is needed by HSMCI1 <- REVISIT
+      CONFIG_SAMA5_XDMAC1=y                 : XDMAC1 is needed by HSMCI0/1
 
     System Type
       CONFIG_SAMA5_PIO_IRQ=y                : PIO interrupts needed
-      CONFIG_SAMA5_PIOD_IRQ=y               : Card detect pins are on PIOD
+      CONFIG_SAMA5_PIOE_IRQ=y               : Card detect pins are on PE5 and PE6
 
     Device Drivers -> MMC/SD Driver Support
       CONFIG_MMCSD=y                        : Enable MMC/SD support
@@ -2580,15 +2588,37 @@ RTC
       CONFIG_RTC=y                         : Use the RTC for system time
       CONFIG_RTC_DATETIME=y                : RTC supports data/time
 
-  The RTC supports an alarm that may be enable with the following settings.
-  However, there is nothing in the system that currently makes use of this
-  alarm.
+  NOTE:  If you want the RTC to preserve time over power cycles, you will
+  need to install a battery in the battery holder (J12) and close the jumper,
+  JP13.
+
+  You can set the RTC using the NSH date command:
+
+    NuttShell (NSH) NuttX-7.3
+    nsh> help date
+    date usage:  date [-s "MMM DD HH:MM:SS YYYY"]
+    nsh> date
+    Jan 01 00:34:45 2012
+    nsh> date -s "JUN 29 7:30:00 2014"
+    nsh> date
+    Jun 29 07:30:01 2014
+
+  After a power cycle and reboot:
+
+    NuttShell (NSH) NuttX-7.3
+    nsh> date
+    Jun 29 07:30:55 2014
+    nsh>
+
+  The RTC also supports an alarm that may be enable with the following
+  settings.  However, there is nothing in the system that currently makes
+  use of this alarm.
 
     Drivers:
       CONFIG_RTC_ALARM=y                   : Enable the RTC alarm
 
     Library Routines
-      CONFIG_SCHED_WORKQUEUE=y              : Alarm needs work queue support
+      CONFIG_SCHED_WORKQUEUE=y             : Alarm needs work queue support
 
 Watchdog Timer
 ==============
@@ -2599,7 +2629,8 @@ Watchdog Timer
 
     System Type:
       CONFIG_SAMA5_WDT=y                  : Enable the WDT peripheral
-                                          : Defaults in "RTC Configuration" should be OK
+                                          : Defaults values for others settings
+                                            should be OK
 
     Drivers (this will automatically be selected):
       CONFIG_WATCHDOG=y                   : Enables watchdog timer driver support
@@ -2826,19 +2857,18 @@ SAMA4D4-EK Configuration Options
     CONFIG_SAMA5_TWI2        - Two-Wire Interface 2
     CONFIG_SAMA5_HSMCI0      - High Speed Multimedia Card Interface 0
     CONFIG_SAMA5_HSMCI1      - High Speed Multimedia Card Interface 1
-    CONFIG_SAMA5_HSMCI2      - High Speed Multimedia Card Interface 2
     CONFIG_SAMA5_SPI0        - Serial Peripheral Interface 0
     CONFIG_SAMA5_SPI1        - Serial Peripheral Interface 1
     CONFIG_SAMA5_TC0         - Timer Counter 0 (ch. 0, 1, 2)
     CONFIG_SAMA5_TC1         - Timer Counter 1 (ch. 3, 4, 5)
     CONFIG_SAMA5_PWM         - Pulse Width Modulation Controller
     CONFIG_SAMA5_ADC         - Touch Screen ADC Controller
-    CONFIG_SAMA5_DMAC0       - DMA Controller 0
-    CONFIG_SAMA5_DMAC1       - DMA Controller 1
+    CONFIG_SAMA5_XDMAC0      - XDMA Controller 0
+    CONFIG_SAMA5_XDMAC1      - XDMA Controller 1
     CONFIG_SAMA5_UHPHS       - USB Host High Speed
     CONFIG_SAMA5_UDPHS       - USB Device High Speed
-    CONFIG_SAMA5_GMAC        - Gigabit Ethernet MAC
-    CONFIG_SAMA5_EMAC0       - Ethernet MAC 0
+    CONFIG_SAMA5_EMAC0       - Ethernet MAC 0 (GMAC0)
+    CONFIG_SAMA5_EMAC1       - Ethernet MAC 1 (GMAC1)
     CONFIG_SAMA5_LCDC        - LCD Controller
     CONFIG_SAMA5_ISI         - Image Sensor Interface
     CONFIG_SAMA5_SSC0        - Synchronous Serial Controller 0
@@ -3062,9 +3092,11 @@ Configurations
     This is a little program to help debug of code in DRAM.  It does the
     following:
 
-    - It configures DRAM,
-    - It loads and Intel HEX file into DRAM over the terminal port,
-    - Waits for you to break in with GDB.
+    - Sets the clocking so that the SAMA5 is running at 528MHz.
+    - Configures DRAM,
+    - Loads and Intel HEX file into DRAM over the terminal port,
+    - Waits for you to break in with GDB (or optionally starts the
+      newly loaded program).
 
     At that point, you can set the PC and begin executing from SDRAM under
     debug control.  See the section entitled "Creating and Using
@@ -3282,35 +3314,52 @@ Configurations
 
        The /tmp directory can them be used for and scratch purpose.
 
-    7. The SAMA5D4-EK includes for an AT25 serial DataFlash.  Support for that
-       serial FLASH can be enabled by modifying the NuttX configuration as
-       described above in the paragraph entitled "AT25 Serial FLASH".
+    7. The Real Time Clock/Calendar (RTC) is enabled in this configuration.
+       See the section entitled "RTC" above for detailed configuration
+       settings.
 
-    8. Enabling HSMCI support. The SAMA4D4-EK provides a two SD memory
-       card slots:  (1) a full size SD card slot (J10), and (2) a microSD
-       memory card slot (J11).  The full size SD card slot connects via HSMCI0;
-       the microSD connects vi HSMCI1.  Support for both SD slots can be enabled
-       with the settings provided in the paragraph entitled "HSMCI Card Slots"
-       above.
+       The RTC alarm is not enabled by default since there is nothing in
+       this configuration that uses it.  The alarm can easily be enabled,
+       however, as described in the "RTC" section.
 
-    9. Support the USB low-, high- and full-speed OHCI host driver can be enabled
+       The time value from the RTC will be used as the NuttX system time
+       in all timestamp operations.  You may use the NSH 'date' command
+       to set or view the RTC as described above in the "RTC" section.
+       
+       NOTE:  If you want the RTC to preserve time over power cycles, you
+       will need to install a battery in the battery holder (J12) and close
+       the jumper, JP13.
+
+    8. Support for HSMCI0 and HSMCI1 is built-in by default. The SAMA4D4-EK
+       provides a two SD memory card slots:  (1) a full size SD card slot
+       (J10), and (2) a microSD memory card slot (J11).  The full size SD
+       card slot connects via HSMCI0; the microSD connects vi HSMCI1.
+       Support for both SD slots can be enabled with the settings provided
+       in the paragraph entitled "HSMCI Card Slots" above.
+
+       NOTE:  For now I am boot off the microSD slot so, unless are booting
+       in a different manner, this HSMCI1 slot may not be useful to you.
+
+    9. The SAMA5D4-EK includes for an AT25 serial DataFlash.  That support is
+       NOT enabled in this configuration.  Support for that serial FLASH can
+       be enabled by modifying the NuttX configuration as described above in
+       the paragraph entitled "AT25 Serial FLASH".
+
+   10. Support the USB low-, high- and full-speed OHCI host driver can be enabled
        by changing the NuttX configuration file as described in the section
        entitled "USB High-Speed Host" above.
 
-   10. Support the USB high-speed USB device driver (UDPHS) can be enabled
+   11. Support the USB high-speed USB device driver (UDPHS) can be enabled
        by changing the NuttX configuration file as described above in the
        section entitled "USB High-Speed Device."
 
-   11. I2C Tool. NuttX supports an I2C tool at apps/system/i2c that can be
+   12. I2C Tool. NuttX supports an I2C tool at apps/system/i2c that can be
        used to peek and poke I2C devices.  See the discussion above under
        "I2C Tool" for detailed configuration settings.
 
-   12. Networking support via the can be added to NSH by modifying the
+   13. Networking support via the can be added to NSH by modifying the
        configuration.  See the "Networking" section above for detailed
        configuration settings.
-
-   13. The Real Time Clock/Calendar (RTC) may be enabled by reconfiguring NuttX.
-       See the section entitled "RTC" above for detailed configuration settings.
 
    14. This example can be configured to exercise the watchdog timer test
        (apps/examples/watchdog).  See the detailed configuration settings in

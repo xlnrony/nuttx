@@ -54,8 +54,8 @@
 struct route_match_s
 {
   FAR struct net_route_s *prev;     /* Predecessor in the list */
-  uip_ipaddr_t            target;   /* The target IP address to match */
-  uip_ipaddr_t            netmask;  /* The network mask to match */
+  net_ipaddr_t            target;   /* The target IP address to match */
+  net_ipaddr_t            netmask;  /* The network mask to match */
 };
 
 /****************************************************************************
@@ -85,8 +85,8 @@ static int net_match(FAR struct net_route_s *route, FAR void *arg)
    * must be the same.
    */
 
-  if (uip_ipaddr_maskcmp(route->target, match->target, match->netmask) &&
-      uip_ipaddr_cmp(route->netmask, match->netmask))
+  if (net_ipaddr_maskcmp(route->target, match->target, match->netmask) &&
+      net_ipaddr_cmp(route->netmask, match->netmask))
     {
       /* They match.. Remove the entry from the routing table */
 
@@ -132,15 +132,15 @@ static int net_match(FAR struct net_route_s *route, FAR void *arg)
  *
  ****************************************************************************/
 
-int net_delroute(uip_ipaddr_t target, uip_ipaddr_t netmask)
+int net_delroute(net_ipaddr_t target, net_ipaddr_t netmask)
 {
   struct route_match_s match;
 
   /* Set up the comparison structure */
 
   match.prev = NULL;
-  uip_ipaddr_copy(match.target, target);
-  uip_ipaddr_copy(match.netmask, netmask);
+  net_ipaddr_copy(match.target, target);
+  net_ipaddr_copy(match.netmask, netmask);
 
   /* Then remove the entry from the routing table */
 

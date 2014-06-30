@@ -316,8 +316,8 @@ FAR struct tcp_conn_s *tcp_alloc(void)
 
 void tcp_free(FAR struct tcp_conn_s *conn)
 {
-  FAR struct uip_callback_s *cb;
-  FAR struct uip_callback_s *next;
+  FAR struct devif_callback_s *cb;
+  FAR struct devif_callback_s *next;
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   FAR struct tcp_wrbuffer_s *wrbuffer;
 #endif
@@ -412,7 +412,7 @@ void tcp_free(FAR struct tcp_conn_s *conn)
 FAR struct tcp_conn_s *tcp_active(struct tcp_iphdr_s *buf)
 {
   FAR struct tcp_conn_s *conn = (struct tcp_conn_s *)g_active_tcp_connections.head;
-  in_addr_t srcipaddr = uip_ip4addr_conv(buf->srcipaddr);
+  in_addr_t srcipaddr = net_ip4addr_conv32(buf->srcipaddr);
 
   while (conn)
     {
@@ -420,7 +420,7 @@ FAR struct tcp_conn_s *tcp_active(struct tcp_iphdr_s *buf)
 
       if (conn->tcpstateflags != UIP_CLOSED &&
           buf->destport == conn->lport && buf->srcport == conn->rport &&
-          uip_ipaddr_cmp(srcipaddr, conn->ripaddr))
+          net_ipaddr_cmp(srcipaddr, conn->ripaddr))
         {
           /* Matching connection found.. break out of the loop and return a
            * reference to it.
@@ -522,7 +522,7 @@ FAR struct tcp_conn_s *tcp_alloc_accept(FAR struct tcp_iphdr_s *buf)
       conn->lport         = buf->destport;
       conn->rport         = buf->srcport;
       conn->mss           = UIP_TCP_INITIAL_MSS;
-      uip_ipaddr_copy(conn->ripaddr, uip_ip4addr_conv(buf->srcipaddr));
+      net_ipaddr_copy(conn->ripaddr, net_ip4addr_conv32(buf->srcipaddr));
       conn->tcpstateflags = UIP_SYN_RCVD;
 
       tcp_initsequence(conn->sndseq);
@@ -606,9 +606,9 @@ int tcp_bind(FAR struct tcp_conn_s *conn,
 
 #if 0 /* Not used */
 #ifdef CONFIG_NET_IPv6
-  uip_ipaddr_copy(conn->lipaddr, addr->sin6_addr.in6_u.u6_addr16);
+  net_ipaddr_copy(conn->lipaddr, addr->sin6_addr.in6_u.u6_addr16);
 #else
-  uip_ipaddr_copy(conn->lipaddr, addr->sin_addr.s_addr);
+  net_ipaddr_copy(conn->lipaddr, addr->sin_addr.s_addr);
 #endif
 #endif
 
@@ -694,7 +694,7 @@ int tcp_connect(FAR struct tcp_conn_s *conn,
 
   /* The sockaddr address is 32-bits in network order. */
 
-  uip_ipaddr_copy(conn->ripaddr, addr->sin_addr.s_addr);
+  net_ipaddr_copy(conn->ripaddr, addr->sin_addr.s_addr);
 
 #ifdef CONFIG_NET_TCP_READAHEAD
   /* Initialize the list of TCP read-ahead buffers */

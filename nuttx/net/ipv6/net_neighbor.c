@@ -63,7 +63,7 @@
 
 struct neighbor_entry
 {
-  uip_ipaddr_t ipaddr;
+  net_ipaddr_t ipaddr;
   struct net_neighbor_addr_s addr;
   uint8_t time;
 };
@@ -78,13 +78,13 @@ static struct neighbor_entry entries[ENTRIES];
  * Private Functions
  ****************************************************************************/
 
-static struct neighbor_entry *find_entry(uip_ipaddr_t ipaddr)
+static struct neighbor_entry *find_entry(net_ipaddr_t ipaddr)
 {
   int i;
 
   for (i = 0; i < ENTRIES; ++i)
     {
-      if (uip_ipaddr_cmp(entries[i].ipaddr, ipaddr))
+      if (net_ipaddr_cmp(entries[i].ipaddr, ipaddr))
         {
           return &entries[i];
         }
@@ -120,7 +120,7 @@ void net_neighbor_periodic(void)
     }
 }
 
-void net_neighbor_add(uip_ipaddr_t ipaddr, struct net_neighbor_addr_s *addr)
+void net_neighbor_add(net_ipaddr_t ipaddr, struct net_neighbor_addr_s *addr)
 {
   uint8_t oldest_time;
   int     oldest;
@@ -143,7 +143,7 @@ void net_neighbor_add(uip_ipaddr_t ipaddr, struct net_neighbor_addr_s *addr)
           oldest = i;
           break;
         }
-      if (uip_ipaddr_cmp(entries[i].ipaddr, addr))
+      if (net_ipaddr_cmp(entries[i].ipaddr, addr))
         {
           oldest = i;
           break;
@@ -160,11 +160,11 @@ void net_neighbor_add(uip_ipaddr_t ipaddr, struct net_neighbor_addr_s *addr)
    */
 
   entries[oldest].time = 0;
-  uip_ipaddr_copy(entries[oldest].ipaddr, ipaddr);
+  net_ipaddr_copy(entries[oldest].ipaddr, ipaddr);
   memcpy(&entries[oldest].addr, addr, sizeof(struct net_neighbor_addr_s));
 }
 
-void net_neighbor_update(uip_ipaddr_t ipaddr)
+void net_neighbor_update(net_ipaddr_t ipaddr)
 {
   struct neighbor_entry *e;
 
@@ -175,7 +175,7 @@ void net_neighbor_update(uip_ipaddr_t ipaddr)
     }
 }
 
-struct net_neighbor_addr_s *net_neighbor_lookup(uip_ipaddr_t ipaddr)
+struct net_neighbor_addr_s *net_neighbor_lookup(net_ipaddr_t ipaddr)
 {
   struct neighbor_entry *e;
 

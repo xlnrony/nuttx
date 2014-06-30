@@ -90,7 +90,7 @@
  *
  ****************************************************************************/
 
-void icmp_send(FAR struct net_driver_s *dev, FAR uip_ipaddr_t *destaddr)
+void icmp_send(FAR struct net_driver_s *dev, FAR net_ipaddr_t *destaddr)
 {
   FAR struct icmp_iphdr_s *picmp = ICMPBUF;
 
@@ -122,8 +122,8 @@ void icmp_send(FAR struct net_driver_s *dev, FAR uip_ipaddr_t *destaddr)
       picmp->nexthdr     = UIP_PROTO_ICMP;
       picmp->hoplimit    = UIP_TTL;
 
-      uip_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
-      uip_ipaddr_copy(picmp->destipaddr, destaddr);
+      net_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
+      net_ipaddr_copy(picmp->destipaddr, destaddr);
 
 #else /* CONFIG_NET_IPv6 */
 
@@ -139,8 +139,8 @@ void icmp_send(FAR struct net_driver_s *dev, FAR uip_ipaddr_t *destaddr)
       picmp->ttl         = UIP_TTL;
       picmp->proto       = UIP_PROTO_ICMP;
 
-      uiphdr_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
-      uiphdr_ipaddr_copy(picmp->destipaddr, destaddr);
+      net_ipaddr_hdrcopy(picmp->srcipaddr, &dev->d_ipaddr);
+      net_ipaddr_hdrcopy(picmp->destipaddr, destaddr);
 
       /* Calculate IP checksum. */
 

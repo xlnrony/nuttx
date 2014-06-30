@@ -121,7 +121,7 @@ static uint16_t igmp_chksum(FAR uint8_t *buffer, int buflen)
  ****************************************************************************/
 
 void igmp_send(FAR struct net_driver_s *dev, FAR struct igmp_group_s *group,
-               FAR uip_ipaddr_t *destipaddr)
+               FAR net_ipaddr_t *destipaddr)
 {
   nllvdbg("msgid: %02x destipaddr: %08x\n", group->msgid, (int)*destipaddr);
 
@@ -154,8 +154,8 @@ void igmp_send(FAR struct net_driver_s *dev, FAR struct igmp_group_s *group,
   IGMPBUF->ttl         = IGMP_TTL;
   IGMPBUF->proto       = UIP_PROTO_IGMP;
 
-  uiphdr_ipaddr_copy(IGMPBUF->srcipaddr, &dev->d_ipaddr);
-  uiphdr_ipaddr_copy(IGMPBUF->destipaddr, destipaddr);
+  net_ipaddr_hdrcopy(IGMPBUF->srcipaddr, &dev->d_ipaddr);
+  net_ipaddr_hdrcopy(IGMPBUF->destipaddr, destipaddr);
 
   /* Calculate IP checksum. */
 
@@ -166,7 +166,7 @@ void igmp_send(FAR struct net_driver_s *dev, FAR struct igmp_group_s *group,
 
   IGMPBUF->type        = group->msgid;
   IGMPBUF->maxresp     = 0;
-  uiphdr_ipaddr_copy(IGMPBUF->grpaddr, &group->grpaddr);
+  net_ipaddr_hdrcopy(IGMPBUF->grpaddr, &group->grpaddr);
 
   /* Calculate the IGMP checksum. */
 

@@ -75,7 +75,7 @@
  ****************************************************************************/
 
 #ifdef CONFIG_NET_ICMP_PING
-FAR struct uip_callback_s *g_echocallback = NULL;
+FAR struct devif_callback_s *g_echocallback = NULL;
 #endif
 
 /****************************************************************************
@@ -140,8 +140,8 @@ void icmp_input(FAR struct net_driver_s *dev)
 
       /* Swap IP addresses. */
 
-      uiphdr_ipaddr_copy(picmp->destipaddr, picmp->srcipaddr);
-      uiphdr_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
+      net_ipaddr_hdrcopy(picmp->destipaddr, picmp->srcipaddr);
+      net_ipaddr_hdrcopy(picmp->srcipaddr, &dev->d_ipaddr);
 
       /* Recalculate the ICMP checksum */
 
@@ -214,7 +214,7 @@ typeerr:
 
   if (picmp->type == ICMP6_NEIGHBOR_SOLICITATION)
     {
-      if (uip_ipaddr_cmp(picmp->icmp6data, dev->d_ipaddr))
+      if (net_ipaddr_cmp(picmp->icmp6data, dev->d_ipaddr))
         {
           if (picmp->options[0] == ICMP6_OPTION_SOURCE_LINK_ADDRESS)
             {
@@ -232,8 +232,8 @@ typeerr:
 
           picmp->reserved1 = picmp->reserved2 = picmp->reserved3 = 0;
 
-          uiphdr_ipaddr_copy(picmp->destipaddr, picmp->srcipaddr);
-          uiphdr_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
+          net_ipaddr_hdrcopy(picmp->destipaddr, picmp->srcipaddr);
+          net_ipaddr_hdrcopy(picmp->srcipaddr, &dev->d_ipaddr);
           picmp->options[0] = ICMP6_OPTION_TARGET_LINK_ADDRESS;
           picmp->options[1] = 1;  /* Options length, 1 = 8 bytes. */
           memcpy(&(picmp->options[2]), &dev->d_mac, IFHWADDRLEN);
@@ -254,8 +254,8 @@ typeerr:
 
       picmp->type = ICMP6_ECHO_REPLY;
 
-      uiphdr_ipaddr_copy(picmp->destipaddr, picmp->srcipaddr);
-      uiphdr_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
+      net_ipaddr_hdrcopy(picmp->destipaddr, picmp->srcipaddr);
+      net_ipaddr_hdrcopy(picmp->srcipaddr, &dev->d_ipaddr);
       picmp->icmpchksum = 0;
       picmp->icmpchksum = ~icmp_6chksum(dev);
     }

@@ -81,21 +81,21 @@
 #if defined(CONFIG_NET_UDP) || defined(CONFIG_NET_TCP)
 struct recvfrom_s
 {
-  FAR struct socket         *rf_sock;      /* The parent socket structure */
+  FAR struct socket       *rf_sock;      /* The parent socket structure */
 #if defined(CONFIG_NET_SOCKOPTS) && !defined(CONFIG_DISABLE_CLOCK)
-  uint32_t                   rf_starttime; /* rcv start time for determining timeout */
+  uint32_t                 rf_starttime; /* rcv start time for determining timeout */
 #endif
-  FAR struct uip_callback_s *rf_cb;        /* Reference to callback instance */
-  sem_t                      rf_sem;       /* Semaphore signals recv completion */
-  size_t                     rf_buflen;    /* Length of receive buffer */
-  uint8_t                   *rf_buffer;    /* Pointer to receive buffer */
+  FAR struct devif_callback_s *rf_cb;    /* Reference to callback instance */
+  sem_t                    rf_sem;       /* Semaphore signals recv completion */
+  size_t                   rf_buflen;    /* Length of receive buffer */
+  uint8_t                 *rf_buffer;    /* Pointer to receive buffer */
 #ifdef CONFIG_NET_IPv6
-  FAR struct sockaddr_in6   *rf_from;      /* Address of sender */
+  FAR struct sockaddr_in6 *rf_from;      /* Address of sender */
 #else
-  FAR struct sockaddr_in    *rf_from;      /* Address of sender */
+  FAR struct sockaddr_in  *rf_from;      /* Address of sender */
 #endif
-  size_t                     rf_recvlen;   /* The received length */
-  int                        rf_result;    /* Success:OK, failure:negated errno */
+  size_t                   rf_recvlen;   /* The received length */
+  int                      rf_result;    /* Success:OK, failure:negated errno */
 };
 #endif /* CONFIG_NET_UDP || CONFIG_NET_TCP */
 
@@ -575,9 +575,10 @@ static inline void recvfrom_tcpsender(FAR struct net_driver_s *dev,
       infrom->sin_port   = TCPBUF->srcport;
 
 #ifdef CONFIG_NET_IPv6
-      uip_ipaddr_copy(infrom->sin6_addr.s6_addr, TCPBUF->srcipaddr);
+      net_ipaddr_copy(infrom->sin6_addr.s6_addr, TCPBUF->srcipaddr);
 #else
-      uip_ipaddr_copy(infrom->sin_addr.s_addr, uip_ip4addr_conv(TCPBUF->srcipaddr));
+      net_ipaddr_copy(infrom->sin_addr.s_addr,
+                      net_ip4addr_conv32(TCPBUF->srcipaddr));
 #endif
     }
 }
@@ -821,9 +822,10 @@ static inline void recvfrom_udpsender(struct net_driver_s *dev, struct recvfrom_
       infrom->sin_port   = UDPBUF->srcport;
 
 #ifdef CONFIG_NET_IPv6
-      uip_ipaddr_copy(infrom->sin6_addr.s6_addr, UDPBUF->srcipaddr);
+      net_ipaddr_copy(infrom->sin6_addr.s6_addr, UDPBUF->srcipaddr);
 #else
-      uip_ipaddr_copy(infrom->sin_addr.s_addr, uip_ip4addr_conv(UDPBUF->srcipaddr));
+      net_ipaddr_copy(infrom->sin_addr.s_addr,
+                      net_ip4addr_conv32(UDPBUF->srcipaddr));
 #endif
     }
 }

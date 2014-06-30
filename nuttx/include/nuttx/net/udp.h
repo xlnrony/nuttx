@@ -70,11 +70,11 @@
 /* Representation of a uIP UDP connection */
 
 struct net_driver_s;      /* Forward reference */
-struct uip_callback_s;    /* Forward reference */
+struct devif_callback_s;    /* Forward reference */
 struct udp_conn_s
 {
   dq_entry_t node;        /* Supports a doubly linked list */
-  uip_ipaddr_t ripaddr;   /* The IP address of the remote peer */
+  net_ipaddr_t ripaddr;   /* The IP address of the remote peer */
   uint16_t lport;         /* The local port number in network byte order */
   uint16_t rport;         /* The remote port number in network byte order */
   uint8_t  ttl;           /* Default time-to-live */
@@ -82,7 +82,7 @@ struct udp_conn_s
 
   /* Defines the list of UDP callbacks */
 
-  struct uip_callback_s *list;
+  struct devif_callback_s *list;
 };
 
 /* The UDP and IP headers */
@@ -99,8 +99,8 @@ struct udp_iphdr_s
   uint8_t  len[2];          /* 16-bit Payload length */
   uint8_t  proto;           /*  8-bit Next header (same as IPv4 protocol field) */
   uint8_t  ttl;             /*  8-bit Hop limit (like IPv4 TTL field) */
-  uip_ip6addr_t srcipaddr;  /* 128-bit Source address */
-  uip_ip6addr_t destipaddr; /* 128-bit Destination address */
+  net_ip6addr_t srcipaddr;  /* 128-bit Source address */
+  net_ip6addr_t destipaddr; /* 128-bit Destination address */
 
 #else /* CONFIG_NET_IPv6 */
 

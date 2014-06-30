@@ -116,8 +116,8 @@
 void igmp_input(struct net_driver_s *dev)
 {
   FAR struct igmp_group_s *group;
-  uip_ipaddr_t destipaddr;
-  uip_ipaddr_t grpaddr;
+  net_ipaddr_t destipaddr;
+  net_ipaddr_t grpaddr;
   unsigned int ticks;
 
   nllvdbg("IGMP message: %04x%04x\n", IGMPBUF->destipaddr[1], IGMPBUF->destipaddr[0]);
@@ -142,7 +142,7 @@ void igmp_input(struct net_driver_s *dev)
 
   /* Find the group (or create a new one) using the incoming IP address*/
 
-  destipaddr = uip_ip4addr_conv(IGMPBUF->destipaddr);
+  destipaddr = net_ip4addr_conv32(IGMPBUF->destipaddr);
   group = igmp_grpallocfind(dev, &destipaddr);
   if (!group)
     {
@@ -164,7 +164,7 @@ void igmp_input(struct net_driver_s *dev)
 
         /* Check if the query was sent to all systems */
 
-        if (uip_ipaddr_cmp(destipaddr, g_allsystems))
+        if (net_ipaddr_cmp(destipaddr, g_allsystems))
           {
             /* Yes... Now check the if this this is a general or a group
              * specific query.
@@ -205,7 +205,7 @@ void igmp_input(struct net_driver_s *dev)
                   {
                     /* Skip over the all systems group entry */
 
-                    if (!uip_ipaddr_cmp(member->grpaddr, g_allsystems))
+                    if (!net_ipaddr_cmp(member->grpaddr, g_allsystems))
                       {
                         ticks = igmp_decisec2tick((int)IGMPBUF->maxresp);
                         if (IS_IDLEMEMBER(member->flags) ||
@@ -226,7 +226,7 @@ void igmp_input(struct net_driver_s *dev)
                  */
 
                 IGMP_STATINCR(g_netstats.igmp.ucast_query);
-                grpaddr = uip_ip4addr_conv(IGMPBUF->grpaddr);
+                grpaddr = net_ip4addr_conv32(IGMPBUF->grpaddr);
                 group   = igmp_grpallocfind(dev, &grpaddr);
                 ticks   = igmp_decisec2tick((int)IGMPBUF->maxresp);
                 if (IS_IDLEMEMBER(group->flags) || igmp_cmptimer(group, ticks))

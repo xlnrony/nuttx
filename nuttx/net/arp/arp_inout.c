@@ -203,8 +203,8 @@ void arp_ipin(struct net_driver_s *dev)
    * packet comes from a host on the local network.
    */
 
-  srcipaddr = uip_ip4addr_conv(IPBUF->eh_srcipaddr);
-  if (uip_ipaddr_maskcmp(srcipaddr, dev->d_ipaddr, dev->d_netmask))
+  srcipaddr = net_ip4addr_conv32(IPBUF->eh_srcipaddr);
+  if (net_ipaddr_maskcmp(srcipaddr, dev->d_ipaddr, dev->d_netmask))
     {
       arp_update(IPBUF->eh_srcipaddr, ETHBUF->src);
     }
@@ -246,7 +246,7 @@ void arp_arpin(struct net_driver_s *dev)
 
   dev->d_len = 0;
 
-  ipaddr = uip_ip4addr_conv(parp->ah_dipaddr);
+  ipaddr = net_ip4addr_conv32(parp->ah_dipaddr);
   switch(parp->ah_opcode)
     {
       case HTONS(ARP_REQUEST):
@@ -254,7 +254,7 @@ void arp_arpin(struct net_driver_s *dev)
 
         /* ARP request. If it asked for our address, we send out a reply. */
 
-        if (uip_ipaddr_cmp(ipaddr, dev->d_ipaddr))
+        if (net_ipaddr_cmp(ipaddr, dev->d_ipaddr))
           {
             struct eth_hdr_s *peth = ETHBUF;
 
@@ -273,7 +273,7 @@ void arp_arpin(struct net_driver_s *dev)
 
             parp->ah_dipaddr[0] = parp->ah_sipaddr[0];
             parp->ah_dipaddr[1] = parp->ah_sipaddr[1];
-            uiphdr_ipaddr_copy(parp->ah_sipaddr, &dev->d_ipaddr);
+            net_ipaddr_hdrcopy(parp->ah_sipaddr, &dev->d_ipaddr);
             arp_dump(parp);
 
             peth->type          = HTONS(UIP_ETHTYPE_ARP);
@@ -288,7 +288,7 @@ void arp_arpin(struct net_driver_s *dev)
          * for us.
          */
 
-        if (uip_ipaddr_cmp(ipaddr, dev->d_ipaddr))
+        if (net_ipaddr_cmp(ipaddr, dev->d_ipaddr))
           {
             arp_update(parp->ah_sipaddr, parp->ah_shwaddr);
           }
@@ -383,8 +383,8 @@ void arp_out(struct net_driver_s *dev)
     {
       /* Check if the destination address is on the local network. */
 
-      destipaddr = uip_ip4addr_conv(pip->eh_destipaddr);
-      if (!uip_ipaddr_maskcmp(destipaddr, dev->d_ipaddr, dev->d_netmask))
+      destipaddr = net_ip4addr_conv32(pip->eh_destipaddr);
+      if (!net_ipaddr_maskcmp(destipaddr, dev->d_ipaddr, dev->d_netmask))
         {
           /* Destination address is not on the local network */
 
@@ -401,14 +401,14 @@ void arp_out(struct net_driver_s *dev)
            * destination address when determining the MAC address.
            */
 
-          uip_ipaddr_copy(ipaddr, dev->d_draddr);
+          net_ipaddr_copy(ipaddr, dev->d_draddr);
 #endif
         }
       else
         {
           /* Else, we use the destination IP address. */
 
-          uip_ipaddr_copy(ipaddr, destipaddr);
+          net_ipaddr_copy(ipaddr, destipaddr);
         }
 
       /* Check if we already have this destination address in the ARP table */
@@ -427,8 +427,8 @@ void arp_out(struct net_driver_s *dev)
           memcpy(peth->src, dev->d_mac.ether_addr_octet, ETHER_ADDR_LEN);
           memcpy(parp->ah_shwaddr, dev->d_mac.ether_addr_octet, ETHER_ADDR_LEN);
 
-          uiphdr_ipaddr_copy(parp->ah_dipaddr, &ipaddr);
-          uiphdr_ipaddr_copy(parp->ah_sipaddr, &dev->d_ipaddr);
+          net_ipaddr_hdrcopy(parp->ah_dipaddr, &ipaddr);
+          net_ipaddr_hdrcopy(parp->ah_sipaddr, &dev->d_ipaddr);
 
           parp->ah_opcode   = HTONS(ARP_REQUEST);
           parp->ah_hwtype   = HTONS(ARP_HWTYPE_ETH);

@@ -75,8 +75,8 @@
  *
  ****************************************************************************/
 
-int net_addroute(uip_ipaddr_t target, uip_ipaddr_t netmask,
-                 uip_ipaddr_t router)
+int net_addroute(net_ipaddr_t target, net_ipaddr_t netmask,
+                 net_ipaddr_t router)
 {
   FAR struct net_route_s *route;
   net_lock_t save;
@@ -92,9 +92,9 @@ int net_addroute(uip_ipaddr_t target, uip_ipaddr_t netmask,
 
   /* Format the new route table entry */
 
-  uip_ipaddr_copy(route->target, target);
-  uip_ipaddr_copy(route->netmask, netmask);
-  uip_ipaddr_copy(route->router, router);
+  net_ipaddr_copy(route->target, target);
+  net_ipaddr_copy(route->netmask, netmask);
+  net_ipaddr_copy(route->router, router);
 
   /* Get exclusive address to the networking data structures */
 
