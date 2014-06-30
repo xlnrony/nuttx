@@ -139,9 +139,6 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
   { "bind", (FAR const void *)bind },
 #endif
 #if defined(CONFIG_BUILTIN)
-  { "builtin_for_index", (FAR const void *)builtin_for_index },
-#endif
-#if defined(CONFIG_BUILTIN)
   { "builtin_getname", (FAR const void *)builtin_getname },
 #endif
 #if defined(CONFIG_BUILTIN)

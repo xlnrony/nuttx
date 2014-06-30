@@ -456,7 +456,7 @@ static void generate_stub(int nparms)
 		
 	  if (g_parm[COND_INDEX][0] != '\0')
 	    {
-	      fprintf(stream, "#if %s\n", g_parm[COND_INDEX]);
+	      fprintf(stream, "#if %s\n\n", g_parm[COND_INDEX]);
 	    }
 		
 		if (first)

@@ -68,7 +68,7 @@ ROOTDEPPATH	= --dep-path .
 VPATH		=
 
 all: .built
-.PHONY: clean depend distclean
+.PHONY: context clean depend distclean
 
 $(AOBJS): %$(OBJEXT): %.S
 	$(call ASSEMBLE, $<, $@)
@@ -76,32 +76,30 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 	
-$(SYMTAB): $(CSV)
-	@cat $(CSV) | sort > .symtab
-	@$(TOPDIR)/tools/mksymtab.exe .symtab $(SYMTAB)
-	$(call DELFILE, .symtab)	
-
-.built: $(SYMTAB) $(OBJS)
+.built: $(OBJS)
 	$(call ARCHIVE, $(BIN), $(OBJS))
 	@touch .built
+	
+$(SYMTAB): $(CSV)
+	cat $(CSV) | sort > .symtab
+	$(TOPDIR)/tools/mksymtab.exe .symtab $(SYMTAB)
+	$(call DELFILE, .symtab)	
 
-context:
+context: $(SYMTAB)
 
 .depend: Makefile $(SRCS)
-	@touch $(SYMTAB)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
-	$(call DELFILE, $(SYMTAB))			
 	@touch $@
 
 depend: .depend
 
 clean:
 	$(call DELFILE, .built)
-	$(call DELFILE, $(SYMTAB))		
 	$(call CLEAN)
-
+	
 distclean: clean
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
+	$(call DELFILE, $(SYMTAB))				
 
 -include Make.dep
