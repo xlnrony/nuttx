@@ -356,6 +356,17 @@ SYSCALL_LOOKUP(usbhost_initialize,	      	   usbhost_initialize,	   		   1, STUB
   #endif
 #endif
 
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+SYSCALL_LOOKUP(sdio_initialize,	       sdio_initialize,	   	   1, STUB_sdio_initialize)
+SYSCALL_LOOKUP(sdio_mediachange, 		   sdio_mediachange, 		   2, STUB_sdio_mediachange)
+SYSCALL_LOOKUP(mmcsd_slotinitialize, 	   mmcsd_slotinitialize, 	   2, STUB_mmcsd_slotinitialize)
+#endif
+
+#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_STACK)
+
+SYSCALL_LOOKUP(up_check_tcbstack, 	   up_check_tcbstack, 	   1, STUB_up_check_tcbstack)
+
+#endif
 
 /****************************************************************************
  * Private Functions

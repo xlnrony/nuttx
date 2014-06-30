@@ -164,7 +164,7 @@
 "bchlib_read","nuttx/fs/fs.h","CONFIG_NFILE_DESCRIPTORS > 0 && !defined(CONFIG_DISABLE_MOUNTPOINT)","ssize_t","FAR void *","FAR char *","size_t","size_t"
 "bchlib_write","nuttx/fs/fs.h","CONFIG_NFILE_DESCRIPTORS > 0 && !defined(CONFIG_DISABLE_MOUNTPOINT)","ssize_t","FAR void *","FAR const char *","size_t","size_t"
 "sched_foreach","sched.h","","void","sched_foreach_t","FAR void *"
-"uip_ping","nuttx/net/netstats.h","defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)","int","uip_ipaddr_t","uint16_t","uint16_t","uint16_t","int"
+"uip_ping","nuttx/net/netstats.h","defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)","int","net_ipaddr_t","uint16_t","uint16_t","uint16_t","int"
 "exec_getsymtab","unistd.h","!defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)","void","FAR const struct symtab_s **","FAR int *"
 "exec_setsymtab","unistd.h","!defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)","void","FAR const struct symtab_s *","int"
 "builtin_getname","nuttx/binfmt/builtin.h","defined(CONFIG_BUILTIN)","FAR const char *","int"
@@ -185,4 +185,8 @@
 "up_progmem_erasepage","nuttx/progmem.h","","int","uint16_t"
 "up_progmem_pagesize","nuttx/progmem.h","","uint32_t","uint16_t"
 "up_progmem_isuniform","nuttx/progmem.h","","bool"
-
+"sdio_initialize","nuttx/sdio.h","defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)","FAR struct sdio_dev_s *","int"
+"sdio_mediachange","nuttx/sdio.h","defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)","void","FAR struct sdio_dev_s *","bool"
+"mmcsd_slotinitialize","nuttx/mmcsd.h","defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)","int","int","FAR struct sdio_dev_s *"
+"up_check_tcbstack","nuttx/arch.h","defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_STACK)","size_t","FAR struct tcb_s *"
+"syslog_enable","syslog.h","defined(CONFIG_SYSLOG_ENABLE)","void","bool"

@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <nuttx/fs/mkfatfs.h>
 #include <sys/mman.h>
+#include <nuttx/mmcsd.h>
 #include <sys/mount.h>
 #include <mqueue.h>
 #include <nuttx/net/net.h>
@@ -45,6 +46,7 @@
 #include <nuttx/fs/ramdisk.h>
 #include <sched.h>
 #include <nuttx/sched.h>
+#include <nuttx/sdio.h>
 #include <sys/select.h>
 #include <semaphore.h>
 #include <sys/sendfile.h>
@@ -465,6 +467,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if CONFIG_NFILE_DESCRIPTORS > 0
   { "mmap", (FAR const void *)mmap },
 #endif
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+  { "mmcsd_slotinitialize", (FAR const void *)mmcsd_slotinitialize },
+#endif
 #if defined(CONFIG_HAVE_DOUBLE) && (defined(CONFIG_LIBM) || defined(CONFIG_ARCH_MATH))
   { "modf", (FAR const void *)modf },
 #endif
@@ -801,6 +806,12 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
   { "sched_setscheduler", (FAR const void *)sched_setscheduler },
   { "sched_unlock", (FAR const void *)sched_unlock },
   { "sched_yield", (FAR const void *)sched_yield },
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+  { "sdio_initialize", (FAR const void *)sdio_initialize },
+#endif
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+  { "sdio_mediachange", (FAR const void *)sdio_mediachange },
+#endif
 #if CONFIG_NFILE_DESCRIPTORS > 0
   { "seekdir", (FAR const void *)seekdir },
 #endif
@@ -958,6 +969,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if defined(CONFIG_SYSLOG_ENABLE)
   { "syslog_enable", (FAR const void *)syslog_enable },
 #endif
+#if defined(CONFIG_SYSLOG_ENABLE)
+  { "syslog_enable", (FAR const void *)syslog_enable },
+#endif
 #if defined(CONFIG_HAVE_DOUBLE) && (defined(CONFIG_LIBM) || defined(CONFIG_ARCH_MATH))
   { "tan", (FAR const void *)tan },
 #endif
@@ -1040,6 +1054,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
   { "unsetenv", (FAR const void *)unsetenv },
 #endif
   { "up_assert", (FAR const void *)up_assert },
+#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_STACK)
+  { "up_check_tcbstack", (FAR const void *)up_check_tcbstack },
+#endif
 #if defined(CONFIG_HAVE_CXX) && defined(CONFIG_HAVE_CXXINITIALIZE)
   { "up_cxxinitialize", (FAR const void *)up_cxxinitialize },
 #endif
