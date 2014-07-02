@@ -325,7 +325,7 @@ static void lpc17_putreg(uint32_t val, uint32_t addr);
 
 static int  lpc17_txdesc(struct lpc17_driver_s *priv);
 static int  lpc17_transmit(struct lpc17_driver_s *priv);
-static int  lpc17_uiptxpoll(struct net_driver_s *dev);
+static int  lpc17_txpoll(struct net_driver_s *dev);
 
 /* Interrupt handling */
 
@@ -643,11 +643,11 @@ static int lpc17_transmit(struct lpc17_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: lpc17_uiptxpoll
+ * Function: lpc17_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -666,7 +666,7 @@ static int lpc17_transmit(struct lpc17_driver_s *priv)
  *
  ****************************************************************************/
 
-static int lpc17_uiptxpoll(struct net_driver_s *dev)
+static int lpc17_txpoll(struct net_driver_s *dev)
 {
   struct lpc17_driver_s *priv = (struct lpc17_driver_s *)dev->d_private;
   int ret = OK;
@@ -868,7 +868,7 @@ static void lpc17_rxdone(struct lpc17_driver_s *priv)
 
               EMAC_STAT(priv, rx_ip);
               arp_ipin(&priv->lp_dev);
-              uip_input(&priv->lp_dev);
+              devif_input(&priv->lp_dev);
 
               /* If the above function invocation resulted in data that
                * should be sent out on the network, the field  d_len will
@@ -977,7 +977,7 @@ static void lpc17_txdone(struct lpc17_driver_s *priv)
 
   else
     {
-      (void)uip_poll(&priv->lp_dev, lpc17_uiptxpoll);
+      (void)devif_poll(&priv->lp_dev, lpc17_txpoll);
     }
 }
 
@@ -1188,7 +1188,7 @@ static void lpc17_txtimeout(int argc, uint32_t arg, ...)
 
       /* Then poll uIP for new XMIT data */
 
-      (void)uip_poll(&priv->lp_dev, lpc17_uiptxpoll);
+      (void)devif_poll(&priv->lp_dev, lpc17_txpoll);
     }
 }
 
@@ -1225,7 +1225,7 @@ static void lpc17_polltimer(int argc, uint32_t arg, ...)
        * we will missing TCP time state updates?
        */
 
-      (void)uip_timer(&priv->lp_dev, lpc17_uiptxpoll, LPC17_POLLHSEC);
+      (void)devif_timer(&priv->lp_dev, lpc17_txpoll, LPC17_POLLHSEC);
     }
 
   /* Setup the watchdog poll timer again */
@@ -1482,7 +1482,7 @@ static int lpc17_txavail(struct net_driver_s *dev)
         {
           /* If so, then poll uIP for new XMIT data */
 
-          (void)uip_poll(&priv->lp_dev, lpc17_uiptxpoll);
+          (void)devif_poll(&priv->lp_dev, lpc17_txpoll);
         }
     }
 

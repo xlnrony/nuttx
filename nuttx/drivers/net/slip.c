@@ -102,7 +102,7 @@
  * a MTU of 296 and window of 256, but actually only sends 168 bytes of data:
  * 40 + 128.  I believe that is to allow for the 2x worst cast packet
  * expansion.  Ideally we would like to advertise the 256 MSS, but restrict
- * uIP to 128 bytes (possibly by modifying the uip_mss() macro).
+ * uIP to 128 bytes (possibly by modifying the tcp_mss() macro).
  */
 
 #if CONFIG_NET_BUFSIZE < 296
@@ -202,7 +202,7 @@ static void slip_semtake(FAR struct slip_driver_s *priv);
 static void slip_write(FAR struct slip_driver_s *priv, const uint8_t *buffer, int len);
 static void slip_putc(FAR struct slip_driver_s *priv, int ch);
 static int slip_transmit(FAR struct slip_driver_s *priv);
-static int slip_uiptxpoll(struct net_driver_s *dev);
+static int slip_txpoll(struct net_driver_s *dev);
 static void slip_txtask(int argc, char *argv[]);
 
 /* Packet receiver task */
@@ -398,11 +398,11 @@ static int slip_transmit(FAR struct slip_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: slip_uiptxpoll
+ * Function: slip_txpoll
  *
  * Description:
  *   Check if uIP has any outgoing packets ready to send.  This is a
- *   callback from uip_poll().  uip_poll() may be called:
+ *   callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete, or
  *   2. When the preceding TX packet send times o ]ut and the interface is reset
@@ -419,7 +419,7 @@ static int slip_transmit(FAR struct slip_driver_s *priv)
  *
  ****************************************************************************/
 
-static int slip_uiptxpoll(struct net_driver_s *dev)
+static int slip_txpoll(struct net_driver_s *dev)
 {
   FAR struct slip_driver_s *priv = (FAR struct slip_driver_s *)dev->d_private;
 
@@ -495,7 +495,7 @@ static void slip_txtask(int argc, char *argv[])
 
           flags = net_lock();
           priv->dev.d_buf = priv->txbuf;
-          (void)uip_timer(&priv->dev, slip_uiptxpoll, SLIP_POLLHSEC);
+          (void)devif_timer(&priv->dev, slip_txpoll, SLIP_POLLHSEC);
           net_unlock(flags);
           slip_semgive(priv);
         }
@@ -718,7 +718,7 @@ static int slip_rxtask(int argc, char *argv[])
           priv->dev.d_len = priv->rxlen;
 
           flags = net_lock();
-          uip_input(&priv->dev);
+          devif_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should
            * be sent out on the network, the field  d_len will set to a

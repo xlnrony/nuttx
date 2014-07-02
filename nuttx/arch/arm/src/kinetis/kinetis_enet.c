@@ -224,7 +224,7 @@ static inline uint16_t kinesis_swap16(uint16_t value);
 
 static bool kinetics_txringfull(FAR struct kinetis_driver_s *priv);
 static int  kinetis_transmit(FAR struct kinetis_driver_s *priv);
-static int  kinetis_uiptxpoll(struct net_driver_s *dev);
+static int  kinetis_txpoll(struct net_driver_s *dev);
 
 /* Interrupt handling */
 
@@ -411,11 +411,11 @@ static int kinetis_transmit(FAR struct kinetis_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: kinetis_uiptxpoll
+ * Function: kinetis_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -434,7 +434,7 @@ static int kinetis_transmit(FAR struct kinetis_driver_s *priv)
  *
  ****************************************************************************/
 
-static int kinetis_uiptxpoll(struct net_driver_s *dev)
+static int kinetis_txpoll(struct net_driver_s *dev)
 {
   FAR struct kinetis_driver_s *priv = (FAR struct kinetis_driver_s *)dev->d_private;
 
@@ -523,7 +523,7 @@ static void kinetis_receive(FAR struct kinetis_driver_s *priv)
 #endif
         {
           arp_ipin(&priv->dev);
-          uip_input(&priv->dev);
+          devif_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should be
            * sent out on the network, the field  d_len will set to a value > 0.
@@ -609,7 +609,7 @@ static void kinetis_txdone(FAR struct kinetis_driver_s *priv)
    * data
    */
 
-  (void)uip_poll(&priv->dev, kinetis_uiptxpoll);
+  (void)devif_poll(&priv->dev, kinetis_txpoll);
 }
 
 /****************************************************************************
@@ -722,7 +722,7 @@ static void kinetis_txtimeout(int argc, uint32_t arg, ...)
 
   /* Then poll uIP for new XMIT data */
 
-  (void)uip_poll(&priv->dev, kinetis_uiptxpoll);
+  (void)devif_poll(&priv->dev, kinetis_txpoll);
 }
 
 /****************************************************************************
@@ -758,7 +758,7 @@ static void kinetis_polltimer(int argc, uint32_t arg, ...)
        * we will missing TCP time state updates?
        */
 
-      (void)uip_timer(&priv->dev, kinetis_uiptxpoll, KINETIS_POLLHSEC);
+      (void)devif_timer(&priv->dev, kinetis_txpoll, KINETIS_POLLHSEC);
     }
 
   /* Setup the watchdog poll timer again in any case */
@@ -973,7 +973,7 @@ static int kinetis_txavail(struct net_driver_s *dev)
             * XMIT data.
             */
 
-           (void)uip_poll(&priv->dev, kinetis_uiptxpoll);
+           (void)devif_poll(&priv->dev, kinetis_txpoll);
         }
     }
 

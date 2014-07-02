@@ -72,9 +72,9 @@
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
 
-#include <nuttx/net/uip/uip.h>
+#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
-#include <nuttx/net/uip/uip-arch.h>
+#include <nuttx/net/devif.h>
 
 #include "rtl8187x.h"
 
@@ -318,7 +318,7 @@ static void rtl8187x_write(FAR struct rtl8187x_state_s *priv, uint8_t addr,
 /* TX logic */
 
 static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv);
-static int rtl8187x_uiptxpoll(struct net_driver_s *dev);
+static int rtl8187x_txpoll(struct net_driver_s *dev);
 static void rtl8187x_txpollwork(FAR void *arg);
 static void rtl8187x_txpolltimer(int argc, uint32_t arg, ...);
 
@@ -1927,11 +1927,11 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
 }
 
 /****************************************************************************
- * Function: rtl8187x_uiptxpoll
+ * Function: rtl8187x_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -1950,7 +1950,7 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
  *
  ****************************************************************************/
 
-static int rtl8187x_uiptxpoll(struct net_driver_s *dev)
+static int rtl8187x_txpoll(struct net_driver_s *dev)
 {
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
 
@@ -2018,7 +2018,7 @@ static void rtl8187x_txpollwork(FAR void *arg)
        */
 
       priv->ethdev.d_buf = &priv->txbuffer[SIZEOF_TXDESC];
-      (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, (int)hsecs);
+      (void)devif_timer(&priv->ethdev, rtl8187x_txpoll, (int)hsecs);
       net_unlock(lock);
     }
 }
@@ -2242,7 +2242,7 @@ static inline void rtl8187x_rxdispatch(FAR struct rtl8187x_state_s *priv,
     {
       RTL8187X_STATS(priv, rxippackets);
       arp_ipin(&priv->ethdev);
-      uip_input(&priv->ethdev);
+      devif_input(&priv->ethdev);
 
       /* If the above function invocation resulted in data that should be
        * sent out on the network, the field  d_len will set to a value > 0.
@@ -2522,7 +2522,7 @@ static int rtl8187x_txavail(struct net_driver_s *dev)
 
       lock = net_lock();
       priv->ethdev.d_buf = &priv->txbuffer[SIZEOF_TXDESC];
-      (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
+      (void)devif_poll(&priv->ethdev, rtl8187x_txpoll);
       net_unlock(lock);
     }
 

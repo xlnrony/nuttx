@@ -345,7 +345,7 @@ static void sam_buffer_free(struct sam_emac_s *priv);
 /* Common TX logic */
 
 static int  sam_transmit(struct sam_emac_s *priv);
-static int  sam_uiptxpoll(struct net_driver_s *dev);
+static int  sam_txpoll(struct net_driver_s *dev);
 static void sam_dopoll(struct sam_emac_s *priv);
 
 /* Interrupt handling */
@@ -785,11 +785,11 @@ static int sam_transmit(struct sam_emac_s *priv)
 }
 
 /****************************************************************************
- * Function: sam_uiptxpoll
+ * Function: sam_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -808,7 +808,7 @@ static int sam_transmit(struct sam_emac_s *priv)
  *
  ****************************************************************************/
 
-static int sam_uiptxpoll(struct net_driver_s *dev)
+static int sam_txpoll(struct net_driver_s *dev)
 {
   struct sam_emac_s *priv = (struct sam_emac_s *)dev->d_private;
 
@@ -873,7 +873,7 @@ static void sam_dopoll(struct sam_emac_s *priv)
     {
       /* If we have the descriptor, then poll uIP for new XMIT data. */
 
-      (void)uip_poll(dev, sam_uiptxpoll);
+      (void)devif_poll(dev, sam_txpoll);
     }
 }
 
@@ -1140,7 +1140,7 @@ static void sam_receive(struct sam_emac_s *priv)
           /* Handle ARP on input then give the IP packet to uIP */
 
           arp_ipin(&priv->dev);
-          uip_input(&priv->dev);
+          devif_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should be
            * sent out on the network, the field  d_len will set to a value > 0.
@@ -1517,7 +1517,7 @@ static void sam_polltimer(int argc, uint32_t arg, ...)
     {
       /* Update TCP timing states and poll uIP for new XMIT data. */
 
-      (void)uip_timer(dev, sam_uiptxpoll, SAM_POLLHSEC);
+      (void)devif_timer(dev, sam_txpoll, SAM_POLLHSEC);
     }
 
   /* Setup the watchdog poll timer again */
@@ -2289,7 +2289,7 @@ static int sam_autonegotiate(struct sam_emac_s *priv)
   /* Setup the EMAC link speed */
 
   regval  = sam_getreg(priv, SAM_EMAC_NCFGR);
-  regval &= (EMAC_NCFGR_SPD | EMAC_NCFGR_FD);
+  regval &= ~(EMAC_NCFGR_SPD | EMAC_NCFGR_FD);
 
   if (((advertise & lpa) & MII_ADVERTISE_100BASETXFULL) != 0)
     {
@@ -2658,8 +2658,6 @@ static void sam_rxreset(struct sam_emac_s *priv)
 
 static void sam_emac_reset(struct sam_emac_s *priv)
 {
-  uint32_t regval;
-
   /* Disable all EMAC interrupts */
 
   sam_putreg(priv, SAM_EMAC_IDR, EMAC_INT_ALL);
@@ -2669,10 +2667,9 @@ static void sam_emac_reset(struct sam_emac_s *priv)
   sam_rxreset(priv);
   sam_txreset(priv);
 
-  /* Disable RX, TX, and statistics */
+  /* Make sure that RX and TX are disabled; clear statistics registers */
 
-  regval = EMAC_NCR_TXEN | EMAC_NCR_RXEN | EMAC_NCR_WESTAT | EMAC_NCR_CLRSTAT;
-  sam_putreg(priv, SAM_EMAC_NCR, regval);
+  sam_putreg(priv, SAM_EMAC_NCR, EMAC_NCR_CLRSTAT);
 
   /* Disable clocking to the EMAC peripheral */
 
@@ -2745,14 +2742,10 @@ static int sam_emac_configure(struct sam_emac_s *priv)
 
   sam_emac_enableclk();
 
-  /* Disable TX, RX, interrupts, etc. */
+   /* Disable TX, RX, clear statistics.  Disable all interrupts. */
 
-  sam_putreg(priv, SAM_EMAC_NCR, 0);
+  sam_putreg(priv, SAM_EMAC_NCR, EMAC_NCR_CLRSTAT);
   sam_putreg(priv, SAM_EMAC_IDR, EMAC_INT_ALL);
-
-  regval = sam_getreg(priv, SAM_EMAC_NCR);
-  regval |= EMAC_NCR_CLRSTAT;
-  sam_putreg(priv, SAM_EMAC_NCR, regval);
 
   /* Clear all status bits in the receive status register. */
 
@@ -2795,7 +2788,7 @@ static int sam_emac_configure(struct sam_emac_s *priv)
   sam_rxreset(priv);
   sam_txreset(priv);
 
-  /* Enable Rx and Tx, plus the stats register. */
+  /* Enable Rx and Tx, plus the statistics registers. */
 
   regval  = sam_getreg(priv, SAM_EMAC_NCR);
   regval |= (EMAC_NCR_RXEN | EMAC_NCR_TXEN | EMAC_NCR_WESTAT);

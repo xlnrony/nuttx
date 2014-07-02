@@ -119,7 +119,7 @@ static struct vnet_driver_s g_vnet[CONFIG_VNET_NINTERFACES];
 /* Common TX logic */
 
 static int  vnet_transmit(FAR struct vnet_driver_s *vnet);
-static int  vnet_uiptxpoll(struct net_driver_s *dev);
+static int  vnet_txpoll(struct net_driver_s *dev);
 
 /* Interrupt handling */
 
@@ -198,11 +198,11 @@ static int vnet_transmit(FAR struct vnet_driver_s *vnet)
 }
 
 /****************************************************************************
- * Function: vnet_uiptxpoll
+ * Function: vnet_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -221,7 +221,7 @@ static int vnet_transmit(FAR struct vnet_driver_s *vnet)
  *
  ****************************************************************************/
 
-static int vnet_uiptxpoll(struct net_driver_s *dev)
+static int vnet_txpoll(struct net_driver_s *dev)
 {
 	FAR struct vnet_driver_s *vnet = (FAR struct vnet_driver_s *)dev->d_private;
 
@@ -294,7 +294,7 @@ void rtos_vnet_recv(struct rgmp_vnet *rgmp_vnet, char *data, int len)
 #endif
 			{
 				arp_ipin(&vnet->sk_dev);
-				uip_input(&vnet->sk_dev);
+				devif_input(&vnet->sk_dev);
 
 				// If the above function invocation resulted in data that should be
 				// sent out on the network, the field  d_len will set to a value > 0.
@@ -345,7 +345,7 @@ static void vnet_txdone(FAR struct vnet_driver_s *vnet)
 
 	/* Then poll uIP for new XMIT data */
 
-	(void)uip_poll(&vnet->sk_dev, vnet_uiptxpoll);
+	(void)devif_poll(&vnet->sk_dev, vnet_txpoll);
 }
 
 /****************************************************************************
@@ -377,7 +377,7 @@ static void vnet_txtimeout(int argc, uint32_t arg, ...)
 
 	/* Then poll uIP for new XMIT data */
 
-	(void)uip_poll(&vnet->sk_dev, vnet_uiptxpoll);
+	(void)devif_poll(&vnet->sk_dev, vnet_txpoll);
 }
 
 /****************************************************************************
@@ -417,7 +417,7 @@ static void vnet_polltimer(int argc, uint32_t arg, ...)
 	 * we will missing TCP time state updates?
 	 */
 
-	(void)uip_timer(&vnet->sk_dev, vnet_uiptxpoll, VNET_POLLHSEC);
+	(void)devif_timer(&vnet->sk_dev, vnet_txpoll, VNET_POLLHSEC);
 
 	/* Setup the watchdog poll timer again */
 
@@ -545,7 +545,7 @@ static int vnet_txavail(struct net_driver_s *dev)
 
 		/* If so, then poll uIP for new XMIT data */
 
-		(void)uip_poll(&vnet->sk_dev, vnet_uiptxpoll);
+		(void)devif_poll(&vnet->sk_dev, vnet_txpoll);
     }
 
 out:

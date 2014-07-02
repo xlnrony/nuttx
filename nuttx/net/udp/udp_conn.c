@@ -321,7 +321,7 @@ FAR struct udp_conn_s *udp_active(FAR struct udp_iphdr_s *buf)
           (conn->rport == 0 || buf->srcport == conn->rport) &&
             (net_ipaddr_cmp(conn->ripaddr, g_allzeroaddr) ||
              net_ipaddr_cmp(conn->ripaddr, g_alloneaddr) ||
-             uiphdr_ipaddr_cmp(buf->srcipaddr, &conn->ripaddr)))
+             net_ipaddr_hdrcmp(buf->srcipaddr, &conn->ripaddr)))
         {
           /* Matching connection found.. return a reference to it */
 
@@ -337,7 +337,7 @@ FAR struct udp_conn_s *udp_active(FAR struct udp_iphdr_s *buf)
 }
 
 /****************************************************************************
- * Name: uip_nextudpconn()
+ * Name: udp_nextconn()
  *
  * Description:
  *   Traverse the list of allocated UDP connections
@@ -348,7 +348,7 @@ FAR struct udp_conn_s *udp_active(FAR struct udp_iphdr_s *buf)
  *
  ****************************************************************************/
 
-FAR struct udp_conn_s *uip_nextudpconn(FAR struct udp_conn_s *conn)
+FAR struct udp_conn_s *udp_nextconn(FAR struct udp_conn_s *conn)
 {
   if (!conn)
     {

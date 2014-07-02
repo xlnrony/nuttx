@@ -1,5 +1,5 @@
 /****************************************************************************
- * netuip/uip_input.c
+ * net/devif/devif_input.c
  * The uIP TCP/IP stack code.
  *
  *   Copyright (C) 2007-2009, 2013-2014 Gregory Nutt. All rights reserved.
@@ -51,7 +51,7 @@
  * well as some basic ICMP stuff). The implementation couples the IP,
  * UDP, TCP and the application layers very tightly. To keep the size
  * of the compiled code down, this code frequently uses the goto
- * statement. While it would be possible to break the uip_input()
+ * statement. While it would be possible to break the devif_input()
  * function into many smaller functions, this would increase the code
  * size because of the overhead of parameter passing and the fact that
  * the optimizer would not be as efficient.
@@ -176,8 +176,8 @@ static uint8_t devif_reassembly(void)
    * fragment into the buffer.
    */
 
-  if (uiphdr_addr_cmp(pbuf->srcipaddr, pfbuf->srcipaddr) &&
-      uiphdr_addr_cmp(pbuf->destipaddr == pfbuf->destipaddr) &&
+  if (net_ipaddr_hdrcmp(pbuf->srcipaddr, pfbuf->srcipaddr) &&
+      net_ipaddr_hdrcmp(pbuf->destipaddr, pfbuf->destipaddr) &&
       pbuf->g_ipid[0] == pfbuf->g_ipid[0] && pbuf->g_ipid[1] == pfbuf->g_ipid[1])
     {
       len = (pbuf->len[0] << 8) + pbuf->len[1] - (pbuf->vhl & 0x0f) * 4;
@@ -293,7 +293,7 @@ nullreturn:
  ****************************************************************************/
 
 /****************************************************************************
- * Function: uip_input
+ * Function: devif_input
  *
  * Description:
  *
@@ -307,7 +307,7 @@ nullreturn:
  *
  ****************************************************************************/
 
-int uip_input(FAR struct net_driver_s *dev)
+int devif_input(FAR struct net_driver_s *dev)
 {
   FAR struct net_iphdr_s *pbuf = BUF;
   uint16_t iplen;

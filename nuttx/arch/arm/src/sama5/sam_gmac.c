@@ -275,7 +275,7 @@ static void sam_buffer_free(struct sam_gmac_s *priv);
 /* Common TX logic */
 
 static int  sam_transmit(struct sam_gmac_s *priv);
-static int  sam_uiptxpoll(struct net_driver_s *dev);
+static int  sam_txpoll(struct net_driver_s *dev);
 static void sam_dopoll(struct sam_gmac_s *priv);
 
 /* Interrupt handling */
@@ -727,11 +727,11 @@ static int sam_transmit(struct sam_gmac_s *priv)
 }
 
 /****************************************************************************
- * Function: sam_uiptxpoll
+ * Function: sam_txpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
- *   to send.  This is a callback from uip_poll().  uip_poll() may be called:
+ *   to send.  This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timesout and the interface is reset
@@ -750,7 +750,7 @@ static int sam_transmit(struct sam_gmac_s *priv)
  *
  ****************************************************************************/
 
-static int sam_uiptxpoll(struct net_driver_s *dev)
+static int sam_txpoll(struct net_driver_s *dev)
 {
   struct sam_gmac_s *priv = (struct sam_gmac_s *)dev->d_private;
 
@@ -815,7 +815,7 @@ static void sam_dopoll(struct sam_gmac_s *priv)
     {
       /* If we have the descriptor, then poll uIP for new XMIT data. */
 
-      (void)uip_poll(dev, sam_uiptxpoll);
+      (void)devif_poll(dev, sam_txpoll);
     }
 }
 
@@ -1110,7 +1110,7 @@ static void sam_receive(struct sam_gmac_s *priv)
           /* Handle ARP on input then give the IP packet to uIP */
 
           arp_ipin(&priv->dev);
-          uip_input(&priv->dev);
+          devif_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should be
            * sent out on the network, the field  d_len will set to a value > 0.
@@ -1510,7 +1510,7 @@ static void sam_polltimer(int argc, uint32_t arg, ...)
     {
       /* Update TCP timing states and poll uIP for new XMIT data. */
 
-      (void)uip_timer(dev, sam_uiptxpoll, SAM_POLLHSEC);
+      (void)devif_timer(dev, sam_txpoll, SAM_POLLHSEC);
     }
 
   /* Setup the watchdog poll timer again */
@@ -2762,8 +2762,6 @@ static void sam_rxreset(struct sam_gmac_s *priv)
 
 static void sam_gmac_reset(struct sam_gmac_s *priv)
 {
-  uint32_t regval;
-
   /* Disable all GMAC interrupts */
 
   sam_putreg(priv, SAM_GMAC_IDR, GMAC_INT_ALL);
@@ -2773,10 +2771,9 @@ static void sam_gmac_reset(struct sam_gmac_s *priv)
   sam_rxreset(priv);
   sam_txreset(priv);
 
-  /* Disable RX, TX, and statistics */
+  /* Make sure that RX and TX are disabled; clear statistics registers */
 
-  regval = GMAC_NCR_TXEN | GMAC_NCR_RXEN | GMAC_NCR_WESTAT | GMAC_NCR_CLRSTAT;
-  sam_putreg(priv, SAM_GMAC_NCR, regval);
+  sam_putreg(priv, SAM_GMAC_NCR, GMAC_NCR_CLRSTAT);
 
   /* Disable clocking to the GMAC peripheral */
 
@@ -2849,14 +2846,10 @@ static int sam_gmac_configure(struct sam_gmac_s *priv)
 
   sam_gmac_enableclk();
 
-  /* Disable TX, RX, interrupts, etc. */
+  /* Disable TX, RX, clear statistics.  Disable all interrupts. */
 
-  sam_putreg(priv, SAM_GMAC_NCR, 0);
+  sam_putreg(priv, SAM_GMAC_NCR, GMAC_NCR_CLRSTAT);
   sam_putreg(priv, SAM_GMAC_IDR, GMAC_INT_ALL);
-
-  regval = sam_getreg(priv, SAM_GMAC_NCR);
-  regval |= GMAC_NCR_CLRSTAT;
-  sam_putreg(priv, SAM_GMAC_NCR, regval);
 
   /* Clear all status bits in the receive status register. */
 
@@ -2920,7 +2913,7 @@ static int sam_gmac_configure(struct sam_gmac_s *priv)
   sam_rxreset(priv);
   sam_txreset(priv);
 
-  /* Enable Rx and Tx, plus the stats register. */
+  /* Enable Rx and Tx, plus the statistics registers. */
 
   regval  = sam_getreg(priv, SAM_GMAC_NCR);
   regval |= (GMAC_NCR_RXEN | GMAC_NCR_TXEN | GMAC_NCR_WESTAT);

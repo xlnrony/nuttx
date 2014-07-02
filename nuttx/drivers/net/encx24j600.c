@@ -328,7 +328,7 @@ static void enc_wrphy(FAR struct enc_driver_s *priv, uint8_t phyaddr,
 
 static int  enc_txenqueue(FAR struct enc_driver_s *priv);
 static int  enc_transmit(FAR struct enc_driver_s *priv);
-static int  enc_uiptxpoll(struct net_driver_s *dev);
+static int  enc_txpoll(struct net_driver_s *dev);
 
 /* Common RX logic */
 
@@ -1175,11 +1175,11 @@ static int enc_txenqueue(FAR struct enc_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: enc_uiptxpoll
+ * Function: enc_txpoll
  *
  * Description:
  *   Enqueues uIP packets if available.
- *   This is a callback from uip_poll().  uip_poll() may be called:
+ *   This is a callback from devif_poll().  devif_poll() may be called:
  *
  *   1. When the preceding TX packet send is complete,
  *   2. When the preceding TX packet send timedout and the interface is reset
@@ -1196,7 +1196,7 @@ static int enc_txenqueue(FAR struct enc_driver_s *priv)
  *
  ****************************************************************************/
 
-static int enc_uiptxpoll(struct net_driver_s *dev)
+static int enc_txpoll(struct net_driver_s *dev)
 {
   FAR struct enc_driver_s *priv = (FAR struct enc_driver_s *)dev->d_private;
   int ret = OK;
@@ -1305,7 +1305,7 @@ static void enc_txif(FAR struct enc_driver_s *priv)
 
       /* Poll for uip packets */
 
-      uip_poll(&priv->dev, enc_uiptxpoll);
+      devif_poll(&priv->dev, enc_txpoll);
     }
   else
     {
@@ -1497,7 +1497,7 @@ static void enc_rxdispatch(FAR struct enc_driver_s *priv)
           nllvdbg("Try to process IP packet (%02x)\n", BUF->type);
 
           arp_ipin(&priv->dev);
-          ret = uip_input(&priv->dev);
+          ret = devif_input(&priv->dev);
 
           if (ret == OK || (clock_systimer() - descr->ts) > ENC_RXTIMEOUT)
             {
@@ -2005,7 +2005,7 @@ static void enc_toworker(FAR void *arg)
 
   /* Then poll uIP for new XMIT data */
 
-  (void)uip_poll(&priv->dev, enc_uiptxpoll);
+  (void)devif_poll(&priv->dev, enc_txpoll);
 
   /* Release uIP */
 
@@ -2095,7 +2095,7 @@ static void enc_pollworker(FAR void *arg)
        * in progress, we will missing TCP time state updates?
        */
 
-      (void)uip_timer(&priv->dev, enc_uiptxpoll, ENC_POLLHSEC);
+      (void)devif_timer(&priv->dev, enc_txpoll, ENC_POLLHSEC);
     }
 
   /* Release lock on the SPI bus and uIP */
@@ -2321,7 +2321,7 @@ static int enc_txavail(struct net_driver_s *dev)
         {
           /* The interface is up and TX is idle; poll uIP for new XMIT data */
 
-          (void)uip_poll(&priv->dev, enc_uiptxpoll);
+          (void)devif_poll(&priv->dev, enc_txpoll);
         }
     }
 
