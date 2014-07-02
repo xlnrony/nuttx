@@ -226,11 +226,7 @@ void clock_synchronize(void);
  ****************************************************************************/
 
 #if !__HAVE_KERNEL_GLOBALS
-#  ifdef CONFIG_SYSTEM_TIME64
-#    define clock_systimer()  (uint32_t)(clock_systimer64() & 0x00000000ffffffff)
-#  else
 uint32_t clock_systimer(void);
-#  endif
 #endif
 
 /****************************************************************************

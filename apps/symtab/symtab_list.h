@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <nuttx/net/netstats.h>
 #include <inttypes.h>
 #include <sys/ioctl.h>
 #include <signal.h>
@@ -51,11 +52,11 @@
 #include <semaphore.h>
 #include <sys/sendfile.h>
 #include <sys/statfs.h>
-#include <nuttx/net/netstats.h>
 #include <assert.h>
 #include <nuttx/arch.h>
 #include <nuttx/progmem.h>
 #include <nuttx/usb/usbhost.h>
+#include <nuttx/usb/usbhost_trace.h>
 #include <sys/wait.h>
 
 struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
@@ -377,6 +378,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
   { "gmtime_r", (FAR const void *)gmtime_r },
   { "htonl", (FAR const void *)htonl },
   { "htons", (FAR const void *)htons },
+#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)
+  { "icmp_ping", (FAR const void *)icmp_ping },
+#endif
   { "imaxabs", (FAR const void *)imaxabs },
   { "inet_addr", (FAR const void *)inet_addr },
 #if !defined(CONFIG_NET_IPv6) && defined(CONFIG_CAN_PASS_STRUCTS)
@@ -1043,9 +1047,6 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if !defined(CONFIG_HAVE_LONG_LONG)
   { "ub16sqr", (FAR const void *)ub16sqr },
 #endif
-#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)
-  { "uip_ping", (FAR const void *)uip_ping },
-#endif
 #if CONFIG_NFILE_DESCRIPTORS > 0 && !defined(CONFIG_DISABLE_MOUNTPOINT)
   { "umount", (FAR const void *)umount },
 #endif
@@ -1087,6 +1088,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #endif
 #if defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_HIDKBD)
   { "usbhost_kbdinit", (FAR const void *)usbhost_kbdinit },
+#endif
+#if defined(CONFIG_USBHOST_TRACE)
+  { "usbhost_trdump", (FAR const void *)usbhost_trdump },
 #endif
 #if !defined(CONFIG_CPP_HAVE_VARARGS) && defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_VERBOSE)
   { "vdbg", (FAR const void *)vdbg },

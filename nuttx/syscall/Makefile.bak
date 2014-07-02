@@ -41,6 +41,7 @@ include stubs$(DELIM)Make.defs
 
 MKSYSCALL = "$(TOPDIR)$(DELIM)tools$(DELIM)mksyscall$(EXEEXT)"
 CSVFILE = "$(TOPDIR)$(DELIM)syscall$(DELIM)syscall.csv"
+SORTCSVFILE = "$(TOPDIR)$(DELIM)syscall$(DELIM).syscall"
 
 STUB_SRCS += syscall_stublookup.c
 
@@ -90,10 +91,12 @@ $(MKSYSCALL):
 	$(Q) $(MAKE) -C $(TOPDIR)$(DELIM)tools -f Makefile.host mksyscall
 
 .context: syscall.csv
-	$(Q) (cd proxies; $(MKSYSCALL) -p $(CSVFILE);)
-	$(Q) (cd stubs; $(MKSYSCALL) -s $(CSVFILE);)
-	$(Q) ($(MKSYSCALL) -h $(CSVFILE);)	
-	$(Q) (cd $(TOPDIR)$(DELIM)include$(DELIM)sys; $(MKSYSCALL) -l $(CSVFILE);)	
+	cat $(CSVFILE) | sort > $(SORTCSVFILE)
+	$(Q) (cd proxies; $(MKSYSCALL) -p $(SORTCSVFILE);)
+	$(Q) (cd stubs; $(MKSYSCALL) -s $(SORTCSVFILE);)
+	$(Q) ($(MKSYSCALL) -h $(SORTCSVFILE);)	
+	$(Q) (cd $(TOPDIR)$(DELIM)include$(DELIM)sys; $(MKSYSCALL) -l $(SORTCSVFILE);)	
+	$(call DELFILE, $(SORTCSVFILE))	
 	$(Q) touch $@
 
 context: $(MKSYSCALL) .context
@@ -114,7 +117,7 @@ distclean: clean
 	$(call DELFILE, proxies$(DELIM)*.c)
 	$(call DELFILE, stubs$(DELIM)*.c)	
 	$(call DELFILE, syscall_stub.h)
-	$(call DELFILE, "$(TOPDIR)$(DELIM)include$(DELIM)sys$(DELIM)syscall_lookup.h")
+	$(call DELFILE, $(TOPDIR)$(DELIM)include$(DELIM)sys$(DELIM)syscall_lookup.h)
 
 -include Make.dep
 
