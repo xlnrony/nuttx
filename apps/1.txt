@@ -1,0 +1,1024 @@
+
+builtin_list.o:
+00000000 T builtin_list_initialize
+         U builtin_setbuiltins
+000000ac R g_builtin_count
+0000003c R g_builtins
+         U hidkbd_main
+         U install_main
+         U nxflat_main
+         U sdcard_main
+         U stackmonitor_start
+         U stackmonitor_stop
+
+hidkbd_main.o:
+         U close
+         U fflush
+00000000 b g_usbconn
+         U get_errno
+00000094 T hidkbd_main
+00000000 t hidkbd_waiter
+         U open
+         U printf
+         U read
+         U sched_getstreams
+         U sleep
+         U task_create
+         U up_assert
+         U usbhost_initialize
+         U usbhost_kbdinit
+         U write
+
+nsh_main.o:
+         U fprintf
+         U nsh_consolemain
+         U nsh_initialize
+00000000 T nsh_main
+         U nsh_telnetstart
+         U sched_getstreams
+         U symtab_list_initialize
+         U up_cxxinitialize
+
+nxflat_main.o:
+00002048 r __FUNCTION__.2529
+00001e74 r __FUNCTION__.2537
+00001e24 r delimiter
+00000000 d dirlist
+         U exec_module
+         U exit
+00001d64 r exports
+         U fgetc
+         U fopen
+         U fprintf
+         U get_errno
+         U getpid
+         U load_module
+         U memset
+         U mount
+         U nxflat_initialize
+00000000 T nxflat_main
+         U nxflat_uninitialize
+         U printf
+         U pthread_attr_init
+         U pthread_create
+         U pthread_exit
+         U pthread_join
+         U pthread_mutex_init
+         U pthread_mutex_lock
+         U pthread_mutex_unlock
+         U puts
+         U ramdisk_register
+00000000 r romfs_img
+00001c00 r romfs_img_len
+         U sched_getstreams
+         U sem_destroy
+         U sem_init
+         U sem_post
+         U sem_wait
+         U sleep
+         U strcmp
+         U strncmp
+         U syslog
+         U task_create
+000001e4 t testheader
+         U unload_module
+         U usleep
+
+dns_resolver.o:
+00000000 T dns_bind
+         U dns_bind_sock
+00000018 T dns_query
+         U dns_query_sock
+00000040 T dns_whois
+         U dns_whois_socket
+00000000 d g_sockfd
+
+dns_socket.o:
+00000010 r __FUNCTION__.1598
+00000124 r __FUNCTION__.1730
+         U close
+0000044c T dns_bind_sock
+00000514 T dns_free_sock
+000005c4 T dns_getserver
+00000000 t dns_parse_name
+00000544 T dns_query_sock
+00000168 t dns_recv_response
+00000048 t dns_send_query
+00000594 T dns_setserver
+000005e4 T dns_whois_socket
+00000000 d endquery.1557
+00000004 b g_dnsserver
+00000000 b g_seqno
+         U get_errno
+         U htons
+         U memcpy
+         U memset
+         U recv
+         U sendto
+         U setsockopt
+         U socket
+         U syslog
+         U uiplib_ipaddrconv
+         U up_assert
+
+dns_gethostip.o:
+         U dns_bind_sock
+         U dns_free_sock
+00000000 T dns_gethostip
+         U dns_query_sock
+
+telnetd_daemon.o:
+00000000 r __FUNCTION__.2374
+000000dc r __FUNCTION__.2423
+         U accept
+         U bind
+         U close
+         U dup2
+         U free
+00000014 C g_telnetdcommon
+         U get_errno
+         U listen
+         U lowsyslog
+         U malloc
+         U open
+         U sem_init
+         U sem_post
+         U sem_wait
+         U socket
+         U syslog
+         U task_create
+00000000 t telnetd_daemon
+         U telnetd_driver
+00000218 T telnetd_start
+         U up_assert
+
+telnetd_driver.o:
+0000001c r __FUNCTION__.2609
+0000004c r __FUNCTION__.2649
+000000d4 r __FUNCTION__.2725
+00000104 r __FUNCTION__.2773
+         U asprintf
+         U free
+         U g_telnetdcommon
+00000000 r g_telnetdfops
+         U get_errno
+         U lowsyslog
+         U malloc
+         U net_clone
+         U psock_close
+         U psock_recvfrom
+         U psock_send
+         U register_driver
+         U sched_lock
+         U sched_unlock
+         U sem_destroy
+         U sem_init
+         U sem_post
+         U sem_wait
+         U sockfd_socket
+00000338 t telnetd_close
+00000604 T telnetd_driver
+00000000 t telnetd_getchar
+000005e8 t telnetd_ioctl
+000002b4 t telnetd_open
+000001d8 t telnetd_putchar
+00000434 t telnetd_read
+00000038 t telnetd_receive
+00000258 t telnetd_sendopt
+000004dc t telnetd_write
+         U unregister_driver
+         U up_assert
+
+tftpc_get.o:
+00000074 r __FUNCTION__.1251
+00000000 r __FUNCTION__.1317
+         U close
+         U free
+         U get_errno
+         U open
+         U set_errno
+         U syslog
+         U tftp_mkackpacket
+         U tftp_mkerrpacket
+         U tftp_mkreqpacket
+00000248 t tftp_parsedatapacket
+         U tftp_parseerrpacket
+         U tftp_recvfrom
+         U tftp_sendto
+         U tftp_sockinit
+000002c4 t tftp_write
+00000000 T tftpget
+         U write
+         U zalloc
+
+tftpc_put.o:
+0000002c r __FUNCTION__.1251
+00000000 r __FUNCTION__.1276
+00000050 r __FUNCTION__.1306
+000000fc r __FUNCTION__.1382
+         U close
+         U free
+         U get_errno
+         U lseek
+         U open
+         U read
+         U set_errno
+         U syslog
+00000000 T tftp_mkdatapacket
+         U tftp_mkerrpacket
+         U tftp_mkreqpacket
+         U tftp_parseerrpacket
+00000140 t tftp_rcvack
+000000b0 t tftp_read
+         U tftp_recvfrom
+         U tftp_sendto
+         U tftp_sockinit
+000002b0 T tftpput
+         U zalloc
+
+tftpc_packets.o:
+00000000 r __FUNCTION__.2343
+00000060 r __FUNCTION__.2404
+00000090 r __FUNCTION__.2435
+000000d4 r __FUNCTION__.2459
+         U get_errno
+         U memset
+         U recvfrom
+         U sendto
+         U setsockopt
+         U socket
+         U sprintf
+         U strcpy
+         U strlen
+         U syslog
+00000148 T tftp_mkackpacket
+00000198 T tftp_mkerrpacket
+000000bc T tftp_mkreqpacket
+00000118 t tftp_mode
+000001fc T tftp_parseerrpacket
+00000278 T tftp_recvfrom
+00000308 T tftp_sendto
+00000000 T tftp_sockinit
+
+uiplib.o:
+         U strlen
+000000c4 T uiplib_hwmacconv
+00000000 T uiplib_ipaddrconv
+
+uip_sethostaddr.o:
+         U close
+         U ioctl
+         U memcpy
+         U socket
+         U strncpy
+00000000 T uip_sethostaddr
+
+uip_gethostaddr.o:
+         U close
+         U ioctl
+         U memcpy
+         U socket
+         U strncpy
+00000000 T uip_gethostaddr
+
+uip_setdraddr.o:
+         U close
+         U ioctl
+         U memcpy
+         U socket
+         U strncpy
+00000000 T uip_setdraddr
+
+uip_setnetmask.o:
+         U close
+         U ioctl
+         U memcpy
+         U socket
+         U strncpy
+00000000 T uip_setnetmask
+
+uip_parsehttpurl.o:
+00000000 R g_http
+         U strncmp
+         U strncpy
+00000000 T uip_parsehttpurl
+
+uip_setifflag.o:
+         U close
+         U ioctl
+         U memset
+         U socket
+         U strncpy
+00000080 T uip_ifdown
+00000000 T uip_ifup
+
+uip_getifflag.o:
+         U close
+         U ioctl
+         U memset
+         U socket
+         U strncpy
+00000000 T uip_getifstatus
+
+uip_server.o:
+00000000 r __FUNCTION__.2250
+         U accept
+         U close
+         U get_errno
+         U pthread_attr_init
+         U pthread_attr_setstacksize
+         U pthread_create
+         U pthread_detach
+         U syslog
+         U uip_listenon
+00000000 T uip_server
+
+uip_listenon.o:
+00000000 r __FUNCTION__.2243
+         U bind
+         U close
+         U get_errno
+         U listen
+         U socket
+         U syslog
+00000000 T uip_listenon
+
+uip_setmacaddr.o:
+         U close
+         U ioctl
+         U memcpy
+         U socket
+         U strncpy
+00000000 T uip_setmacaddr
+
+uip_getmacaddr.o:
+         U close
+         U ioctl
+         U memcpy
+         U memset
+         U socket
+         U strncpy
+00000000 T uip_getmacaddr
+
+webclient.o:
+000000e8 r __FUNCTION__.2518
+         U close
+         U connect
+         U dns_gethostip
+00000000 r g_http10
+0000000c r g_http11
+00000088 r g_http200
+00000090 r g_http301
+00000098 r g_http302
+000000d4 r g_httpcontsize
+000000a0 r g_httpcrnl
+000000a4 r g_httpform
+0000002c r g_httpget
+00000018 r g_httphost
+00000020 r g_httplocation
+00000034 r g_httppost
+0000003c r g_httpuseragentfields
+         U get_errno
+         U htons
+         U memcpy
+         U memset
+         U recv
+         U send
+         U set_errno
+         U socket
+         U sprintf
+         U strlen
+         U strncasecmp
+         U strncmp
+         U syslog
+         U uip_parsehttpurl
+0000076c T wget
+0000003c t wget_base
+00000670 t wget_parseheaders
+00000520 t wget_parsestatus
+000007a4 T wget_post
+00000000 t wget_strcpy
+
+nsh_init.o:
+00000000 T nsh_initialize
+         U nsh_netinit
+
+nsh_parse.o:
+000001d8 r __FUNCTION__.2744
+         U close
+00001438 T cmd_break
+         U free
+         U fseek
+00000010 r g_exitstatus
+00000018 r g_failure
+00000098 R g_fmtarginvalid
+000000b4 R g_fmtargrange
+00000054 R g_fmtargrequired
+0000016c R g_fmtcmdfailed
+000000d4 R g_fmtcmdnotfound
+00000184 R g_fmtcmdoutofmemory
+00000148 R g_fmtcontext
+0000012c R g_fmtdeepnesting
+0000019c R g_fmtinternalerror
+0000007c R g_fmtnomatching
+000000f0 R g_fmtnosuch
+000001b8 R g_fmtsignalrecvd
+0000010c R g_fmttoomanyargs
+00000004 r g_line_separator
+00000020 R g_nshgreeting
+00000034 R g_nshprompt
+0000003c R g_nshsyntax
+0000001c r g_nullstring
+00000008 r g_redirect1
+0000000c r g_redirect2
+00000014 r g_success
+00000000 r g_token_separator
+         U get_errno
+         U getenv
+         U memset
+000005c0 t nsh_argexpand
+00000600 t nsh_argument
+         U nsh_builtin
+00000064 t nsh_child
+000000c4 t nsh_cloneargs
+00000830 t nsh_cmdenabled
+         U nsh_command
+0000055c t nsh_envexpand
+00000288 t nsh_execute
+         U nsh_fileapp
+         U nsh_freefullpath
+         U nsh_getfullpath
+00000c8c t nsh_itef
+00000790 t nsh_itef_enabled
+0000086c t nsh_loop
+00000738 t nsh_loop_enabled
+00000f84 t nsh_nice
+00001334 T nsh_parse
+00001070 t nsh_parse_command
+00000000 t nsh_releaseargs
+0000013c t nsh_saveresult
+         U open
+         U pthread_attr_init
+         U pthread_attr_setschedparam
+         U pthread_attr_setschedpolicy
+         U pthread_create
+         U pthread_detach
+         U sched_get_priority_max
+         U sched_get_priority_min
+         U sched_getparam
+         U strchr
+         U strcmp
+         U strcspn
+         U strdup
+         U strtol
+         U syslog
+         U zalloc
+
+nsh_console.o:
+00000004 r __FUNCTION__.2704
+         U close
+         U exit
+         U fclose
+         U fdopen
+         U fflush
+         U free
+         U fwrite
+         U get_errno
+00000048 t nsh_closeifnotclosed
+000001a8 t nsh_consoleclone
+00000268 t nsh_consoleexit
+00000188 t nsh_consolelinebuffer
+00000138 t nsh_consoleoutput
+000001e4 t nsh_consoleredirect
+000001c4 t nsh_consolerelease
+00000238 t nsh_consoleundirect
+000000cc t nsh_consolewrite
+00000280 T nsh_newconsole
+00000000 t nsh_openifnotopen
+         U sched_getstreams
+         U syslog
+         U vfprintf
+         U zalloc
+
+nsh_script.o:
+         U fclose
+         U fflush
+         U fgets
+         U fopen
+         U ftell
+         U g_fmtcmdfailed
+         U get_errno
+         U nsh_freefullpath
+         U nsh_getfullpath
+         U nsh_parse
+00000000 T nsh_script
+         U sched_getstreams
+
+nsh_command.o:
+         U builtin_getname
+         U cmd_break
+         U cmd_cat
+         U cmd_cd
+         U cmd_cmp
+         U cmd_cp
+         U cmd_dd
+         U cmd_echo
+         U cmd_exec
+0000040c t cmd_exit
+000003f0 t cmd_false
+         U cmd_free
+         U cmd_get
+000000c0 t cmd_help
+         U cmd_hexdump
+         U cmd_ifconfig
+         U cmd_ifdown
+         U cmd_ifup
+         U cmd_kill
+         U cmd_lbracket
+         U cmd_losetup
+         U cmd_ls
+         U cmd_mb
+         U cmd_mh
+         U cmd_mkdir
+         U cmd_mkfatfs
+         U cmd_mkfifo
+         U cmd_mkrd
+         U cmd_mount
+         U cmd_mv
+         U cmd_mw
+         U cmd_ping
+         U cmd_ps
+         U cmd_put
+         U cmd_pwd
+         U cmd_rm
+         U cmd_rmdir
+         U cmd_set
+         U cmd_sh
+         U cmd_sleep
+         U cmd_test
+000003d4 t cmd_true
+         U cmd_umount
+000003a4 t cmd_unrecognized
+         U cmd_unset
+         U cmd_usleep
+         U cmd_wget
+         U cmd_xd
+00000520 r g_cmdmap
+         U g_fmtargrequired
+         U g_fmtcmdnotfound
+         U g_fmttoomanyargs
+00000294 t help_allcmds
+00000354 t help_builtins
+00000048 t help_cmd
+000002c8 t help_cmdlist
+00000000 t help_showcmd
+00000194 t help_usage
+00000424 T nsh_command
+         U strcmp
+
+nsh_fscmds.o:
+000000a4 r C.65.3286
+000000e8 r __FUNCTION__.3385
+         U basename
+00000438 t cat_common
+         U close
+         U closedir
+000005ac T cmd_cat
+000012fc T cmd_cmp
+00000628 T cmd_cp
+00000894 T cmd_losetup
+00000a90 T cmd_ls
+00000c5c T cmd_mkdir
+00000cd0 T cmd_mkfatfs
+00000eb4 T cmd_mkfifo
+00000f28 T cmd_mkrd
+00001144 T cmd_mv
+000011ec T cmd_rm
+0000125c T cmd_rmdir
+000012cc T cmd_sh
+000000a4 t foreach_direntry
+         U free
+         U g_fmtarginvalid
+         U g_fmtargrange
+         U g_fmtargrequired
+         U g_fmtcmdfailed
+         U g_fmtcmdoutofmemory
+         U g_fmtnosuch
+         U g_fmtsignalrecvd
+         U g_fmttoomanyargs
+00000000 b g_iobuffer
+         U get_errno
+         U getopt
+         U losetup
+         U loteardown
+00000128 t ls_handler
+00000398 t ls_recursive
+00000350 t ls_specialdir
+         U malloc
+         U memcmp
+         U memcpy
+         U mkdir
+         U mkfatfs
+         U mkfifo
+         U nsh_freefullpath
+         U nsh_getcwd
+00000048 t nsh_getdirpath
+         U nsh_getfullpath
+         U nsh_script
+         U open
+         U opendir
+         U optarg
+         U optind
+         U ramdisk_register
+         U read
+         U readdir
+         U rename
+         U rmdir
+         U sprintf
+         U stat
+         U strcmp
+         U strdup
+         U strlen
+         U strtol
+         U syslog
+00000000 t trim_dir
+         U unlink
+         U write
+
+nsh_ddcmd.o:
+         U bchlib_read
+         U bchlib_setup
+         U bchlib_teardown
+         U bchlib_write
+         U close
+00000338 T cmd_dd
+000002f4 t dd_filetype
+00000038 t dd_infcloseblk
+00000054 t dd_infclosech
+00000620 t dd_infopen
+00000000 t dd_outfcloseblk
+0000001c t dd_outfclosech
+00000708 t dd_outfopen
+0000019c t dd_readblk
+0000022c t dd_readch
+00000070 t dd_writeblk
+00000104 t dd_writech
+         U free
+00000000 r g_dd
+         U g_fmtargrequired
+         U g_fmtcmdfailed
+         U g_fmtcmdoutofmemory
+         U get_errno
+         U malloc
+         U memset
+         U nsh_getfullpath
+         U open
+         U read
+         U stat
+         U strncmp
+         U strtol
+         U write
+
+nsh_proccmds.o:
+00000184 T cmd_exec
+00000240 T cmd_kill
+0000020c T cmd_ps
+00000368 T cmd_sleep
+000003e4 T cmd_usleep
+         U g_fmtarginvalid
+         U g_fmtcmdfailed
+         U g_fmtnosuch
+00000000 d g_statenames
+00000024 d g_ttypenames
+         U get_errno
+         U kill
+00000000 t ps_task
+         U sched_foreach
+         U sleep
+         U strtol
+         U usleep
+
+nsh_mmcmds.o:
+00000000 T cmd_free
+         U mallinfo
+
+nsh_envcmds.o:
+         U chdir
+0000018c T cmd_cd
+000002a0 T cmd_echo
+000002fc T cmd_pwd
+0000032c T cmd_set
+0000038c T cmd_unset
+         U dirname
+         U free
+         U g_fmtcmdfailed
+         U g_fmtcmdoutofmemory
+0000000c r g_home
+00000004 r g_oldpwd
+00000000 r g_pwd
+         U get_errno
+         U getenv
+         U malloc
+00000170 T nsh_freefullpath
+00000000 T nsh_getcwd
+000000c0 t nsh_getdirpath
+00000044 T nsh_getfullpath
+00000018 t nsh_getwd
+         U setenv
+         U sprintf
+         U strcmp
+         U strdup
+         U strlen
+         U unsetenv
+
+nsh_dbgcmds.o:
+         U close
+0000051c T cmd_hexdump
+000000cc T cmd_mb
+00000198 T cmd_mh
+00000268 T cmd_mw
+0000047c T cmd_xd
+         U free
+         U g_fmtargrange
+         U g_fmtcmdfailed
+         U get_errno
+         U malloc
+00000000 t mem_parse
+00000304 T nsh_dumpbuffer
+         U open
+         U read
+         U snprintf
+         U sprintf
+         U strchr
+         U strcpy
+         U strlen
+         U strtol
+
+nsh_session.o:
+         U cle
+         U fflush
+         U fprintf
+         U fputs
+         U g_fmtcmdfailed
+         U g_nshgreeting
+         U g_nshprompt
+         U nsh_parse
+00000000 T nsh_session
+         U sched_getstreams
+         U up_assert
+
+nsh_builtin.o:
+         U builtin_exec
+         U g_fmtcmdfailed
+         U get_errno
+00000000 T nsh_builtin
+         U sched_getparam
+         U sched_lock
+         U sched_unlock
+         U waitpid
+
+nsh_fileapps.o:
+         U g_fmtcmdfailed
+         U get_errno
+00000000 T nsh_fileapp
+         U posix_spawn_file_actions_addopen
+         U posix_spawn_file_actions_destroy
+         U posix_spawn_file_actions_init
+         U posix_spawnattr_init
+         U posix_spawnp
+         U sched_getparam
+         U sched_lock
+         U sched_unlock
+         U set_errno
+         U waitpid
+
+nsh_netinit.o:
+00000000 T nsh_netinit
+         U uip_setdraddr
+         U uip_sethostaddr
+         U uip_setmacaddr
+         U uip_setnetmask
+
+nsh_netcmds.o:
+000000cc r __FUNCTION__.3381
+         U basename
+         U clock_systimer
+         U close
+00000324 T cmd_get
+000004d4 T cmd_ifconfig
+00000448 T cmd_ifdown
+000003bc T cmd_ifup
+00000810 T cmd_ping
+00000bcc T cmd_put
+00000c64 T cmd_wget
+         U dns_gethostip
+         U ether_ntoa
+         U free
+         U g_fmtarginvalid
+         U g_fmtargrange
+         U g_fmtargrequired
+         U g_fmtcmdfailed
+         U g_fmtcmdoutofmemory
+         U g_fmttoomanyargs
+00000000 b g_pingid
+         U get_errno
+         U getopt
+00000000 T ifconfig_callback
+         U inet_addr
+         U inet_ntoa
+         U malloc
+         U memset
+         U netdev_foreach
+         U nsh_getfullpath
+         U open
+         U optarg
+         U optind
+00000b74 t ping_newid
+         U strcmp
+         U strdup
+         U strtol
+         U syslog
+00000114 T tftpc_parseargs
+         U tftpget
+         U tftpput
+         U uip_getifstatus
+         U uip_ifdown
+         U uip_ifup
+         U uip_ping
+         U uip_setdraddr
+         U uip_sethostaddr
+         U uip_setmacaddr
+         U uip_setnetmask
+         U uiplib_hwmacconv
+         U uiplib_ipaddrconv
+         U usleep
+         U wget
+000002f0 t wget_callback
+         U write
+
+nsh_mntcmds.o:
+00000000 T cmd_mount
+00000200 T cmd_umount
+         U g_fmtarginvalid
+         U g_fmtargrequired
+         U g_fmtcmdfailed
+         U g_fmttoomanyargs
+         U get_errno
+         U getopt
+         U mount
+         U nsh_freefullpath
+         U nsh_getfullpath
+         U optarg
+         U optind
+         U umount
+
+nsh_consolemain.o:
+00000000 T nsh_consolemain
+         U nsh_newconsole
+         U nsh_session
+         U up_assert
+
+nsh_telnetd.o:
+00000000 r __FUNCTION__.2550
+00000054 r __FUNCTION__.2584
+         U fflush
+         U fgets
+         U fprintf
+         U fputs
+         U g_fmtcmdfailed
+         U g_nshgreeting
+         U g_nshprompt
+         U get_errno
+         U getpid
+         U nsh_newconsole
+         U nsh_parse
+00000000 T nsh_telnetmain
+000000e8 T nsh_telnetstart
+         U sched_getstreams
+         U syslog
+         U telnetd_start
+         U up_assert
+
+nsh_test.o:
+000003f0 t binaryexpression
+00000698 T cmd_lbracket
+00000668 T cmd_test
+00000000 t expression
+         U g_nshsyntax
+         U nsh_freefullpath
+         U nsh_getfullpath
+         U stat
+         U strcmp
+         U strlen
+         U strtol
+00000184 t unaryexpression
+
+install.o:
+         U fclose
+         U fflush
+         U fgets
+         U fopen
+         U fprintf
+         U fread
+         U free
+         U get_errno
+00000210 t install_alreadyexists
+00000250 t install_createscript
+000002cc t install_getlasthexvalue
+000001dc t install_getprogsize
+000001a8 t install_getscriptname
+00000000 t install_getstartpage
+00000000 d install_help
+00000428 T install_main
+000000f8 t install_programflash
+00000338 t install_remove
+00000008 d install_script_exec
+00000004 d install_script_text
+         U malloc
+         U printf
+         U sched_getstreams
+         U stat
+         U strcat
+         U strcmp
+         U strcpy
+         U strerror
+         U strrchr
+         U strtol
+         U unlink
+         U up_progmem_erasepage
+         U up_progmem_getaddr
+         U up_progmem_getpage
+         U up_progmem_ispageerased
+         U up_progmem_isuniform
+         U up_progmem_pagesize
+         U up_progmem_write
+
+readline_common.o:
+00000000 r g_erasetoeol
+00000000 T readline_common
+         U up_assert
+
+readline.o:
+         U get_errno
+         U read
+00000120 T readline
+         U readline_common
+00000000 t readline_getc
+00000078 t readline_putc
+000000d8 t readline_write
+         U up_assert
+         U write
+
+sdcard.o:
+         U fprintf
+         U mmcsd_slotinitialize
+         U printf
+         U sched_getstreams
+00000094 T sdcard_main
+00000000 t sdcard_start
+00000000 b sdio
+         U sdio_initialize
+         U sdio_mediachange
+         U strcmp
+         U strtol
+
+stackmonitor.o:
+00000000 b g_stackmonitor
+         U get_errno
+         U sched_foreach
+         U sched_lock
+         U sched_unlock
+         U sleep
+0000003c t stackmonitor_daemon
+000000d4 T stackmonitor_start
+000001ac T stackmonitor_stop
+00000000 t stkmon_task
+         U syslog
+         U task_create
+         U up_check_tcbstack
+
+cle.o:
+000006f4 T cle
+00000370 t cle_closetext
+000002c8 t cle_clrtoeol
+000000f8 t cle_cursoroff
+000000d8 t cle_cursoron
+000004e4 t cle_editloop
+00000080 t cle_getch
+00000168 t cle_getcursor
+000004a0 t cle_insertch
+000002e8 t cle_opentext
+0000005c t cle_putch
+00000118 t cle_setcursor
+00000404 t cle_showtext
+00000000 t cle_write
+00000006 r g_cursoroff
+00000000 r g_cursoron
+00000010 r g_erasetoeol
+00000014 r g_fmtcursorpos
+0000000c r g_getcursor
+         U get_errno
+         U memset
+         U read
+         U snprintf
+         U write
