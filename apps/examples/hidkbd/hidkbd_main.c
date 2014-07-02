@@ -247,7 +247,7 @@ static int hidkbd_waiter(int argc, char *argv[])
        * hub ports.
        */
 
-      rhpndx = CONN_WAIT(g_usbconn, &connected);
+      rhpndx = usbhost_connection_wait(g_usbconn, &connected);
       DEBUGASSERT(rhpndx == OK);
 
       connected = !connected;
@@ -259,7 +259,7 @@ static int hidkbd_waiter(int argc, char *argv[])
         {
           /* Yes.. enumerate the newly connected device */
 
-          (void)CONN_ENUMERATE(g_usbconn, rhpndx);
+          (void)usbhost_connection_enumerate(g_usbconn, rhpndx);
         }
     }
 

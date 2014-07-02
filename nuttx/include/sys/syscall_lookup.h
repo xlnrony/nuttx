@@ -585,6 +585,22 @@ SYSCALL_LOOKUP(builtin_getname,	builtin_getname,	1,	STUB_builtin_getname)
 SYSCALL_LOOKUP(builtin_isavail,	builtin_isavail,	1,	STUB_builtin_isavail)
 #endif /* defined(CONFIG_BUILTIN) */
 
+#if defined(CONFIG_BUILTIN)
+SYSCALL_LOOKUP(builtin_for_index,	builtin_for_index,	1,	STUB_builtin_for_index)
+#endif /* defined(CONFIG_BUILTIN) */
+
+#if defined(CONFIG_BUILTIN)
+SYSCALL_LOOKUP(builtin_exec,	builtin_exec,	4,	STUB_builtin_exec)
+#endif /* defined(CONFIG_BUILTIN) */
+
+#if defined(CONFIG_BUILTIN)
+SYSCALL_LOOKUP(builtin_getbuiltins,	builtin_getbuiltins,	2,	STUB_builtin_getbuiltins)
+#endif /* defined(CONFIG_BUILTIN) */
+
+#if defined(CONFIG_BUILTIN)
+SYSCALL_LOOKUP(builtin_setbuiltins,	builtin_setbuiltins,	2,	STUB_builtin_setbuiltins)
+#endif /* defined(CONFIG_BUILTIN) */
+
 SYSCALL_LOOKUP(task_spawn,	task_spawn,	7,	STUB_task_spawn)
 #if defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_HIDKBD)
 SYSCALL_LOOKUP(usbhost_kbdinit,	usbhost_kbdinit,	0,	STUB_usbhost_kbdinit)
@@ -592,6 +608,14 @@ SYSCALL_LOOKUP(usbhost_kbdinit,	usbhost_kbdinit,	0,	STUB_usbhost_kbdinit)
 
 #if defined(CONFIG_USBHOST)
 SYSCALL_LOOKUP(usbhost_initialize,	usbhost_initialize,	1,	STUB_usbhost_initialize)
+#endif /* defined(CONFIG_USBHOST) */
+
+#if defined(CONFIG_USBHOST)
+SYSCALL_LOOKUP(usbhost_connection_wait,	usbhost_connection_wait,	2,	STUB_usbhost_connection_wait)
+#endif /* defined(CONFIG_USBHOST) */
+
+#if defined(CONFIG_USBHOST)
+SYSCALL_LOOKUP(usbhost_connection_enumerate,	usbhost_connection_enumerate,	2,	STUB_usbhost_connection_enumerate)
 #endif /* defined(CONFIG_USBHOST) */
 
 #if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_NXFLAT)

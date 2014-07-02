@@ -81,8 +81,8 @@ $(COBJS): %$(OBJEXT): %.c
 	@touch .built
 	
 $(SYMTAB): $(CSV)
-	@cat $(CSV) | sort > .symtab
-	@$(TOPDIR)/tools/mksymtab.exe .symtab $(SYMTAB)
+	cat $(CSV) | sort > .symtab
+	$(TOPDIR)/tools/mksymtab.exe .symtab $(SYMTAB)
 	$(call DELFILE, .symtab)	
 
 context: $(SYMTAB)

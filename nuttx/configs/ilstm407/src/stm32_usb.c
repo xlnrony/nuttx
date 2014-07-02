@@ -166,7 +166,7 @@ void stm32_usbinitialize(void)
  *
  ***********************************************************************************/
 
-#ifdef CONFIG_USBHOST
+#if 0 //CONFIG_USBHOST
 int stm32_usbhost_initialize(void)
 {
   int pid;
