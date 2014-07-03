@@ -1,5 +1,5 @@
 /****************************************************************************
- * netutils/uiplib/uip_getmacaddr.c
+ * netutils/netlib/netlib_getmacaddr.c
  *
  *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -50,14 +50,14 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_getmacaddr
+ * Name: netlib_getmacaddr
  *
  * Description:
  *   Get the network driver IP address
@@ -71,14 +71,14 @@
  *
  ****************************************************************************/
 
-int uip_getmacaddr(const char *ifname, uint8_t *macaddr)
+int netlib_getmacaddr(const char *ifname, uint8_t *macaddr)
 {
   int ret = ERROR;
   if (ifname && macaddr)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
           struct ifreq req;

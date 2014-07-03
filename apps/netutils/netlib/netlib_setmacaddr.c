@@ -1,7 +1,7 @@
 /****************************************************************************
- * netutils/uiplib/uip_sethostaddr.c
+ * netutils/netlib/netlib_setmacaddr.c
  *
- *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-
+#include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -50,66 +50,66 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_IPv6
+# define AF_INETX AF_INET6
+#else
+# define AF_INETX AF_INET
+#endif
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_sethostaddr
+ * Name: netlib_setmacaddr
  *
  * Description:
- *   Set the network driver IP address
+ *   Set the network driver MAC address
  *
  * Parameters:
  *   ifname   The name of the interface to use
- *   ipaddr   The address to set
+ *   macaddr  MAC address to set, size must be IFHWADDRLEN
  *
  * Return:
  *   0 on sucess; -1 on failure
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IPv6
-int uip_sethostaddr(const char *ifname, const struct in6_addr *addr)
-#else
-int uip_sethostaddr(const char *ifname, const struct in_addr *addr)
-#endif
+int netlib_setmacaddr(const char *ifname, const uint8_t *macaddr)
 {
   int ret = ERROR;
-  if (ifname && addr)
+
+  if (ifname && macaddr)
     {
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      /* Get a socket (only so that we get access to the INET subsystem) */
+
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
           struct ifreq req;
-#ifdef CONFIG_NET_IPv6
-          struct sockaddr_in6 *inaddr;
-#else
-          struct sockaddr_in  *inaddr;
-#endif
-          /* Add the device name to the request */
+
+          /* Put the driver name into the request */
 
           strncpy(req.ifr_name, ifname, IFNAMSIZ);
 
-          /* Add the INET address to the request */
+          /* Put the new MAC address into the request */
 
-#ifdef CONFIG_NET_IPv6
-          inaddr             = (struct sockaddr_in6 *)&req.ifr_addr;
-          inaddr->sin_family = AF_INET6;
-          inaddr->sin_port   = 0;
-          memcpy(&inaddr->sin6_addr, addr, sizeof(struct in6_addr));
-#else
-          inaddr             = (struct sockaddr_in *)&req.ifr_addr;
-          inaddr->sin_family = AF_INET;
-          inaddr->sin_port   = 0;
-          memcpy(&inaddr->sin_addr, addr, sizeof(struct in_addr));
-#endif
-          ret = ioctl(sockfd, SIOCSIFADDR, (unsigned long)&req);
+          req.ifr_hwaddr.sa_family = AF_INETX;
+          memcpy(&req.ifr_hwaddr.sa_data, macaddr, IFHWADDRLEN);
+
+          /* Perform the ioctl to set the MAC address */
+
+          ret = ioctl(sockfd, SIOCSIFHWADDR, (unsigned long)&req);
           close(sockfd);
         }
     }
+
   return ret;
 }
 

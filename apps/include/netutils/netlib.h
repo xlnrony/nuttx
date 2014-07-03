@@ -1,14 +1,12 @@
 /****************************************************************************
- *  apps/include/netutils/uiplib.h
+ *  apps/include/netutils/netlib.h
  * Various non-standard APIs to support netutils.  All non-standard and
  * intended only for internal use.
  *
  *   Copyright (C) 2007, 2009, 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * Some of these APIs derive from uIP but all of them use the uip_ prefix
- * to identify them as members of this library.  uIP also has a BSD style
- * license:
+ * Some of these APIs derive from uIP.  uIP also has a BSD style license:
  *
  *   Author: Adam Dunkels <adam@sics.se>
  *   Copyright (c) 2002, Adam Dunkels.
@@ -42,8 +40,8 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_INCLUDE_NETUTILS_UIPLIB_H
-#define __APPS_INCLUDE_NETUTILS_UIPLIB_H
+#ifndef __APPS_INCLUDE_NETUTILS_NETLIB_H
+#define __APPS_INCLUDE_NETUTILS_NETLIB_H
 
 /****************************************************************************
  * Included Files
@@ -68,9 +66,9 @@
  */
 
 #ifdef CONFIG_NET_UDP
-# define UIPLIB_SOCK_IOCTL SOCK_DGRAM
+# define NETLIB_SOCK_IOCTL SOCK_DGRAM
 #else
-# define UIPLIB_SOCK_IOCTL SOCK_STREAM
+# define NETLIB_SOCK_IOCTL SOCK_STREAM
 #endif
 
 /****************************************************************************
@@ -102,49 +100,49 @@ extern "C"
  * Return: Non-zero If the IP address was parsed.
  */
 
-bool uiplib_ipaddrconv(FAR const char *addrstr, uint8_t *addr);
-bool uiplib_hwmacconv(FAR const char *hwstr, uint8_t *hw);
+bool netlib_ipaddrconv(FAR const char *addrstr, uint8_t *addr);
+bool netlib_hwmacconv(FAR const char *hwstr, uint8_t *hw);
 
 /* Get and set IP/MAC addresses (Ethernet L2 only) */
 
 #ifdef CONFIG_NET_ETHERNET
-int uip_setmacaddr(FAR const char *ifname, const uint8_t *macaddr);
-int uip_getmacaddr(FAR const char *ifname, uint8_t *macaddr);
+int netlib_setmacaddr(FAR const char *ifname, const uint8_t *macaddr);
+int netlib_getmacaddr(FAR const char *ifname, uint8_t *macaddr);
 #endif
 
 /* IP address support */
 
 #ifdef CONFIG_NET_IPv6
-int uip_gethostaddr(FAR const char *ifname, struct in6_addr *addr);
-int uip_sethostaddr(FAR const char *ifname, const struct in6_addr *addr);
-int uip_setdraddr(FAR const char *ifname, const struct in6_addr *addr);
-int uip_setnetmask(FAR const char *ifname, const struct in6_addr *addr);
+int netlib_gethostaddr(FAR const char *ifname, struct in6_addr *addr);
+int netlib_sethostaddr(FAR const char *ifname, const struct in6_addr *addr);
+int netlib_setdraddr(FAR const char *ifname, const struct in6_addr *addr);
+int netlib_setnetmask(FAR const char *ifname, const struct in6_addr *addr);
 #else
-int uip_gethostaddr(FAR const char *ifname, struct in_addr *addr);
-int uip_sethostaddr(FAR const char *ifname, const struct in_addr *addr);
-int uip_setdraddr(FAR const char *ifname, const struct in_addr *addr);
-int uip_setnetmask(FAR const char *ifname, const struct in_addr *addr);
+int netlib_gethostaddr(FAR const char *ifname, struct in_addr *addr);
+int netlib_sethostaddr(FAR const char *ifname, const struct in_addr *addr);
+int netlib_setdraddr(FAR const char *ifname, const struct in_addr *addr);
+int netlib_setnetmask(FAR const char *ifname, const struct in_addr *addr);
 #endif
 
 /* HTTP support */
 
-int  uip_parsehttpurl(FAR const char *url, uint16_t *port,
+int  netlib_parsehttpurl(FAR const char *url, uint16_t *port,
                       FAR char *hostname, int hostlen,
                       FAR char *filename, int namelen);
 
 /* Generic server logic */
 
-int uip_listenon(uint16_t portno);
-void uip_server(uint16_t portno, pthread_startroutine_t handler,
+int netlib_listenon(uint16_t portno);
+void netlib_server(uint16_t portno, pthread_startroutine_t handler,
                 int stacksize);
 
-int uip_getifstatus(FAR const char *ifname, FAR uint8_t *flags);
-int uip_ifup(FAR const char *ifname);
-int uip_ifdown(FAR const char *ifname);
+int netlib_getifstatus(FAR const char *ifname, FAR uint8_t *flags);
+int netlib_ifup(FAR const char *ifname);
+int netlib_ifdown(FAR const char *ifname);
 
 #undef EXTERN
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __APPS_INCLUDE_NETUTILS_UIPLIB_H */
+#endif /* __APPS_INCLUDE_NETUTILS_NETLIB_H */

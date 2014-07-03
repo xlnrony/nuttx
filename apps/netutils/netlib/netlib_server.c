@@ -1,5 +1,5 @@
 /****************************************************************************
- * netutils/uiplib/uip_server.c
+ * netutils/netlib/netlib_server.c
  *
  *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -51,7 +51,7 @@
 
 #include <netinet/in.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
 
 /****************************************************************************
  * Public Functions
@@ -62,7 +62,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_server
+ * Name: netlib_server
  *
  * Description:
  *   Implement basic server logic
@@ -78,7 +78,7 @@
  *
  ****************************************************************************/
 
-void uip_server(uint16_t portno, pthread_startroutine_t handler, int stacksize)
+void netlib_server(uint16_t portno, pthread_startroutine_t handler, int stacksize)
 {
   struct sockaddr_in myaddr;
 #ifdef CONFIG_NET_HAVE_SOLINGER
@@ -93,7 +93,7 @@ void uip_server(uint16_t portno, pthread_startroutine_t handler, int stacksize)
 
   /* Create a new TCP socket to use to listen for connections */
 
-  listensd = uip_listenon(portno);
+  listensd = netlib_listenon(portno);
   if (listensd < 0)
     {
       return;

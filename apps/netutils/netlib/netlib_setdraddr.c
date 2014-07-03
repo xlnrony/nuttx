@@ -1,5 +1,5 @@
 /****************************************************************************
- * netutils/uiplib/uip_setdraddr.c
+ * netutils/netlib/netlib_setdraddr.c
  *
  *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -50,14 +50,14 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_setdraddr
+ * Name: netlib_setdraddr
  *
  * Description:
  *   Set the default router IP address
@@ -72,15 +72,15 @@
  ****************************************************************************/
 
 #ifdef CONFIG_NET_IPv6
-int uip_setdraddr(const char *ifname, const struct in6_addr *addr)
+int netlib_setdraddr(const char *ifname, const struct in6_addr *addr)
 #else
-int uip_setdraddr(const char *ifname, const struct in_addr *addr)
+int netlib_setdraddr(const char *ifname, const struct in_addr *addr)
 #endif
 {
   int ret = ERROR;
   if (ifname && addr)
     {
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
           struct ifreq req;

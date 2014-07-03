@@ -1,7 +1,7 @@
 /****************************************************************************
- * netutils/uiplib/uip_setmultiaddr.c
+ * netutils/netlib/netlib_getifflag.c
  *
- *   Copyright (C) 2010-2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,79 +38,70 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <debug.h>
 
 #include <netinet/in.h>
-#include <sys/sockio.h>
+#include <net/if.h>
 
-#include <apps/netutils/uiplib.h>
-#include <apps/netutils/ipmsfilter.h>
-
-#ifdef CONFIG_NET_IGMP
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#include <apps/netutils/netlib.h>
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: ipmsfilter
+ * Name: netlib_getifstatus
  *
  * Description:
- *   Add or remove an IP address from a multicast filter set.
+ *   Get the network driver ifup/ifdown status
  *
  * Parameters:
- *   ifname     The name of the interface to use, size must less than IMSFNAMSIZ
- *   multiaddr  Multicast group address to add/remove (network byte order)
- *   fmode      MCAST_INCLUDE: Add multicast address
- *              MCAST_EXCLUDE: Remove multicast address
+ *   ifname   The name of the interface to use
+ *   flags    The interface flags returned by SIOCGIFFLAGS
  *
  * Return:
- *   0 on sucess; Negated errno on failure
+ *   0 on sucess; -1 on failure
  *
  ****************************************************************************/
 
-int ipmsfilter(FAR const char *ifname, FAR const struct in_addr *multiaddr,
-               uint32_t fmode)
+int netlib_getifstatus(FAR const char *ifname, FAR uint8_t *flags)
 {
   int ret = ERROR;
-
-  nvdbg("ifname: %s muliaddr: %08x fmode: %ld\n", ifname, *multiaddr, fmode);
-  if (ifname && multiaddr)
+  if (ifname)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
-          struct ip_msfilter imsf;
+          struct ifreq req;
+          memset (&req, 0, sizeof(struct ifreq));
 
           /* Put the driver name into the request */
 
-          strncpy(imsf.imsf_name, ifname, IMSFNAMSIZ);
+          strncpy(req.ifr_name, ifname, IFNAMSIZ);
 
-          /* Put the new address into the request */
+          /* Perform the ioctl to ifup or ifdown status */
 
-          imsf.imsf_multiaddr.s_addr = multiaddr->s_addr;
+          ret = ioctl(sockfd, SIOCGIFFLAGS, (unsigned long)&req);
+          if (!ret)
+            {
+              *flags = req.ifr_flags;
+            }
 
-          /* Perforom the ioctl to set the MAC address */
-
-          imsf.imsf_fmode = fmode;
-          ret = ioctl(sockfd, SIOCSIPMSFILTER, (unsigned long)&imsf);
           close(sockfd);
         }
     }
+
   return ret;
 }
 
-#endif /* CONFIG_NET_IGM */
+#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */

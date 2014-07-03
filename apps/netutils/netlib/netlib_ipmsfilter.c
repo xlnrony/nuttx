@@ -1,7 +1,7 @@
 /****************************************************************************
- * netutils/uiplib/uip_setnetmask.c
+ * netutils/netlib/netlib_setipmsfilter.c
  *
- *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,78 +38,79 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <debug.h>
 
 #include <netinet/in.h>
-#include <net/if.h>
+#include <sys/sockio.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
+#include <apps/netutils/ipmsfilter.h>
+
+#ifdef CONFIG_NET_IGMP
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_setnetmask
+ * Name: ipmsfilter
  *
  * Description:
- *   Set the netmask
+ *   Add or remove an IP address from a multicast filter set.
  *
  * Parameters:
- *   ifname   The name of the interface to use
- *   ipaddr   The address to set
+ *   ifname     The name of the interface to use, size must less than IMSFNAMSIZ
+ *   multiaddr  Multicast group address to add/remove (network byte order)
+ *   fmode      MCAST_INCLUDE: Add multicast address
+ *              MCAST_EXCLUDE: Remove multicast address
  *
  * Return:
- *   0 on sucess; -1 on failure
+ *   0 on sucess; Negated errno on failure
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IPv6
-int uip_setnetmask(const char *ifname, const struct in6_addr *addr)
-#else
-int uip_setnetmask(const char *ifname, const struct in_addr *addr)
-#endif
+int ipmsfilter(FAR const char *ifname, FAR const struct in_addr *multiaddr,
+               uint32_t fmode)
 {
   int ret = ERROR;
-  if (ifname && addr)
+
+  nvdbg("ifname: %s muliaddr: %08x fmode: %ld\n", ifname, *multiaddr, fmode);
+  if (ifname && multiaddr)
     {
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      /* Get a socket (only so that we get access to the INET subsystem) */
+
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
-          struct ifreq req;
-#ifdef CONFIG_NET_IPv6
-          struct sockaddr_in6 *inaddr;
-#else
-          struct sockaddr_in  *inaddr;
-#endif
-          /* Add the device name to the request */
+          struct ip_msfilter imsf;
 
-          strncpy(req.ifr_name, ifname, IFNAMSIZ);
+          /* Put the driver name into the request */
 
-          /* Add the INET address to the request */
+          strncpy(imsf.imsf_name, ifname, IMSFNAMSIZ);
 
-#ifdef CONFIG_NET_IPv6
-          inaddr             = (struct sockaddr_in6 *)&req.ifr_addr;
-          inaddr->sin_family = AF_INET6;
-          inaddr->sin_port   = 0;
-          memcpy(&inaddr->sin6_addr, addr, sizeof(struct in6_addr));
-#else
-          inaddr             = (struct sockaddr_in *)&req.ifr_addr;
-          inaddr->sin_family = AF_INET;
-          inaddr->sin_port   = 0;
-          memcpy(&inaddr->sin_addr, addr, sizeof(struct in_addr));
-#endif
-          ret = ioctl(sockfd, SIOCSIFNETMASK, (unsigned long)&req);
+          /* Put the new address into the request */
+
+          imsf.imsf_multiaddr.s_addr = multiaddr->s_addr;
+
+          /* Perforom the ioctl to set the MAC address */
+
+          imsf.imsf_fmode = fmode;
+          ret = ioctl(sockfd, SIOCSIPMSFILTER, (unsigned long)&imsf);
           close(sockfd);
         }
     }
   return ret;
 }
 
-#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */
+#endif /* CONFIG_NET_IGM */

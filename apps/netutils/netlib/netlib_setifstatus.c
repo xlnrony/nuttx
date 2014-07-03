@@ -1,5 +1,5 @@
 /****************************************************************************
- * netutils/uiplib/uip_setifflag.c
+ * netutils/netlib/netlib_setifstatus.c
  *
  *   Copyright (C) 2007-2009, 2011, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -50,14 +50,14 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include <apps/netutils/uiplib.h>
+#include <apps/netutils/netlib.h>
 
 /****************************************************************************
  * Global Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: uip_ifup
+ * Name: netlib_ifup
  *
  * Description:
  *   Set the network interface UP
@@ -70,14 +70,14 @@
  *
  ****************************************************************************/
 
-int uip_ifup(const char *ifname)
+int netlib_ifup(const char *ifname)
 {
   int ret = ERROR;
   if (ifname)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
           struct ifreq req;
@@ -100,7 +100,7 @@ int uip_ifup(const char *ifname)
 }
 
 /****************************************************************************
- * Name: uip_ifdown
+ * Name: netlib_ifdown
  *
  * Description:
  *   Set the network interface DOWN
@@ -113,14 +113,14 @@ int uip_ifup(const char *ifname)
  *
  ****************************************************************************/
 
-int uip_ifdown(const char *ifname)
+int netlib_ifdown(const char *ifname)
 {
   int ret = ERROR;
   if (ifname)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(PF_INET, UIPLIB_SOCK_IOCTL, 0);
+      int sockfd = socket(PF_INET, NETLIB_SOCK_IOCTL, 0);
       if (sockfd >= 0)
         {
           struct ifreq req;

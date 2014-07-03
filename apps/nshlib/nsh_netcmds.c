@@ -69,18 +69,18 @@
 
 #if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && \
    !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)
-#  include <apps/netutils/uiplib.h>
+#  include <apps/netutils/netlib.h>
 #  include <apps/netutils/dnsclient.h>
 #endif
 
 #if defined(CONFIG_NET_UDP) && CONFIG_NFILE_DESCRIPTORS > 0
-#  include <apps/netutils/uiplib.h>
+#  include <apps/netutils/netlib.h>
 #  include <apps/netutils/tftp.h>
 #endif
 
 #if defined(CONFIG_NET_TCP) && CONFIG_NFILE_DESCRIPTORS > 0
 #  ifndef CONFIG_NSH_DISABLE_WGET
-#    include <apps/netutils/uiplib.h>
+#    include <apps/netutils/netlib.h>
 #    include <apps/netutils/webclient.h>
 #  endif
 #endif
@@ -287,7 +287,7 @@ int ifconfig_callback(FAR struct net_driver_s *dev, void *arg)
   const char *status;
   int ret;
 
-  ret = uip_getifstatus(dev->d_ifname, &iff);
+  ret = netlib_getifstatus(dev->d_ifname, &iff);
   if (ret != OK)
     {
       nsh_output(vtbl, "\tGet %s interface flags error: %d\n",
@@ -364,7 +364,7 @@ int tftpc_parseargs(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv,
             break;
 
           case 'h':
-            if (!uiplib_ipaddrconv(optarg, (FAR unsigned char*)&args->ipaddr))
+            if (!netlib_ipaddrconv(optarg, (FAR unsigned char*)&args->ipaddr))
               {
                 nsh_output(vtbl, g_fmtarginvalid, argv[0]);
                 badarg = true;
@@ -546,7 +546,7 @@ int cmd_ifup(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
     }
 
   intf = argv[1];
-  ret  = uip_ifup(intf);
+  ret  = netlib_ifup(intf);
   nsh_output(vtbl, "ifup %s...%s\n", intf, (ret == OK) ? "OK" : "Failed");
   return ret;
 }
@@ -570,7 +570,7 @@ int cmd_ifdown(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
     }
 
   intf = argv[1];
-  ret = uip_ifdown(intf);
+  ret = netlib_ifdown(intf);
   nsh_output(vtbl, "ifdown %s...%s\n", intf, (ret == OK) ? "OK" : "Failed");
   return ret;
 }
@@ -672,7 +672,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
                     {
                       hw = argv[i+1];
                       i++;
-                      badarg = !uiplib_hwmacconv(hw, mac);
+                      badarg = !netlib_hwmacconv(hw, mac);
                     }
                   else
                     {
@@ -712,7 +712,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
   if (hw)
     {
       ndbg("HW MAC: %s\n", hw);
-      uip_setmacaddr(intf, mac);
+      netlib_setmacaddr(intf, mac);
     }
 #endif
 
@@ -733,7 +733,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
       gip = addr.s_addr = inet_addr(hostip);
     }
 
-  uip_sethostaddr(intf, &addr);
+  netlib_sethostaddr(intf, &addr);
 
   /* Set gateway */
 
@@ -756,7 +756,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
       addr.s_addr = gip;
     }
 
-  uip_setdraddr(intf, &addr);
+  netlib_setdraddr(intf, &addr);
 
   /* Set network mask */
 
@@ -771,7 +771,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
       addr.s_addr = inet_addr("255.255.255.0");
     }
 
-  uip_setnetmask(intf, &addr);
+  netlib_setnetmask(intf, &addr);
 
 #if defined(CONFIG_NSH_DHCPC) || defined(CONFIG_NSH_DNS)
   if (dns)
@@ -793,7 +793,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 
   if (!gip)
     {
-      uip_getmacaddr("eth0", mac);
+      netlib_getmacaddr("eth0", mac);
 
       /* Set up the DHCPC modules */
 
@@ -808,16 +808,16 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
           struct dhcpc_state ds;
 
           (void)dhcpc_request(handle, &ds);
-          uip_sethostaddr("eth0", &ds.ipaddr);
+          netlib_sethostaddr("eth0", &ds.ipaddr);
 
           if (ds.netmask.s_addr != 0)
             {
-              uip_setnetmask("eth0", &ds.netmask);
+              netlib_setnetmask("eth0", &ds.netmask);
             }
 
           if (ds.default_router.s_addr != 0)
             {
-              uip_setdraddr("eth0", &ds.default_router);
+              netlib_setdraddr("eth0", &ds.default_router);
             }
 
           if (ds.dnsaddr.s_addr != 0)
