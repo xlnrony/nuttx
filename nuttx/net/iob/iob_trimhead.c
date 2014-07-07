@@ -114,8 +114,8 @@ FAR struct iob_s *iob_trimhead(FAR struct iob_s *iob, unsigned int trimlen)
 
               pktlen        -= iob->io_len;
               trimlen       -= iob->io_len;
-              iob->io_len    = 0;
-              iob->io_offset = 0;
+              //iob->io_len    = 0;
+              //iob->io_offset = 0;
 
               /* Check if this was the last entry in the chain */
 

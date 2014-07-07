@@ -368,7 +368,7 @@ static inline int wget_parseheaders(struct wget_s *ws)
     }
 
 exit:
-  ws->offset = offset;
+  ws->offset = ++offset;
   ws->ndx    = ndx;
   return OK;
 }

@@ -20,7 +20,6 @@ CONFIG_WINDOWS_CYGWIN=y
 #
 # Build Configuration
 #
-CONFIG_APPS_DIR="../apps"
 CONFIG_BUILD_2PASS=y
 CONFIG_PASS1_TARGET="all"
 CONFIG_PASS1_BUILDIR="configs/ilstm407/kernel"
@@ -1293,3 +1292,7 @@ CONFIG_SYSTEM_STACKMONITOR_INTERVAL=2
 # Zmodem Commands
 #
 # CONFIG_SYSTEM_ZMODEM is not set
+
+# Application configuration
+
+CONFIG_APPS_DIR="../apps"

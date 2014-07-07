@@ -219,6 +219,21 @@ void iob_free_chain(FAR struct iob_s *iob);
 int iob_add_queue(FAR struct iob_s *iob, FAR struct iob_queue_s *iobq);
 #endif /* CONFIG_IOB_NCHAINS > 0 */
 
+
+/****************************************************************************
+ * Name: iob_modify_queue
+ *
+ * Description:
+ *   Add one I/O buffer chain to the end of a queue.  May fail due to lack
+ *   of resources.
+ *
+ ****************************************************************************/
+
+#if CONFIG_IOB_NCHAINS > 0
+int iob_modify_queue(FAR struct iob_s *iob, FAR struct iob_queue_s *iobq);
+#endif /* CONFIG_IOB_NCHAINS > 0 */
+
+
 /****************************************************************************
  * Name: iob_remove_queue
  *

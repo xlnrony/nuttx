@@ -380,7 +380,8 @@ static inline void recvfrom_readahead(struct recvfrom_s *pstate)
            * buffer chain.
            */
 
-          (void)iob_trimhead(iob, recvlen);
+          iob = iob_trimhead(iob, recvlen);
+	   (void)iob_modify_queue(iob, &conn->readahead);
         }
     }
 }
