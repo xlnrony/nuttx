@@ -55,7 +55,8 @@
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
 
-#include <nuttx/net/uip.h>
+#include <nuttx/net/net.h>
+#include <nuttx/net/ip.h>
 #include <nuttx/net/igmp.h>
 
 #include "devif/devif.h"

@@ -49,7 +49,7 @@
 #include <debug.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/tcp.h>
+#include <nuttx/net/net.h>
 
 #include "devif/devif.h"
 #include "tcp/tcp.h"
@@ -108,7 +108,7 @@ FAR struct tcp_conn_s *tcp_findlistener(uint16_t portno)
  ****************************************************************************/
 
 /****************************************************************************
- * Function: tcp_listeninit
+ * Function: tcp_listen_initialize
  *
  * Description:
  *   Setup the listening data structures
@@ -119,7 +119,7 @@ FAR struct tcp_conn_s *tcp_findlistener(uint16_t portno)
  *
  ****************************************************************************/
 
-void tcp_listeninit(void)
+void tcp_listen_initialize(void)
 {
   int ndx;
   for (ndx = 0; ndx < CONFIG_NET_MAX_LISTENPORTS; ndx++)
@@ -279,7 +279,7 @@ int tcp_accept_connection(FAR struct net_driver_s *dev,
           ret = tcp_backlogadd(listener, conn);
           if (ret == OK)
             {
-              (void)tcp_callback(dev, listener, UIP_BACKLOG);
+              (void)tcp_callback(dev, listener, TCP_BACKLOG);
             }
         }
 #endif

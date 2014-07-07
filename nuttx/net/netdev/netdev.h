@@ -44,7 +44,7 @@
 
 #include <sys/types.h>
 
-#include <nuttx/net/uip.h>
+#include <nuttx/net/ip.h>
 
 /****************************************************************************
  * Pre-processor Definitions

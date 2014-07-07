@@ -50,11 +50,6 @@
 
 #include <nuttx/net/netconfig.h>
 
-#include <nuttx/net/uip.h>
-
-#ifdef CONFIG_NET_PKT
-#  include <nuttx/net/pkt.h>
-#endif
 #ifdef CONFIG_NET_TCP
 #  include <nuttx/net/tcp.h>
 #endif

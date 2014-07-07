@@ -50,14 +50,15 @@
 #include <debug.h>
 
 #include <arch/irq.h>
-#include <nuttx/clock.h>
-#include <nuttx/net/arp.h>
-#include <nuttx/net/netdev.h>
-#include <nuttx/net/pkt.h>
 
-#include "socket/socket.h"
+#include <nuttx/clock.h>
+#include <nuttx/net/netdev.h>
+#include <nuttx/net/net.h>
+#include <nuttx/net/ip.h>
+
 #include "netdev/netdev.h"
 #include "devif/devif.h"
+#include "socket/socket.h"
 #include "pkt/pkt.h"
 
 /****************************************************************************
@@ -106,7 +107,7 @@ static uint16_t psock_send_interrupt(FAR struct net_driver_s *dev,
        * we will just have to wait for the next polling cycle.
        */
 
-      if (dev->d_sndlen > 0 || (flags & UIP_NEWDATA) != 0)
+      if (dev->d_sndlen > 0 || (flags & PKT_NEWDATA) != 0)
         {
           /* Another thread has beat us sending data or the buffer is busy,
            * Check for a timeout. If not timed out, wait for the next
@@ -250,7 +251,7 @@ ssize_t psock_pkt_send(FAR struct socket *psock, FAR const void *buf,
 
           /* Set up the callback in the connection */
 
-          state.snd_cb->flags = UIP_POLL;
+          state.snd_cb->flags = PKT_POLL;
           state.snd_cb->priv  = (void*)&state;
           state.snd_cb->event = psock_send_interrupt;
 

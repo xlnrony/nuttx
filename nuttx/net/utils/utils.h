@@ -72,11 +72,25 @@ struct timeval;           /* Forward reference */
 #endif
 
 /****************************************************************************
+ * Function: net_lockinitialize
+ *
+ * Description:
+ *   Initialize the locking facility
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_NOINTS
+void net_lockinitialize(void);
+#else
+#  define net_lockinitialize()
+#endif
+
+/****************************************************************************
  * Function: net_dsec2timeval
  *
  * Description:
- *   Convert a decisecond timeout value to a struct timeval.  Needed by
- *   getsockopt() to report timeout values.
+ *   Convert a decisecond value to a struct timeval.  Needed by getsockopt()
+ *   to report timeout values.
  *
  * Parameters:
  *   dsec The decisecond value to convert
@@ -92,6 +106,22 @@ struct timeval;           /* Forward reference */
 #if !defined(CONFIG_DISABLE_CLOCK)
 void net_dsec2timeval(uint16_t dsec, FAR struct timeval *tv);
 #endif
+
+/****************************************************************************
+ * Function: net_dsec2tick
+ *
+ * Description:
+ *   Convert a decisecond value to a system clock ticks.  Used by IGMP logic.
+ *
+ * Parameters:
+ *   dsec The decisecond value to convert
+ *
+ * Returned Value:
+ *   The decisecond value expressed as system clock ticks
+ *
+ ****************************************************************************/
+
+unsigned int net_dsec2tick(int dsec);
 
 /****************************************************************************
  * Function: net_timeval2dsec

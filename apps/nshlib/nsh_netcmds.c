@@ -55,17 +55,15 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <netinet/ether.h>
 
-#include <nuttx/net/net.h>
 #include <nuttx/clock.h>
-#include <nuttx/net/uip.h>
+#include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/netstats.h>
-
-#ifdef CONFIG_NET_STATISTICS
-#  include <nuttx/net/uip.h>
-#endif
+#include <nuttx/net/ip.h>
 
 #if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && \
    !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)

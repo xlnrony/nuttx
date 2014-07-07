@@ -49,6 +49,7 @@
 #include <debug.h>
 
 #include <nuttx/net/net.h>
+#include <nuttx/net/ip.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -56,7 +57,6 @@
 #include <netinet/in.h>
 
 #include <nuttx/net/netdev.h>
-#include <nuttx/net/uip.h>
 
 #ifdef CONFIG_NET_IGMP
 #  include "sys/sockio.h"
@@ -65,6 +65,7 @@
 
 #include "socket/socket.h"
 #include "netdev/netdev.h"
+#include "igmp/igmp.h"
 #include "route/route.h"
 
 /****************************************************************************

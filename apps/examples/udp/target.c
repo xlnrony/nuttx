@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/udp/nettest.c
+ * examples/udp/target.c
  *
  *   Copyright (C) 2007, 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -41,7 +41,9 @@
 #include <stdio.h>
 #include <debug.h>
 
-#include <nuttx/net/uip.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
 #include <apps/netutils/netlib.h>
 
 #include "udp-internal.h"

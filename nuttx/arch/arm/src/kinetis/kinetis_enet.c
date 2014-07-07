@@ -49,11 +49,11 @@
 #include <wdog.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/net/mii.h>
-
-#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
 
@@ -517,9 +517,9 @@ static void kinetis_receive(FAR struct kinetis_driver_s *priv)
       /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+      if (BUF->type == HTONS(ETHTYPE_IP6))
 #else
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+      if (BUF->type == HTONS(ETHTYPE_IP))
 #endif
         {
           arp_ipin(&priv->dev);
@@ -535,7 +535,7 @@ static void kinetis_receive(FAR struct kinetis_driver_s *priv)
               kinetis_transmit(priv);
             }
         }
-      else if (BUF->type == htons(UIP_ETHTYPE_ARP))
+      else if (BUF->type == htons(ETHTYPE_ARP))
         {
           arp_arpin(&priv->dev);
 

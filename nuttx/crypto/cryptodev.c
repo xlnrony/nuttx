@@ -2,7 +2,7 @@
  * crypto/cryptodev.c
  *
  *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Author:  Max Nekludov <macscomp@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,8 +47,8 @@
 
 #include <nuttx/fs/fs.h>
 
-#include <crypto/crypto.h>
-#include <crypto/cryptodev.h>
+#include <crypto/nuttx/crypto.h>
+#include <crypto/nuttx/cryptodev.h>
 
 /****************************************************************************
  * Private Function Prototypes

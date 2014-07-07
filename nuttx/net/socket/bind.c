@@ -49,14 +49,14 @@
 #  include <netpacket/packet.h>
 #endif
 
-#include <nuttx/net/tcp.h>
+#include <nuttx/net/net.h>
 #include <nuttx/net/udp.h>
-#include <nuttx/net/pkt.h>
 
 #include "socket/socket.h"
 #include "netdev/netdev.h"
 #include "tcp/tcp.h"
 #include "udp/udp.h"
+#include "pkt/pkt.h"
 
 /****************************************************************************
  * Private Functions
@@ -141,7 +141,7 @@ static int pkt_bind(FAR struct pkt_conn_s *conn,
  ****************************************************************************/
 
 int psock_bind(FAR struct socket *psock, const struct sockaddr *addr,
-              socklen_t addrlen)
+               socklen_t addrlen)
 {
 #ifdef CONFIG_NET_PKT
   FAR const struct sockaddr_ll *lladdr = (const struct sockaddr_ll *)addr;

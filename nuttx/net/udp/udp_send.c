@@ -46,11 +46,13 @@
 
 #include <debug.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
-#include <nuttx/net/udp.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
+#include <nuttx/net/udp.h>
 
 #include "devif/devif.h"
 #include "utils/utils.h"
@@ -60,7 +62,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define UDPBUF ((struct udp_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
+#define UDPBUF ((struct udp_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
 
 /****************************************************************************
  * Public Variables
@@ -106,7 +108,7 @@ void udp_send(struct net_driver_s *dev, struct udp_conn_s *conn)
        * the IP and UDP headers (and, eventually, the Ethernet header)
        */
 
-      dev->d_len = dev->d_sndlen + UIP_IPUDPH_LEN;
+      dev->d_len = dev->d_sndlen + IPUDP_HDRLEN;
 
       /* Initialize the IP header.  Note that for IPv6, the IP length field
        * does not include the IPv6 IP header length.
@@ -119,7 +121,7 @@ void udp_send(struct net_driver_s *dev, struct udp_conn_s *conn)
       pudpbuf->flow        = 0x00;
       pudpbuf->len[0]      = (dev->d_sndlen >> 8);
       pudpbuf->len[1]      = (dev->d_sndlen & 0xff);
-      pudpbuf->nexthdr     = UIP_PROTO_UDP;
+      pudpbuf->nexthdr     = IP_PROTO_UDP;
       pudpbuf->hoplimit    = conn->ttl;
 
       net_ipaddr_copy(pudpbuf->srcipaddr, &dev->d_ipaddr);
@@ -137,7 +139,7 @@ void udp_send(struct net_driver_s *dev, struct udp_conn_s *conn)
       pudpbuf->ipoffset[0] = 0;
       pudpbuf->ipoffset[1] = 0;
       pudpbuf->ttl         = conn->ttl;
-      pudpbuf->proto       = UIP_PROTO_UDP;
+      pudpbuf->proto       = IP_PROTO_UDP;
 
       net_ipaddr_hdrcopy(pudpbuf->srcipaddr, &dev->d_ipaddr);
       net_ipaddr_hdrcopy(pudpbuf->destipaddr, &conn->ripaddr);
@@ -153,7 +155,7 @@ void udp_send(struct net_driver_s *dev, struct udp_conn_s *conn)
 
       pudpbuf->srcport     = conn->lport;
       pudpbuf->destport    = conn->rport;
-      pudpbuf->udplen      = HTONS(dev->d_sndlen + UIP_UDPH_LEN);
+      pudpbuf->udplen      = HTONS(dev->d_sndlen + UDP_HDRLEN);
 
 #ifdef CONFIG_NET_UDP_CHECKSUMS
       /* Calculate UDP checksum. */

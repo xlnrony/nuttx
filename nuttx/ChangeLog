@@ -7636,3 +7636,30 @@
 	  was not selected and the SMART sector size was larger than the mt
 	  device's block size (like it would be if using SMARTFS on larger
 	  flash devices).  From Ken Pettit (2014-7-3).
+	* tools/mkdeps.c: NAME_MAX not available on SunOS; use FILENAME_MAX
+	  or MAXNAMELEN.  Noted by Douglas Beattie (2014-7-4).
+	* drivers/mtd/smart.c: Increase some variables from uint16_t to uint32_t
+	  to handle larger device sizes.  From Ken Pettit (2014-7-4).
+	* SAMA5 OHCI: Pointers to allocated port values were not being nullified
+	  after being deallocated.  This caused some assertions to fire when
+	  debug was enabled (2014-7-4).
+	* include/nuttx/net/ip.h and ipopt.h:  ip.h renamed ipopt.h.  Moved
+	  parts of uip.h to net.h. Renamed the rest of uip.h to ip.h.  Removed
+	  all includes of uip.h; added includes of ip.h wherever needed.
+	  Tried to fix problems of the now missing sneak inclusions because
+	  uip.h was removed.  There are probably a few of these that were
+	  missed! (2014-7-4).
+	* drivers/input/mxt.c/h and include/nuttx/input/mxt.h:  Add very basic
+	  support for the Atmel maXTouch touchscreen controller (2014-7-5).
+	* net/*/*.h: Start moving the private definitions from header files
+	  at include/nuttx/net to the corresponding header file under net/.
+	  So far pkt.h, upd.h, and igmp.h have been sanitized.  Still a few
+	  to go (2014-7-5)
+	* configs/sama5d4-ek/src/sam_maxtouch.c:  Add board support for the
+	  maXTouch touchscreen controller (2014-7-5).
+	* net/*/*.h: Finish moving the private definitions from header files
+	  at include/nuttx/net to the corresponding header file under net/.
+	  This additional header files have been sanitized: arp.h, icmp.h, tcp.h
+	  (2014-7-6)
+	* net/: Add a few missing configuration options to the Kconfig files
+	  (2014-7-8).

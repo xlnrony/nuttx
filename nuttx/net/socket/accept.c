@@ -51,8 +51,10 @@
 
 #include <arch/irq.h>
 
-#include <nuttx/net/tcp.h>
+#include <nuttx/net/net.h>
+#include <nuttx/net/ip.h>
 
+#include "tcp/tcp.h"
 #include "socket/socket.h"
 
 /****************************************************************************

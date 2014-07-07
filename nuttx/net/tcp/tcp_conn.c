@@ -52,12 +52,13 @@
 #include <arch/irq.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
+#include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
+#include <nuttx/net/ip.h>
 #include <nuttx/net/tcp.h>
 
-#include "tcp/tcp.h"
 #include "devif/devif.h"
+#include "tcp/tcp.h"
 
 /****************************************************************************
  * Public Data
@@ -185,7 +186,7 @@ void tcp_initialize(void)
     {
       /* Mark the connection closed and move it to the free list */
 
-      g_tcp_connections[i].tcpstateflags = UIP_CLOSED;
+      g_tcp_connections[i].tcpstateflags = TCP_CLOSED;
       dq_addlast(&g_tcp_connections[i].node, &g_free_tcp_connections);
     }
 
@@ -243,11 +244,11 @@ FAR struct tcp_conn_s *tcp_alloc(void)
            * in the socket layer.
            */
 
-          if (tmp->tcpstateflags == UIP_CLOSING    ||
-              tmp->tcpstateflags == UIP_FIN_WAIT_1 ||
-              tmp->tcpstateflags == UIP_FIN_WAIT_2 ||
-              tmp->tcpstateflags == UIP_TIME_WAIT  ||
-              tmp->tcpstateflags == UIP_LAST_ACK)
+          if (tmp->tcpstateflags == TCP_CLOSING    ||
+              tmp->tcpstateflags == TCP_FIN_WAIT_1 ||
+              tmp->tcpstateflags == TCP_FIN_WAIT_2 ||
+              tmp->tcpstateflags == TCP_TIME_WAIT  ||
+              tmp->tcpstateflags == TCP_LAST_ACK)
             {
               /* Yes.. Is it the oldest one we have seen so far? */
 
@@ -299,7 +300,7 @@ FAR struct tcp_conn_s *tcp_alloc(void)
   if (conn)
     {
       memset(conn, 0, sizeof(struct tcp_conn_s));
-      conn->tcpstateflags = UIP_ALLOCATED;
+      conn->tcpstateflags = TCP_ALLOCATED;
     }
 
   return conn;
@@ -341,11 +342,11 @@ void tcp_free(FAR struct tcp_conn_s *conn)
       tcp_callback_free(conn, cb);
     }
 
-  /* UIP_ALLOCATED means that that the connection is not in the active list
+  /* TCP_ALLOCATED means that that the connection is not in the active list
    * yet.
    */
 
-  if (conn->tcpstateflags != UIP_ALLOCATED)
+  if (conn->tcpstateflags != TCP_ALLOCATED)
     {
       /* Remove the connection from the active list */
 
@@ -392,7 +393,7 @@ void tcp_free(FAR struct tcp_conn_s *conn)
 
   /* Mark the connection available and put it into the free list */
 
-  conn->tcpstateflags = UIP_CLOSED;
+  conn->tcpstateflags = TCP_CLOSED;
   dq_addlast(&conn->node, &g_free_tcp_connections);
   net_unlock(flags);
 }
@@ -418,7 +419,7 @@ FAR struct tcp_conn_s *tcp_active(struct tcp_iphdr_s *buf)
     {
       /* Find an open connection matching the tcp input */
 
-      if (conn->tcpstateflags != UIP_CLOSED &&
+      if (conn->tcpstateflags != TCP_CLOSED &&
           buf->destport == conn->lport && buf->srcport == conn->rport &&
           net_ipaddr_cmp(srcipaddr, conn->ripaddr))
         {
@@ -483,7 +484,7 @@ FAR struct tcp_conn_s *tcp_listener(uint16_t portno)
   for (i = 0; i < CONFIG_NET_TCP_CONNS; i++)
     {
       conn = &g_tcp_connections[i];
-      if (conn->tcpstateflags != UIP_CLOSED && conn->lport == portno)
+      if (conn->tcpstateflags != TCP_CLOSED && conn->lport == portno)
         {
           /* The port number is in use, return the connection */
 
@@ -514,16 +515,16 @@ FAR struct tcp_conn_s *tcp_alloc_accept(FAR struct tcp_iphdr_s *buf)
     {
       /* Fill in the necessary fields for the new connection. */
 
-      conn->rto           = UIP_RTO;
-      conn->timer         = UIP_RTO;
+      conn->rto           = TCP_RTO;
+      conn->timer         = TCP_RTO;
       conn->sa            = 0;
       conn->sv            = 4;
       conn->nrtx          = 0;
       conn->lport         = buf->destport;
       conn->rport         = buf->srcport;
-      conn->mss           = UIP_TCP_INITIAL_MSS;
+      conn->mss           = TCP_INITIAL_MSS;
       net_ipaddr_copy(conn->ripaddr, net_ip4addr_conv32(buf->srcipaddr));
-      conn->tcpstateflags = UIP_SYN_RCVD;
+      conn->tcpstateflags = TCP_SYN_RCVD;
 
       tcp_initsequence(conn->sndseq);
       conn->unacked       = 1;
@@ -564,7 +565,7 @@ FAR struct tcp_conn_s *tcp_alloc_accept(FAR struct tcp_iphdr_s *buf)
  * Name: tcp_bind()
  *
  * Description:
- *   This function implements the UIP specific parts of the standard TCP
+ *   This function implements the lower level parts of the standard TCP
  *   bind() operation.
  *
  * Return:
@@ -619,7 +620,7 @@ int tcp_bind(FAR struct tcp_conn_s *conn,
  * Name: tcp_connect
  *
  * Description:
- *   This function implements the UIP specific parts of the standard
+ *   This function implements the lower level parts of the standard
  *   TCP connect() operation:  It connects to a remote host using TCP.
  *
  *   This function is used to start a new connection to the specified
@@ -646,12 +647,12 @@ int tcp_connect(FAR struct tcp_conn_s *conn,
   net_lock_t flags;
   int port;
 
-  /* The connection is expected to be in the UIP_ALLOCATED state.. i.e.,
+  /* The connection is expected to be in the TCP_ALLOCATED state.. i.e.,
    * allocated via up_tcpalloc(), but not yet put into the active connections
    * list.
    */
 
-  if (!conn || conn->tcpstateflags != UIP_ALLOCATED)
+  if (!conn || conn->tcpstateflags != TCP_ALLOCATED)
     {
       return -EISCONN;
     }
@@ -671,14 +672,14 @@ int tcp_connect(FAR struct tcp_conn_s *conn,
 
   /* Initialize and return the connection structure, bind it to the port number */
 
-  conn->tcpstateflags = UIP_SYN_SENT;
+  conn->tcpstateflags = TCP_SYN_SENT;
   tcp_initsequence(conn->sndseq);
 
-  conn->mss        = UIP_TCP_INITIAL_MSS;
+  conn->mss        = TCP_INITIAL_MSS;
   conn->unacked    = 1;    /* TCP length of the SYN is one. */
   conn->nrtx       = 0;
   conn->timer      = 1;    /* Send the SYN next time around. */
-  conn->rto        = UIP_RTO;
+  conn->rto        = TCP_RTO;
   conn->sa         = 0;
   conn->sv         = 16;   /* Initial value of the RTT variance. */
   conn->lport      = htons((uint16_t)port);

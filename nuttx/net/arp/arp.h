@@ -1,5 +1,5 @@
 /****************************************************************************
- * include/crypto/crypto.h
+ * net/arp/arp.h
  *
  *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -33,62 +33,72 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_CRYPTO_CRYPTO_H
-#define __INCLUDE_CRYPTO_CRYPTO_H
+#ifndef __NET_ARP_ARP_H
+#define __NET_ARP_ARP_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <debug.h>
-
 /****************************************************************************
- * Pre-Processor Definitions
+ * Public Types
  ****************************************************************************/
 
-#if defined(CONFIG_CRYPTO_AES)
-#  define AES_MODE_MIN 1
-
-#  define AES_MODE_ECB 1
-#  define AES_MODE_CBC 2
-#  define AES_MODE_CTR 3
-
-#  define AES_MODE_MAX 3
-#endif
-
-#define CYPHER_ENCRYPT 1
-#define CYPHER_DECRYPT 0
-
-/************************************************************************************
- * Public Data
- ************************************************************************************/
-
-#ifndef __ASSEMBLY__
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
-
-/************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
-#if defined(CONFIG_CRYPTO_AES)
-int up_aesinitialize(void);
-int aes_cypher(FAR void *out, FAR const void *in, uint32_t size, FAR const void *iv,
-               FAR const void *key, uint32_t keysize, int mode, int encrypt);
-#endif
+ #ifdef CONFIG_NET_ARP
+/****************************************************************************
+ * Name: arp_reset
+ *
+ * Description:
+ *   Re-initialize the ARP table.
+ *
+ ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
+void arp_reset(void);
 
-#endif /* __ASSEMBLY__ */
-#endif /* __INCLUDE_CRYPTO_CRYPTO_H */
+/****************************************************************************
+ * Function: arp_timer_initialize
+ *
+ * Description:
+ *   Initialized the 10 second timer that is need by the ARP logic in order
+ *   to age ARP address associations
+ *
+ * Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   Called once at system initialization time
+ *
+ ****************************************************************************/
+
+void arp_timer_initialize(void);
+
+/****************************************************************************
+ * Name: arp_timer
+ *
+ * Description:
+ *   This function performs periodic timer processing in the ARP module
+ *   and should be called at regular intervals.  The recommended interval
+ *   is 10 seconds between the calls.  It is responsible for flushing old
+ *   entries in the ARP table.
+ *
+ ****************************************************************************/
+
+void arp_timer(void);
+
+#else /* CONFIG_NET_ARP */
+
+/* If ARP is disabled, stub out all ARP interfaces */
+
+# define arp_reset()
+# define arp_timer_initialize(void)
+# define arp_timer()
+
+#endif /* CONFIG_NET_ARP */
+#endif /* __UIP-NEIGHBOR_H__ */

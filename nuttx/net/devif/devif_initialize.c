@@ -45,8 +45,9 @@
 #ifdef CONFIG_NET
 
 #include <stdint.h>
-#include <nuttx/net/uip.h>
+
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
 
 #include "devif/devif.h"
 
@@ -84,7 +85,7 @@ const net_ipaddr_t g_allzeroaddr =
 
 /* Reassembly timer (units: deci-seconds) */
 
-#if UIP_REASSEMBLY && !defined(CONFIG_NET_IPv6)
+#if defined(CONFIG_NET_TCP_REASSEMBLY) && !defined(CONFIG_NET_IPv6)
 uint8_t g_reassembly_timer;
 #endif
 

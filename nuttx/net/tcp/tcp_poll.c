@@ -49,7 +49,6 @@
 #include <debug.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/tcp.h>
 
@@ -100,19 +99,19 @@ void tcp_poll(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn)
 
   /* Verify that the connection is established */
 
-  if ((conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED)
+  if ((conn->tcpstateflags & TCP_STATE_MASK) == TCP_ESTABLISHED)
     {
       /* Set up for the callback */
 
-      dev->d_snddata = &dev->d_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
-      dev->d_appdata = &dev->d_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
+      dev->d_snddata = &dev->d_buf[IPTCP_HDRLEN + NET_LL_HDRLEN];
+      dev->d_appdata = &dev->d_buf[IPTCP_HDRLEN + NET_LL_HDRLEN];
 
       dev->d_len     = 0;
       dev->d_sndlen  = 0;
 
       /* Perform the callback */
 
-      result = tcp_callback(dev, conn, UIP_POLL);
+      result = tcp_callback(dev, conn, TCP_POLL);
 
       /* Handle the callback response */
 

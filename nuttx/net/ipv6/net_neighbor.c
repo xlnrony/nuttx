@@ -43,6 +43,8 @@
 #include <string.h>
 #include <debug.h>
 
+#include <nuttx/net/ip.h>
+
 #include "ipv6/ipv6.h"
 
 /****************************************************************************
@@ -51,11 +53,11 @@
 
 #define MAX_TIME 128
 
-#ifdef UIP_NEIGHBOR_CONF_ENTRIES
-#  define ENTRIES UIP_NEIGHBOR_CONF_ENTRIES
-#else /* UIP_NEIGHBOR_CONF_ENTRIES */
+#ifdef CONFIG_NET_IPV6_NCONF_ENTRIES
+#  define ENTRIES CONFIG_NET_IPV6_NCONF_ENTRIES
+#else /* CONFIG_NET_IPV6_NCONF_ENTRIES */
 #  define ENTRIES 8
-#endif /* UIP_NEIGHBOR_CONF_ENTRIES */
+#endif /* CONFIG_NET_IPV6_NCONF_ENTRIES */
 
 /****************************************************************************
  * Private Types

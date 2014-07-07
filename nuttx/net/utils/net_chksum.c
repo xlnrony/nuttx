@@ -44,8 +44,8 @@
 #include <debug.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
+#include <nuttx/net/ip.h>
 #include <nuttx/net/icmp.h>
 
 #include "utils/utils.h"
@@ -54,8 +54,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define BUF ((struct net_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
-#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
+#define BUF ((struct net_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
+#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
 
 /****************************************************************************
  * Private Data
@@ -123,7 +123,7 @@ static uint16_t upper_layer_chksum(FAR struct net_driver_s *dev, uint8_t proto)
 #ifdef CONFIG_NET_IPv6
   upper_layer_len = (((uint16_t)(pbuf->len[0]) << 8) + pbuf->len[1]);
 #else /* CONFIG_NET_IPv6 */
-  upper_layer_len = (((uint16_t)(pbuf->len[0]) << 8) + pbuf->len[1]) - UIP_IPH_LEN;
+  upper_layer_len = (((uint16_t)(pbuf->len[0]) << 8) + pbuf->len[1]) - IP_HDRLEN;
 #endif /* CONFIG_NET_IPv6 */
 
   /* Verify some minimal assumptions */
@@ -145,7 +145,7 @@ static uint16_t upper_layer_chksum(FAR struct net_driver_s *dev, uint8_t proto)
 
   /* Sum TCP header and data. */
 
-  sum = chksum(sum, &dev->d_buf[UIP_IPH_LEN + UIP_LLH_LEN], upper_layer_len);
+  sum = chksum(sum, &dev->d_buf[IP_HDRLEN + NET_LL_HDRLEN], upper_layer_len);
 
   return (sum == 0) ? 0xffff : htons(sum);
 }
@@ -159,7 +159,7 @@ static uint16_t upper_layer_chksum(FAR struct net_driver_s *dev, uint8_t proto)
 #ifdef CONFIG_NET_IPv6
 static uint16_t icmp_6chksum(FAR struct net_driver_s *dev)
 {
-  return upper_layer_chksum(dev, UIP_PROTO_ICMP6);
+  return upper_layer_chksum(dev, IP_PROTO_ICMP6);
 }
 #endif /* CONFIG_NET_IPv6 */
 #endif /* CONFIG_NET_ARCH_CHKSUM */
@@ -285,7 +285,7 @@ uint16_t ip_chksum(FAR struct net_driver_s *dev)
 {
   uint16_t sum;
 
-  sum = chksum(0, &dev->d_buf[UIP_LLH_LEN], UIP_IPH_LEN);
+  sum = chksum(0, &dev->d_buf[NET_LL_HDRLEN], IP_HDRLEN);
   return (sum == 0) ? 0xffff : htons(sum);
 }
 #endif /* CONFIG_NET_ARCH_CHKSUM */
@@ -312,7 +312,7 @@ uint16_t ip_chksum(FAR struct net_driver_s *dev)
 #if !CONFIG_NET_ARCH_CHKSUM
 uint16_t tcp_chksum(FAR struct net_driver_s *dev)
 {
-  return upper_layer_chksum(dev, UIP_PROTO_TCP);
+  return upper_layer_chksum(dev, IP_PROTO_TCP);
 }
 #endif /* CONFIG_NET_ARCH_CHKSUM */
 
@@ -327,7 +327,7 @@ uint16_t tcp_chksum(FAR struct net_driver_s *dev)
 #if defined(CONFIG_NET_UDP_CHECKSUMS) && !defined(CONFIG_NET_ARCH_CHKSUM)
 uint16_t udp_chksum(FAR struct net_driver_s *dev)
 {
-  return upper_layer_chksum(dev, UIP_PROTO_UDP);
+  return upper_layer_chksum(dev, IP_PROTO_UDP);
 }
 #endif /* CONFIG_NET_UDP_CHECKSUMS && !CONFIG_NET_ARCH_CHKSUM */
 

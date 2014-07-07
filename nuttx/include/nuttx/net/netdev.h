@@ -52,13 +52,15 @@
 #include <stdint.h>
 #include <net/if.h>
 
-#include <nuttx/net/uip.h>
+#include <net/ethernet.h>
+#include <arpa/inet.h>
+
 #ifdef CONFIG_NET_IGMP
 #  include <nuttx/net/igmp.h>
 #endif
 
 #include <nuttx/net/netconfig.h>
-#include <net/ethernet.h>
+#include <nuttx/net/ip.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -110,7 +112,7 @@ struct net_driver_s
    * driver should place incoming data into this buffer. When sending data,
    * the device driver should read the link level headers and the TCP/IP
    * headers from this buffer. The size of the link level headers is
-   * configured by the UIP_LLH_LEN define.
+   * configured by the NET_LL_HDRLEN define.
    *
    * uIP will handle only a single buffer for both incoming and outgoing
    * packets.  However, the drive design may be concurrently send and
@@ -246,7 +248,7 @@ typedef int (*devif_poll_callback_t)(struct net_driver_s *dev);
  *     dev->d_len = ethernet_devicedrver_poll();
  *     if (dev->d_len > 0)
  *       {
- *         if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+ *         if (BUF->type == HTONS(ETHTYPE_IP))
  *           {
  *             arp_ipin();
  *             devif_input(dev);
@@ -256,7 +258,7 @@ typedef int (*devif_poll_callback_t)(struct net_driver_s *dev);
  *                 devicedriver_send();
  *               }
  *           }
- *         else if (BUF->type == HTONS(UIP_ETHTYPE_ARP))
+ *         else if (BUF->type == HTONS(ETHTYPE_ARP))
  *           {
  *             arp_arpin();
  *             if (dev->d_len > 0)
@@ -331,8 +333,8 @@ int devif_timer(struct net_driver_s *dev, devif_poll_callback_t callback, int hs
  * Call netdev_carrier_on when the carrier has become available and the device
  * is ready to receive/transmit packets.
  *
- * Call detdev_carrier_off when the carrier disappeared and the device has moved
- * into non operational state.
+ * Call detdev_carrier_off when the carrier disappeared and the device has
+ * moved into non operational state.
  *
  ****************************************************************************/
 

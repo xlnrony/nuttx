@@ -52,7 +52,8 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/net/uip.h>
+#include <arpa/inet.h>
+
 #include <apps/netutils/dhcpc.h>
 #include <apps/netutils/netlib.h>
 
@@ -122,7 +123,6 @@ struct dhcp_msg
 
 struct dhcpc_state_s
 {
-  struct udp_conn_s *ds_conn;
   const void        *ds_macaddr;
   int                ds_maclen;
   int                sockfd;

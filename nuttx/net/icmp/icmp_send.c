@@ -42,10 +42,12 @@
 
 #include <debug.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
 
 #include "devif/devif.h"
 #include "utils/utils.h"
@@ -55,7 +57,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
+#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
 
 /****************************************************************************
  * Public Variables
@@ -100,13 +102,13 @@ void icmp_send(FAR struct net_driver_s *dev, FAR net_ipaddr_t *destaddr)
        * the IP and ICMP headers (and, eventually, the Ethernet header)
        */
 
-      dev->d_len = dev->d_sndlen + UIP_IPICMPH_LEN;
+      dev->d_len = dev->d_sndlen + IPICMP_HDRLEN;
 
       /* The total size of the data (for ICMP checksum calculation) includes
        * the size of the ICMP header
        */
 
-      dev->d_sndlen += UIP_ICMPH_LEN;
+      dev->d_sndlen += ICMP_HDRLEN;
 
       /* Initialize the IP header.  Note that for IPv6, the IP length field
        * does not include the IPv6 IP header length.
@@ -119,8 +121,8 @@ void icmp_send(FAR struct net_driver_s *dev, FAR net_ipaddr_t *destaddr)
       picmp->flow        = 0x00;
       picmp->len[0]      = (dev->d_sndlen >> 8);
       picmp->len[1]      = (dev->d_sndlen & 0xff);
-      picmp->nexthdr     = UIP_PROTO_ICMP;
-      picmp->hoplimit    = UIP_TTL;
+      picmp->nexthdr     = IP_PROTO_ICMP;
+      picmp->hoplimit    = IP_TTL;
 
       net_ipaddr_copy(picmp->srcipaddr, &dev->d_ipaddr);
       net_ipaddr_copy(picmp->destipaddr, destaddr);
@@ -134,10 +136,10 @@ void icmp_send(FAR struct net_driver_s *dev, FAR net_ipaddr_t *destaddr)
       ++g_ipid;
       picmp->ipid[0]     = g_ipid >> 8;
       picmp->ipid[1]     = g_ipid & 0xff;
-      picmp->ipoffset[0] = UIP_TCPFLAG_DONTFRAG >> 8;
-      picmp->ipoffset[1] = UIP_TCPFLAG_DONTFRAG & 0xff;
-      picmp->ttl         = UIP_TTL;
-      picmp->proto       = UIP_PROTO_ICMP;
+      picmp->ipoffset[0] = TCPFLAG_DONTFRAG >> 8;
+      picmp->ipoffset[1] = TCPFLAG_DONTFRAG & 0xff;
+      picmp->ttl         = IP_TTL;
+      picmp->proto       = IP_PROTO_ICMP;
 
       net_ipaddr_hdrcopy(picmp->srcipaddr, &dev->d_ipaddr);
       net_ipaddr_hdrcopy(picmp->destipaddr, destaddr);

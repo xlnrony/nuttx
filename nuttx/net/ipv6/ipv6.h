@@ -46,8 +46,10 @@
  ****************************************************************************/
 
 #include <stdint.h>
-#include <nuttx/net/uip.h>
+
 #include <net/ethernet.h>
+
+#include <nuttx/net/ip.h>
 
 /****************************************************************************
  * Public Types
@@ -55,8 +57,8 @@
 
 struct net_neighbor_addr_s
 {
-#if UIP_NEIGHBOR_CONF_ADDRTYPE
-  UIP_NEIGHBOR_CONF_ADDRTYPE addr;
+#if CONFIG_NET_IPV6_NEIGHBOR_ADDRTYPE
+  CONFIG_NET_IPV6_NEIGHBOR_ADDRTYPE addr;
 #else
   struct ether_addr addr;
 #endif
@@ -72,4 +74,4 @@ void net_neighbor_update(net_ipaddr_t ipaddr);
 struct net_neighbor_addr_s *net_neighbor_lookup(net_ipaddr_t ipaddr);
 void net_neighbor_periodic(void);
 
-#endif /* __UIP-NEIGHBOR_H__ */
+#endif /* __NET_IPV6_IPV6_H */

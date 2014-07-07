@@ -54,9 +54,9 @@
 
 #include <netinet/in.h>
 
-#include <nuttx/net/uip.h>
-#include <nuttx/net/netdev.h>
 #include <nuttx/net/netconfig.h>
+#include <nuttx/net/netdev.h>
+#include <nuttx/net/ip.h>
 
 #ifdef CONFIG_NET_IGMP
 
@@ -78,12 +78,12 @@
 
 /* Header sizes:
  *
- * UIP_IGMPH_LEN   - Size of IGMP header in bytes
- * UIP_IPIGMPH_LEN - Size of IP + Size of IGMP header + Size of router alert
+ * IGMP_HDRLEN   - Size of IGMP header in bytes
+ * IPIGMP_HDRLEN - Size of IP + Size of IGMP header + Size of router alert
  */
 
-#define UIP_IGMPH_LEN            8
-#define UIP_IPIGMPH_LEN          (UIP_IGMPH_LEN + UIP_IPH_LEN + 4)
+#define IGMP_HDRLEN              8
+#define IPIGMP_HDRLEN            (IGMP_HDRLEN + IP_HDRLEN + 4)
 
 /* Group flags */
 
@@ -119,7 +119,7 @@
 
 /* IGMPv2 packet structure as defined by RFC 2236.
  *
- * The Max Respone Time (maxresp) specifies the time limit for the
+ * The Max Response Time (maxresp) specifies the time limit for the
  * corresponding report. The field has a resolution of 100 miliseconds, the
  * value is taken directly. This field is meaningful only in Membership Query
  * (0x11); in other messages it is set to 0 and ignored by the receiver.
@@ -199,25 +199,6 @@ struct igmp_stats_s
 # define IGMP_STATINCR(p)
 #endif
 
-/* This structure represents one group member.  There is a list of groups
- * for each device interface structure.
- *
- * There will be a group for the all systems group address but this
- * will not run the state machine as it is used to kick off reports
- * from all the other groups
- */
-
-typedef FAR struct wdog_s *WDOG_ID;
-struct igmp_group_s
-{
-  struct igmp_group_s *next;    /* Implements a singly-linked list */
-  net_ipaddr_t         grpaddr; /* Group IP address */
-  WDOG_ID              wdog;    /* WDOG used to detect timeouts */
-  sem_t                sem;     /* Used to wait for message transmission */
-  volatile uint8_t     flags;   /* See IGMP_ flags definitions */
-  uint8_t              msgid;   /* Pending message ID (if non-zero) */
-};
-
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -231,27 +212,9 @@ extern "C"
 #define EXTERN extern
 #endif
 
-EXTERN net_ipaddr_t g_allsystems;
-EXTERN net_ipaddr_t g_allrouters;
-
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-
-/****************************************************************************
- * Name:  igmp_devinit
- *
- * Description:
- *   Called when a new network device is registered to configure that device
- *   for IGMP support.
- *
- ****************************************************************************/
-
-void igmp_devinit(FAR struct net_driver_s *dev);
-int igmp_joingroup(FAR struct net_driver_s *dev,
-                   FAR const struct in_addr *grpaddr);
-int igmp_leavegroup(FAR struct net_driver_s *dev,
-                    FAR const struct in_addr *grpaddr);
 
 #undef EXTERN
 #if defined(__cplusplus)

@@ -44,16 +44,17 @@
 
 #include <nuttx/net/iob.h>
 #include <nuttx/net/net.h>
-#include <nuttx/net/arp.h>
 
 #include "socket/socket.h"
 #include "devif/devif.h"
 #include "netdev/netdev.h"
+#include "arp/arp.h"
 #include "tcp/tcp.h"
 #include "udp/udp.h"
 #include "pkt/pkt.h"
 #include "igmp/igmp.h"
 #include "route/route.h"
+#include "utils/utils.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -87,6 +88,10 @@ void net_initialize(void)
 
   net_lockinitialize();
 
+  /* Clear the ARP table */
+
+  arp_reset();
+
   /* Initialize I/O buffering */
 
 #ifdef CONFIG_NET_IOB
@@ -106,7 +111,7 @@ void net_initialize(void)
 #ifdef CONFIG_NET_TCP
   /* Initialize the listening port structures */
 
-  tcp_listeninit();
+  tcp_listen_initialize();
 
   /* Initialize the TCP/IP connection structures */
 
@@ -145,7 +150,7 @@ void net_initialize(void)
 
   /* Initialize the periodic ARP timer */
 
-  arp_timer_init();
+  arp_timer_initialize();
 }
 
 #endif /* CONFIG_NET */

@@ -48,12 +48,13 @@
 #include <debug.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
-#include <nuttx/net/igmp.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
+#include <nuttx/net/igmp.h>
 
 #include "devif/devif.h"
 #include "igmp/igmp.h"
+#include "utils/utils.h"
 
 #ifdef CONFIG_NET_IGMP
 
@@ -61,7 +62,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define IGMPBUF ((struct igmp_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
+#define IGMPBUF ((struct igmp_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
 
 /****************************************************************************
  * Private Functions
@@ -124,7 +125,7 @@ void igmp_input(struct net_driver_s *dev)
 
   /* Verify the message length */
 
-  if (dev->d_len < UIP_LLH_LEN+UIP_IPIGMPH_LEN)
+  if (dev->d_len < NET_LL_HDRLEN+IPIGMP_HDRLEN)
     {
       IGMP_STATINCR(g_netstats.igmp.length_errors);
       nlldbg("Length error\n");
@@ -133,7 +134,7 @@ void igmp_input(struct net_driver_s *dev)
 
   /* Calculate and check the IGMP checksum */
 
-  if (net_chksum((uint16_t*)&IGMPBUF->type, UIP_IGMPH_LEN) != 0)
+  if (net_chksum((uint16_t*)&IGMPBUF->type, IGMP_HDRLEN) != 0)
     {
       IGMP_STATINCR(g_netstats.igmp.chksum_errors);
       nlldbg("Checksum error\n");
@@ -207,7 +208,7 @@ void igmp_input(struct net_driver_s *dev)
 
                     if (!net_ipaddr_cmp(member->grpaddr, g_allsystems))
                       {
-                        ticks = igmp_decisec2tick((int)IGMPBUF->maxresp);
+                        ticks = net_dsec2tick((int)IGMPBUF->maxresp);
                         if (IS_IDLEMEMBER(member->flags) ||
                             igmp_cmptimer(member, ticks))
                           {
@@ -228,7 +229,7 @@ void igmp_input(struct net_driver_s *dev)
                 IGMP_STATINCR(g_netstats.igmp.ucast_query);
                 grpaddr = net_ip4addr_conv32(IGMPBUF->grpaddr);
                 group   = igmp_grpallocfind(dev, &grpaddr);
-                ticks   = igmp_decisec2tick((int)IGMPBUF->maxresp);
+                ticks   = net_dsec2tick((int)IGMPBUF->maxresp);
                 if (IS_IDLEMEMBER(group->flags) || igmp_cmptimer(group, ticks))
                   {
                     igmp_startticks(group, ticks);
@@ -246,7 +247,7 @@ void igmp_input(struct net_driver_s *dev)
 
             nlldbg("Query to a specific group with the group address as destination\n");
 
-            ticks = igmp_decisec2tick((int)IGMPBUF->maxresp);
+            ticks = net_dsec2tick((int)IGMPBUF->maxresp);
             if (IS_IDLEMEMBER(group->flags) || igmp_cmptimer(group, ticks))
               {
                 igmp_startticks(group, ticks);

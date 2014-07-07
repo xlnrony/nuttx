@@ -1,8 +1,8 @@
 /****************************************************************************
  * crypto/crypto.c
  *
- *   Copyright (C) 2007, 2008, 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
+ *   Author:  Max Nekludov <macscomp@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,8 +44,9 @@
 #include <string.h>
 #include <poll.h>
 #include <errno.h>
+
 #include <nuttx/fs/fs.h>
-#include <crypto/crypto.h>
+#include <nuttx/crypto/crypto.h>
 
 /****************************************************************************
  * Private Function Prototypes

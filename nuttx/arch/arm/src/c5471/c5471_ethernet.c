@@ -54,11 +54,11 @@
 #include <wdog.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+#include <net/ethernet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
-
-#include <net/ethernet.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
 
@@ -1233,9 +1233,9 @@ static void c5471_receive(struct c5471_driver_s *c5471)
       /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+      if (BUF->type == HTONS(ETHTYPE_IP6))
 #else
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+      if (BUF->type == HTONS(ETHTYPE_IP))
 #endif
         {
           arp_ipin(dev);
@@ -1254,7 +1254,7 @@ static void c5471_receive(struct c5471_driver_s *c5471)
               c5471_transmit(c5471);
             }
         }
-      else if (BUF->type == HTONS(UIP_ETHTYPE_ARP))
+      else if (BUF->type == HTONS(ETHTYPE_ARP))
         {
           arp_arpin(dev);
 

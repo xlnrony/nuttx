@@ -49,10 +49,12 @@
 #include <debug.h>
 
 #include <net/if.h>
+#include <arpa/inet.h>
+
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
 
 #include "devif/devif.h"
 #include "icmp/icmp.h"
@@ -64,7 +66,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[UIP_LLH_LEN])
+#define ICMPBUF ((struct icmp_iphdr_s *)&dev->d_buf[NET_LL_HDRLEN])
 
 /****************************************************************************
  * Public Variables
@@ -149,7 +151,7 @@ void icmp_input(FAR struct net_driver_s *dev)
       /* The slow way... sum over the ICMP message */
 
       picmp->icmpchksum = 0;
-      picmp->icmpchksum = ~icmp_chksum(dev, (((uint16_t)picmp->len[0] << 8) | (uint16_t)picmp->len[1]) - UIP_IPH_LEN);
+      picmp->icmpchksum = ~icmp_chksum(dev, (((uint16_t)picmp->len[0] << 8) | (uint16_t)picmp->len[1]) - IP_HDRLEN);
       if (picmp->icmpchksum == 0)
         {
           picmp->icmpchksum = 0xffff;
@@ -185,7 +187,7 @@ void icmp_input(FAR struct net_driver_s *dev)
 #ifdef CONFIG_NET_ICMP_PING
   else if (picmp->type == ICMP_ECHO_REPLY && g_echocallback)
     {
-      (void)devif_callback_execute(dev, picmp, UIP_ECHOREPLY, g_echocallback);
+      (void)devif_callback_execute(dev, picmp, ICMP_ECHOREPLY, g_echocallback);
     }
 #endif
 
@@ -267,7 +269,7 @@ typeerr:
 #ifdef CONFIG_NET_ICMP_PING
   else if (picmp->type == ICMP6_ECHO_REPLY && g_echocallback)
     {
-      uint16_t flags = UIP_ECHOREPLY;
+      uint16_t flags = ICMP_ECHOREPLY;
 
       if (g_echocallback)
         {
@@ -278,7 +280,7 @@ typeerr:
 
       /* If the ECHO reply was not handled, then drop the packet */
 
-      if (flags == UIP_ECHOREPLY)
+      if (flags == ICMP_ECHOREPLY)
         {
           /* The ECHO reply was not handled */
 

@@ -48,7 +48,7 @@
 #include <debug.h>
 
 #include <net/if.h>
-#include <nuttx/net/uip.h>
+#include <netinet/in.h>
 #include <nuttx/net/arp.h>
 
 #include <apps/netutils/netlib.h>

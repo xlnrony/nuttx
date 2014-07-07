@@ -50,11 +50,11 @@
 #include <wdog.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
-
-#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
 
@@ -64,6 +64,7 @@
 #include <rgmp/utils.h>
 #include <rgmp/arch/pci.h>
 #include <rgmp/memio.h>
+
 #include "e1000.h"
 
 /****************************************************************************
@@ -567,10 +568,10 @@ static void e1000_receive(struct e1000_dev *e1000)
       /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+      if (BUF->type == HTONS(ETHTYPE_IP6))
 #else
         {
-          if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+          if (BUF->type == HTONS(ETHTYPE_IP))
 #endif
             {
               arp_ipin(&e1000->netdev);
@@ -586,7 +587,7 @@ static void e1000_receive(struct e1000_dev *e1000)
                   e1000_transmit(e1000);
                 }
             }
-          else if (BUF->type == htons(UIP_ETHTYPE_ARP))
+          else if (BUF->type == htons(ETHTYPE_ARP))
             {
               arp_arpin(&e1000->netdev);
 

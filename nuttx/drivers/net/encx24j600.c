@@ -60,16 +60,17 @@
 #include <errno.h>
 #include <queue.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/clock.h>
-#include <nuttx/net/encx24j600.h>
-
-#include <nuttx/net/uip.h>
+#include <nuttx/net/net.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
+#include <nuttx/net/encx24j600.h>
 
 #include "encx24j600.h"
 
@@ -1489,9 +1490,9 @@ static void enc_rxdispatch(FAR struct enc_driver_s *priv)
       /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+      if (BUF->type == HTONS(ETHTYPE_IP6))
 #else
-      if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+      if (BUF->type == HTONS(ETHTYPE_IP))
 #endif
         {
           nllvdbg("Try to process IP packet (%02x)\n", BUF->type);
@@ -1518,7 +1519,7 @@ static void enc_rxdispatch(FAR struct enc_driver_s *priv)
               enc_txenqueue(priv);
             }
         }
-      else if (BUF->type == htons(UIP_ETHTYPE_ARP))
+      else if (BUF->type == htons(ETHTYPE_ARP))
         {
           nllvdbg("ARP packet received (%02x)\n", BUF->type);
           arp_arpin(&priv->dev);
@@ -1649,7 +1650,7 @@ static void enc_pktif(FAR struct enc_driver_s *priv)
 
       /* Check for a usable packet length (4 added for the CRC) */
 
-      else if (pktlen > (CONFIG_NET_BUFSIZE + 4) || pktlen <= (UIP_LLH_LEN + 4))
+      else if (pktlen > (CONFIG_NET_BUFSIZE + 4) || pktlen <= (NET_LL_HDRLEN + 4))
         {
           nlldbg("Bad packet size dropped (%d)\n", pktlen);
 

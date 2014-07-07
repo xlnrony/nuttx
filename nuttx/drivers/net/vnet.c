@@ -52,10 +52,10 @@
 #include <wdog.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
-
-#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
 
@@ -288,9 +288,9 @@ void rtos_vnet_recv(struct rgmp_vnet *rgmp_vnet, char *data, int len)
 		/* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-		if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+		if (BUF->type == HTONS(ETHTYPE_IP6))
 #else
-			if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+			if (BUF->type == HTONS(ETHTYPE_IP))
 #endif
 			{
 				arp_ipin(&vnet->sk_dev);
@@ -303,7 +303,7 @@ void rtos_vnet_recv(struct rgmp_vnet *rgmp_vnet, char *data, int len)
 					vnet_transmit(vnet);
 				}
 			}
-			else if (BUF->type == htons(UIP_ETHTYPE_ARP)) {
+			else if (BUF->type == htons(ETHTYPE_ARP)) {
 				arp_arpin(&vnet->sk_dev);
 
 				// If the above function invocation resulted in data that should be

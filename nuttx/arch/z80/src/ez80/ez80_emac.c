@@ -52,15 +52,15 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <arpa/inet.h>
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/net/mii.h>
-
-#include <arch/io.h>
-
-#include <nuttx/net/uip.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
+
+#include <arch/io.h>
 
 #include "chip.h"
 #include "up_internal.h"
@@ -1266,9 +1266,9 @@ static int ez80emac_receive(struct ez80emac_driver_s *priv)
       /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-      if (ETHBUF->type == HTONS(UIP_ETHTYPE_IP6))
+      if (ETHBUF->type == HTONS(ETHTYPE_IP6))
 #else
-      if (ETHBUF->type == HTONS(UIP_ETHTYPE_IP))
+      if (ETHBUF->type == HTONS(ETHTYPE_IP))
 #endif
         {
           nvdbg("IP packet received (%02x)\n", ETHBUF->type);
@@ -1287,7 +1287,7 @@ static int ez80emac_receive(struct ez80emac_driver_s *priv)
               ez80emac_transmit(priv);
             }
         }
-      else if (ETHBUF->type == htons(UIP_ETHTYPE_ARP))
+      else if (ETHBUF->type == htons(ETHTYPE_ARP))
         {
           nvdbg("ARP packet received (%02x)\n", ETHBUF->type);
           EMAC_STAT(priv, rx_arp);

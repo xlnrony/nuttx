@@ -47,9 +47,9 @@
 #include <debug.h>
 
 #include <nuttx/net/netconfig.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/netstats.h>
+#include <nuttx/net/ip.h>
 
 #include "devif/devif.h"
 #include "igmp/igmp.h"
@@ -151,8 +151,8 @@ void igmp_poll(FAR struct net_driver_s *dev)
 
   /* Setup the poll operation */
 
-  dev->d_appdata = &dev->d_buf[UIP_LLH_LEN + UIP_IPIGMPH_LEN];
-  dev->d_snddata = &dev->d_buf[UIP_LLH_LEN + UIP_IPIGMPH_LEN];
+  dev->d_appdata = &dev->d_buf[NET_LL_HDRLEN + IPIGMP_HDRLEN];
+  dev->d_snddata = &dev->d_buf[NET_LL_HDRLEN + IPIGMP_HDRLEN];
 
   dev->d_len     = 0;
   dev->d_sndlen  = 0;

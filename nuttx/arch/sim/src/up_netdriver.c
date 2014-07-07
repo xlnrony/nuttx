@@ -53,7 +53,6 @@
 #include <nuttx/net/net.h>
 
 #include <net/ethernet.h>
-#include <nuttx/net/uip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/arp.h>
 
@@ -156,14 +155,14 @@ void netdriver_loop(void)
        * MAC address
        */
 
-      if (g_sim_dev.d_len > UIP_LLH_LEN && up_comparemac(BUF->ether_dhost, &g_sim_dev.d_mac) == 0)
+      if (g_sim_dev.d_len > NET_LL_HDRLEN && up_comparemac(BUF->ether_dhost, &g_sim_dev.d_mac) == 0)
         {
           /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-          if (BUF->ether_type == htons(UIP_ETHTYPE_IP6))
+          if (BUF->ether_type == htons(ETHTYPE_IP6))
 #else
-          if (BUF->ether_type == htons(UIP_ETHTYPE_IP))
+          if (BUF->ether_type == htons(ETHTYPE_IP))
 #endif
             {
               arp_ipin(&g_sim_dev);
@@ -180,7 +179,7 @@ void netdriver_loop(void)
                   netdev_send(g_sim_dev.d_buf, g_sim_dev.d_len);
                 }
             }
-          else if (BUF->ether_type == htons(UIP_ETHTYPE_ARP))
+          else if (BUF->ether_type == htons(ETHTYPE_ARP))
             {
               arp_arpin(&g_sim_dev);
 
