@@ -27,6 +27,8 @@ uintptr_t STUB_closedir(int nbr, uintptr_t parm1);
 uintptr_t STUB_connect(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
 uintptr_t STUB_dup(int nbr, uintptr_t parm1);
 uintptr_t STUB_dup2(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_elf_initialize(int nbr);
+uintptr_t STUB_elf_uninitialize(int nbr);
 uintptr_t STUB_exec_getsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_exec_module(int nbr, uintptr_t parm1);
 uintptr_t STUB_exec_setsymtab(int nbr, uintptr_t parm1, uintptr_t parm2);

@@ -47,9 +47,19 @@
 
 #include <nuttx/arch.h>
 
-#if defined(CONFIG_FS_BINFS) && (CONFIG_BUILTIN)
-#  include <nuttx/binfmt/builtin.h>
+#if defined(CONFIG_BUILTIN)
 #  include <apps/builtin.h>
+#  if defined(CONFIG_FS_BINFS)
+#    include <nuttx/binfmt/builtin.h>
+#  endif
+#endif
+
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_NXFLAT)
+#  include <nuttx/binfmt/nxflat.h>
+#endif
+
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+#  include <nuttx/binfmt/elf.h>
 #endif
 
 #if defined(CONFIG_LIBC_EXECFUNCS) && defined(CONFIG_EXECFUNCS_SYMTAB)
@@ -132,6 +142,24 @@ int nsh_main(int argc, char *argv[])
       exitval = 1;
     }  
   #endif
+#endif
+
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_NXFLAT)
+    ret = nxflat_initialize();
+    if (ret < 0)
+    {
+      fprintf(stderr, "ERROR: nxflat_initialize failed: %d\n", ret);
+      exitval = 1;
+    }  
+#endif
+
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+    ret = elf_initialize();
+    if (ret < 0)
+    {
+      fprintf(stderr, "ERROR: elf_initialize failed: %d\n", ret);
+      exitval = 1;
+    }  
 #endif
 
   /* Initialize the NSH library */

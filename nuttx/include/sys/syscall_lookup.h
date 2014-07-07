@@ -93,6 +93,14 @@ SYSCALL_LOOKUP(dup,	dup,	1,	STUB_dup)
 SYSCALL_LOOKUP(dup2,	dup2,	2,	STUB_dup2)
 #endif /* CONFIG_NFILE_DESCRIPTORS > 0 */
 
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+SYSCALL_LOOKUP(elf_initialize,	elf_initialize,	0,	STUB_elf_initialize)
+#endif /* !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF) */
+
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+SYSCALL_LOOKUP(elf_uninitialize,	elf_uninitialize,	0,	STUB_elf_uninitialize)
+#endif /* !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF) */
+
 #if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)
 SYSCALL_LOOKUP(exec_getsymtab,	exec_getsymtab,	2,	STUB_exec_getsymtab)
 #endif /* !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS) */

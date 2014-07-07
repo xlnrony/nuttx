@@ -72,7 +72,7 @@ extern "C" {
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-void builtin_list_initialize(void);
+EXTERN void builtin_list_initialize(void);
 
 #undef EXTERN
 #if defined(__cplusplus)

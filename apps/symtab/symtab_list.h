@@ -20,6 +20,7 @@
 #include <crc32.h>
 #include <debug.h>
 #include <queue.h>
+#include <nuttx/binfmt/elf.h>
 #include <netinet/ether.h>
 #include <nuttx/binfmt/binfmt.h>
 #include <fcntl.h>
@@ -235,6 +236,12 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #endif
 #if CONFIG_NFILE_DESCRIPTORS > 0
   { "dup2", (FAR const void *)dup2 },
+#endif
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+  { "elf_initialize", (FAR const void *)elf_initialize },
+#endif
+#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_ELF)
+  { "elf_uninitialize", (FAR const void *)elf_uninitialize },
 #endif
   { "ether_ntoa", (FAR const void *)ether_ntoa },
 #if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)
