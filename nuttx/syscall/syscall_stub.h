@@ -15,8 +15,10 @@ uintptr_t STUB_builtin_exec(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t
 uintptr_t STUB_builtin_for_index(int nbr, uintptr_t parm1);
 uintptr_t STUB_builtin_getbuiltins(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_builtin_getname(int nbr, uintptr_t parm1);
+uintptr_t STUB_builtin_initialize(int nbr);
 uintptr_t STUB_builtin_isavail(int nbr, uintptr_t parm1);
 uintptr_t STUB_builtin_setbuiltins(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_builtin_uninitialize(int nbr);
 uintptr_t STUB_clearenv(int nbr);
 uintptr_t STUB_clock_getres(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_clock_gettime(int nbr, uintptr_t parm1, uintptr_t parm2);

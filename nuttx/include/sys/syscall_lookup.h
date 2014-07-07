@@ -45,6 +45,10 @@ SYSCALL_LOOKUP(builtin_getbuiltins,	builtin_getbuiltins,	2,	STUB_builtin_getbuil
 SYSCALL_LOOKUP(builtin_getname,	builtin_getname,	1,	STUB_builtin_getname)
 #endif /* defined(CONFIG_BUILTIN) */
 
+#if defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS)
+SYSCALL_LOOKUP(builtin_initialize,	builtin_initialize,	0,	STUB_builtin_initialize)
+#endif /* defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS) */
+
 #if defined(CONFIG_BUILTIN)
 SYSCALL_LOOKUP(builtin_isavail,	builtin_isavail,	1,	STUB_builtin_isavail)
 #endif /* defined(CONFIG_BUILTIN) */
@@ -52,6 +56,10 @@ SYSCALL_LOOKUP(builtin_isavail,	builtin_isavail,	1,	STUB_builtin_isavail)
 #if defined(CONFIG_BUILTIN)
 SYSCALL_LOOKUP(builtin_setbuiltins,	builtin_setbuiltins,	2,	STUB_builtin_setbuiltins)
 #endif /* defined(CONFIG_BUILTIN) */
+
+#if defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS)
+SYSCALL_LOOKUP(builtin_uninitialize,	builtin_uninitialize,	0,	STUB_builtin_uninitialize)
+#endif /* defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS) */
 
 #if !defined(CONFIG_DISABLE_ENVIRON)
 SYSCALL_LOOKUP(clearenv,	clearenv,	0,	STUB_clearenv)

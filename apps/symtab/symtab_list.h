@@ -152,11 +152,17 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if defined(CONFIG_BUILTIN)
   { "builtin_getname", (FAR const void *)builtin_getname },
 #endif
+#if defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS)
+  { "builtin_initialize", (FAR const void *)builtin_initialize },
+#endif
 #if defined(CONFIG_BUILTIN)
   { "builtin_isavail", (FAR const void *)builtin_isavail },
 #endif
 #if defined(CONFIG_BUILTIN)
   { "builtin_setbuiltins", (FAR const void *)builtin_setbuiltins },
+#endif
+#if defined(CONFIG_BUILTIN) && defined(CONFIG_FS_BINFS)
+  { "builtin_uninitialize", (FAR const void *)builtin_uninitialize },
 #endif
 #if defined(CONFIG_HAVE_DOUBLE) && (defined(CONFIG_LIBM) || defined(CONFIG_ARCH_MATH))
   { "ceil", (FAR const void *)ceil },
