@@ -1,7 +1,7 @@
 /****************************************************************************
- * drivers/bch/bch_internal.h
+ * net/iob/iob_trimhead_queue.c
  *
- *   Copyright (C) 2008-2009, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,74 +33,95 @@
  *
  ****************************************************************************/
 
-#ifndef __FS_BCH_INTERNAL_H
-#define __FS_BCH_INTERNAL_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <semaphore.h>
-#include <nuttx/fs/fs.h>
+#if defined(CONFIG_DEBUG) && defined(CONFIG_IOB_DEBUG)
+/* Force debug output (from this file only) */
+
+#  undef  CONFIG_DEBUG_NET
+#  define CONFIG_DEBUG_NET 1
+#endif
+
+#include <assert.h>
+#include <debug.h>
+
+#include <nuttx/net/iob.h>
+
+#include "iob.h"
+
+#if CONFIG_IOB_NCHAINS > 0
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define bchlib_semgive(d) sem_post(&(d)->sem)  /* To match bchlib_semtake */
-#define MAX_OPENCNT     (255)                  /* Limit of uint8_t */
+#ifndef NULL
+#  define NULL ((FAR void *)0)
+#endif
 
 /****************************************************************************
- * Public Types
+ * Private Types
  ****************************************************************************/
 
-struct bchlib_s
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: iob_trimhead_queue
+ *
+ * Description:
+ *   Remove bytes from the beginning of an I/O chain at the head of the
+ *   queue.  Emptied I/O buffers are freed and, hence, the head of the
+ *   queue may change.
+ *
+ *   This function is just a wrapper around iob_trimhead() that assures that
+ *   the I/O buffer chain at the head of queue is modified with the trimming
+ *   operation.
+ *
+ * Returned Value:
+ *   The new I/O buffer chain at the head of the queue is returned.
+ *
+ ****************************************************************************/
+
+FAR struct iob_s *iob_trimhead_queue(FAR struct iob_queue_s *qhead,
+                                     unsigned int trimlen)
 {
-  struct inode *inode; /* I-node of the block driver */
-  sem_t    sem;        /* For atomic accesses to this structure */
-  size_t   nsectors;   /* Number of sectors supported by the device */
-  size_t   sector;     /* The current sector in the buffer */
-  uint16_t sectsize;   /* The size of one sector on the device */
-  uint8_t  refs;       /* Number of references */
-  bool  dirty;         /* Data has been written to the buffer */
-  bool  readonly;      /* true:  Only read operations are supported */
-  FAR uint8_t *buffer; /* One sector buffer */
+  FAR struct iob_qentry_s *qentry;
+  FAR struct iob_s *iob = NULL;
 
-#if defined(CONFIG_BCH_ENCRYPTION)
-  uint8_t   key[CONFIG_BCH_ENCRYPTION_KEY_SIZE];   /* Encryption key */
-#endif
-};
+  /* Peek at the I/O buffer chain container at the head of the queue */
 
-/****************************************************************************
- * Global Variables
- ****************************************************************************/
+  qentry = qhead->qh_head;
+  if (qentry)
+    {
+      /* Verify that the queue entry contains an I/O buffer chain */
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
+      iob = qentry->qe_head;
+      if (iob)
+        {
+          /* Trim the I/Buffer chain and update the queue head */
 
-EXTERN const struct file_operations bch_fops;
+          iob = iob_trimhead(iob, trimlen);
+          qentry->qe_head = iob;
+        }
+    }
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
+  /* Return the new I/O buffer chain at the head of the queue */
 
-EXTERN void bchlib_semtake(FAR struct bchlib_s *bch);
-EXTERN int  bchlib_flushsector(FAR struct bchlib_s *bch);
-EXTERN int  bchlib_readsector(FAR struct bchlib_s *bch, size_t sector);
-
-#undef EXTERN
-#if defined(__cplusplus)
+  return iob;
 }
-#endif
 
-#endif /* __FS_BCH_INTERNAL_H */
+#endif /* CONFIG_IOB_NCHAINS > 0 */
