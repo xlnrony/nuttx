@@ -33,7 +33,7 @@ config USBHOST_ISOC_DISABLE
 config USBHOST_MSC
 	bool "Mass Storage Class Support"
 	default n
-	depends on !USBHOST_BULK_DISABLE
+	depends on !BULK_DISABLE
 	---help---
 		Enable support for the keyboard class driver.  This also depends on
 		NFILE_DESCRIPTORS > 0 && SCHED_WORKQUEUE=y
@@ -41,7 +41,7 @@ config USBHOST_MSC
 config USBHOST_HIDKBD
 	bool "HID Keyboard Class Support"
 	default n
-	depends on !USBHOST_INT_DISABLE
+	depends on !INT_DISABLE
 	---help---
 		Enable support for the keyboard class driver.  This also depends on
 		SCHED_WORKQUEUE && !DISABLE_SIGNALS
@@ -118,7 +118,7 @@ endif
 config USBHOST_HIDMOUSE
 	bool "HID Mouse Class Support"
 	default n
-	depends on !USBHOST_INT_DISABLE
+	depends on !INT_DISABLE
 	select INPUT
 	select MOUSE
 	---help---
@@ -287,7 +287,7 @@ endif # USBHOST_HIDMOUSE
 config USBHOST_EPASS3003
 	bool "HID Epass3003 USB Token Class Support"
 	default n
-	depends on !USBHOST_INT_DISABLE
+	depends on !INT_DISABLE
 	---help---
 		Enable support for the epass3003 usb token class driver.  This also depends on
 		SCHED_WORKQUEUE && !DISABLE_SIGNALS
