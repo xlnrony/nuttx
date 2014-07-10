@@ -98,11 +98,11 @@
 #define PIO_CFG_SHIFT             (15)        /* Bits 15-19: PIO configuration bits */
 #define PIO_CFG_MASK              (31 << PIO_CFG_SHIFT)
 #  define PIO_CFG_DEFAULT         (0  << PIO_CFG_SHIFT) /* Default, no attribute */
-#  define PIO_CFG_PULLUP          (1  << PIO_CFG_SHIFT) /* Bit 11: Internal pull-up */
-#  define PIO_CFG_PULLDOWN        (2  << PIO_CFG_SHIFT) /* Bit 11: Internal pull-down */
-#  define PIO_CFG_DEGLITCH        (4  << PIO_CFG_SHIFT) /* Bit 12: Internal glitch filter */
-#  define PIO_CFG_OPENDRAIN       (8  << PIO_CFG_SHIFT) /* Bit 13: Open drain */
-#  define PIO_CFG_SCHMITT         (16 << PIO_CFG_SHIFT) /* Bit 13: Schmitt trigger */
+#  define PIO_CFG_PULLUP          (1  << PIO_CFG_SHIFT) /* Bit 15: Internal pull-up */
+#  define PIO_CFG_PULLDOWN        (2  << PIO_CFG_SHIFT) /* Bit 16: Internal pull-down */
+#  define PIO_CFG_DEGLITCH        (4  << PIO_CFG_SHIFT) /* Bit 17: Internal glitch filter */
+#  define PIO_CFG_OPENDRAIN       (8  << PIO_CFG_SHIFT) /* Bit 18: Open drain */
+#  define PIO_CFG_SCHMITT         (16 << PIO_CFG_SHIFT) /* Bit 19: Schmitt trigger */
 
 /* Drive Strength:
  *
@@ -334,6 +334,23 @@ void sam_pioirqdisable(int irq);
 #else
 #  define sam_pioirqdisable(irq)
 #endif
+
+/************************************************************************************
+ * Name: sam_pio_forceclk
+ *
+ * Description:
+ *   Enable PIO clocking.  This logic is overly conservative and does not enable PIO
+ *   clocking unless necessary (PIO input selected, glitch/filtering enable, or PIO
+ *   interrupts enabled).  There are, however, certain conditions were we may want
+ *   for force the PIO clock to be enabled.  An example is reading the input value
+ *   from an open drain output.
+ *
+ *   The PIO automatic enable/disable logic is not smart enough enough to know about
+ *   these cases.  For those cases, sam_pio_forceclk() is provided.
+ *
+ ************************************************************************************/
+
+void sam_pio_forceclk(pio_pinset_t pinset, bool enable);
 
 /************************************************************************************
  * Function:  sam_dumppio
