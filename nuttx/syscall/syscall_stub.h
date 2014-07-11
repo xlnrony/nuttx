@@ -194,6 +194,7 @@ uintptr_t STUB_up_progmem_pagesize(int nbr, uintptr_t parm1);
 uintptr_t STUB_up_progmem_write(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
 uintptr_t STUB_usbhost_connection_enumerate(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_usbhost_connection_wait(int nbr, uintptr_t parm1, uintptr_t parm2);
+uintptr_t STUB_usbhost_epass3003init(int nbr);
 uintptr_t STUB_usbhost_initialize(int nbr, uintptr_t parm1);
 uintptr_t STUB_usbhost_kbdinit(int nbr);
 uintptr_t STUB_usbhost_trdump(int nbr);

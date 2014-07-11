@@ -1096,6 +1096,9 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if defined(CONFIG_USBHOST)
   { "usbhost_connection_wait", (FAR const void *)usbhost_connection_wait },
 #endif
+#if defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_EPASS3003)
+  { "usbhost_epass3003init", (FAR const void *)usbhost_epass3003init },
+#endif
 #if defined(CONFIG_USBHOST)
   { "usbhost_initialize", (FAR const void *)usbhost_initialize },
 #endif

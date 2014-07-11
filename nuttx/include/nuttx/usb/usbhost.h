@@ -861,6 +861,27 @@ int usbhost_kbdinit(void);
 int usbhost_mouse_init(void);
 #endif
 
+#ifdef CONFIG_USBHOST_EPASS3003
+/****************************************************************************
+ * Name: usbhost_epass3003init
+ *
+ * Description:
+ *   Initialize the Epass3003 USB Token class driver.  This function
+ *   should be called be platform-specific code in order to initialize and
+ *   register support for the Epass3003 USB Token class device.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Values:
+ *   On success this function will return zero (OK);  A negated errno value
+ *   will be returned on failure.
+ *
+ ****************************************************************************/
+
+int usbhost_epass3003init(void);
+#endif
+
 /****************************************************************************
  * Name: usbhost_wlaninit
  *

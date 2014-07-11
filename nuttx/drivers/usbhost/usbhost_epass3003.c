@@ -112,7 +112,7 @@
 #ifndef CONFIG_DEBUG_INPUT
 #  undef  idbg
 #  define idbg    udbg
-#  undef  elldbg
+#  undef  illdbg
 #  define illdbg  ulldbg
 #  undef  ivdbg
 #  define ivdbg   uvdbg
@@ -212,6 +212,9 @@ static void usbhost_putle32(uint8_t *dest, uint32_t val);
 
 static inline int usbhost_tdalloc(FAR struct usbhost_state_s *priv);
 static inline int usbhost_tdfree(FAR struct usbhost_state_s *priv);
+
+static inline int usbhost_cralloc(FAR struct usbhost_state_s *priv);
+static inline int usbhost_crfree(FAR struct usbhost_state_s *priv);
 
 /* struct usbhost_registry_s methods */
 
@@ -464,7 +467,6 @@ static void usbhost_destroy(FAR void *arg)
   /* Destroy the semaphores */
 
   sem_destroy(&priv->exclsem);
-  sem_destroy(&priv->waitsem);
 
   /* Disconnect the USB host device */
 
@@ -956,7 +958,7 @@ static inline int usbhost_tdfree(FAR struct usbhost_state_s *priv)
   if (priv->tbuffer)
     {
       DEBUGASSERT(priv->drvr);
-      result         = DRVR_FREE(priv->drvr, priv->tbuffer);
+      ret = DRVR_FREE(priv->drvr, priv->tbuffer);
       priv->tbuffer = NULL;
       priv->tbuflen = 0;
     }
@@ -984,7 +986,7 @@ static inline int usbhost_cralloc(FAR struct usbhost_state_s *priv)
   size_t buflen;
   int ret;
   DEBUGASSERT(priv && priv->ctrlreq == NULL);
-  ret = DRVR_ALLOC(priv->drvr, &priv->ctrlreq, &buflen);
+  ret = DRVR_ALLOC(priv->drvr, (FAR uint8_t **)&priv->ctrlreq, &buflen);
   DEBUGASSERT(buflen >= sizeof(struct usb_ctrlreq_s));
   return ret;
 }
@@ -1012,7 +1014,7 @@ static inline int usbhost_crfree(FAR struct usbhost_state_s *priv)
   if (priv->ctrlreq)
     {
       DEBUGASSERT(priv->drvr);
-      result         = DRVR_FREE(priv->drvr, priv->ctrlreq);
+      ret = DRVR_FREE(priv->drvr, (FAR uint8_t *)priv->ctrlreq);
       priv->ctrlreq = NULL;
     }
 
@@ -1343,8 +1345,6 @@ static int usbhost_close(FAR struct file *filep)
       /* Yes.. then the driver is no longer open */
 
       priv->open    = false;
-      priv->headndx = 0;
-      priv->tailndx = 0;
 
       /* We need to disable interrupts momentarily to assure that there are
        * no asynchronous disconnect events.
@@ -1388,8 +1388,6 @@ static ssize_t usbhost_read(FAR struct file *filep, FAR char *buffer, size_t len
   FAR struct inode           *inode;
   FAR struct usbhost_state_s *priv;
   FAR struct usb_ctrlreq_s   *ctrlreq;
-  size_t                      nbytes;
-  unsigned int                tail;
   int                         ret;
 
   uvdbg("Entry\n");
@@ -1476,8 +1474,6 @@ static ssize_t usbhost_write(FAR struct file *filep, FAR const char *buffer,
   FAR struct inode           *inode;
   FAR struct usbhost_state_s *priv;
   FAR struct usb_ctrlreq_s   *ctrlreq;
-  size_t                      nbytes;
-  unsigned int                tail;
   int                         ret;
 
   uvdbg("Entry\n");

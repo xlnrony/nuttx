@@ -653,6 +653,10 @@ SYSCALL_LOOKUP(usbhost_connection_enumerate,	usbhost_connection_enumerate,	2,	ST
 SYSCALL_LOOKUP(usbhost_connection_wait,	usbhost_connection_wait,	2,	STUB_usbhost_connection_wait)
 #endif /* defined(CONFIG_USBHOST) */
 
+#if defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_EPASS3003)
+SYSCALL_LOOKUP(usbhost_epass3003init,	usbhost_epass3003init,	0,	STUB_usbhost_epass3003init)
+#endif /* defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_EPASS3003) */
+
 #if defined(CONFIG_USBHOST)
 SYSCALL_LOOKUP(usbhost_initialize,	usbhost_initialize,	1,	STUB_usbhost_initialize)
 #endif /* defined(CONFIG_USBHOST) */
