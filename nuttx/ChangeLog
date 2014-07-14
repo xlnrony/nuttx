@@ -7707,4 +7707,26 @@
 	* drivers/input/mxt:  The maXTouch driver works! (2014-7-10).
 	* configs/sama5d4-ek:  The TM7000 LCD works! (2014-7-10).
 	* configs/sama5d4-ek/NxWM:  Add an NxWM configuration (2014-7-10).
-
+	* drivers/mtc_rwbuffer.c (and others): Add an MTD layer that will add
+	  read-ahead or write buffering to any MTD driver (incomplete) (2014-7-11).
+	* arch/arm/src/lpc17xx/lpc17_ethernet.c: Comment out an assertion that
+	  is reported to fire inappropriately.  From Max (2014-7-11).
+	* drivers/mtd (mostly): Addition rwbuffer interfaces should not be
+	  enabled unless they are needed; if rwbuffer support is enabled, it
+	  should not be unconditionally enabled in SMART and FTL (2014-7-11).
+	* libnx/nxglib/nxglib_colorcmp.c and include/nuttx/nx/nxglib.h: New
+	  utility to compare two colors (2014-7-11).
+	* graphics/Kconfig and nxbe/nxbe_configure.c: The initial background
+	  color is now configurable (2014-7-11).
+	* graphics/nxmu/nxmu_server.c and nxsu/nx_setbgcolor.c:  Don't change
+	  the background if the color did not really change (2014-7-11).
+	* arch/arm/src/sama5/sam_ldc.c and sama5d4-ek/include/board.h:  Back
+	  out the delay kludge.  The actual fix to the LDC instability was to
+	  drive the LCD at 2xMCK instead of 1xMCK (2013-7-12).
+	* drivers/input/mxt.c:  Fix an error in the state machine (2014-7-12).
+	* drivers/input/mxt.c:  Add thresholding so that "move" reports are not
+	  generated unless there is a significant change in the reported
+	  position (2014-7-12).
+	* SAMA5D4-EK MXT: The maXTouch should be able to handler an I2C
+	  frequency of 400KHz.  Valid interrupts should occur only on the
+	  falling edge of the ~CHG signal (2014-7-12).

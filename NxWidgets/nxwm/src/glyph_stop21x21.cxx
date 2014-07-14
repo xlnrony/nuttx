@@ -1,5 +1,5 @@
 /********************************************************************************************
- * NxWidgets/nxwm/src/glyph_stop.cxx
+ * NxWidgets/nxwm/src/glyph_stop21x21.cxx
  *
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -176,7 +176,7 @@ static const struct NXWidgets::SRlePaletteBitmapEntry g_stopRleEntries[] =
 };
 
 /********************************************************************************************
- * Public Bitmap Structure Defintions
+ * Public Bitmap Structure Definitions
  ********************************************************************************************/
 
 const struct NXWidgets::SRlePaletteBitmap NxWM::g_stopBitmap =

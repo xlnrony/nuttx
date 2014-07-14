@@ -39,6 +39,12 @@
 
 #include <nuttx/config.h>
 
+/* Suppress verbose debug output so that we don't swamp the system */
+
+#ifdef CONFIG_MXT_DISABLE_DEBUG_VERBOSE
+#  undef CONFIG_DEBUG_VERBOSE
+#endif
+
 #include <sys/types.h>
 
 #include <stdbool.h>
@@ -74,6 +80,12 @@
 #define DEV_FORMAT   "/dev/input%d"
 #define DEV_NAMELEN  16
 
+/* This is a value for the threshold that guarantees a big difference on the
+ * first pendown (but can't overflow).
+ */
+
+#define INVALID_POSITION 0x1000
+
 /* Get a 16-bit value in little endian order (not necessarily aligned).  The
  * source data is in little endian order.  The host byte order does not
  * matter in this case.
@@ -86,14 +98,31 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
-/* This describes the state of one contact */
+/* This enumeration describes the state of one contact.
+ *
+ *                  |
+ *                  v
+ *             CONTACT_NONE            (1) Touch
+ *           / (1)        ^ (3)        (2) Release
+ *          v              \           (3) Event reported
+ *     CONTACT_NEW     CONTACT_LOST
+ *          \ (3)          ^ (2)
+ *           v            /
+ *           CONTACT_REPORT
+ *             \ (1)    ^ (3)
+ *              v      /
+ *            CONTACT_MOVE
+ *
+ * NOTE: This state transition diagram is simplified.  There are a few other
+ * sneaky transitions to handle unexpected conditions.
+ */
 
 enum mxt_contact_e
 {
   CONTACT_NONE = 0,                /* No contact */
   CONTACT_NEW,                     /* New contact */
   CONTACT_MOVE,                    /* Same contact, possibly different position */
-  CONTACT_REPORT,                  /* Contact reported*/
+  CONTACT_REPORT,                  /* Contact reported */
   CONTACT_LOST,                    /* Contact lost */
 };
 
@@ -106,6 +135,8 @@ struct mxt_sample_s
   bool     valid;                  /* True: x,y,pressure contain valid, sampled data */
   uint16_t x;                      /* Measured X position */
   uint16_t y;                      /* Measured Y position */
+  uint16_t lastx;                  /* Last reported X position */
+  uint16_t lasty;                  /* Last reported Y position */
   uint8_t  area;                   /* Contact area */
   uint8_t  pressure;               /* Contact pressure */
 };
@@ -790,7 +821,30 @@ static void mxt_touch_event(FAR struct mxt_dev_s *priv,
           return;
         }
 
+      /* State is one of CONTACT_NEW, CONTACT_MOVE, CONTACT_REPORT or
+       * CONTACT_LOST.
+       *
+       * NOTE: Here we do not check for these other states because there is
+       * not much that can be done anyway.  The transition to CONTACK_LOST
+       * really only makes sense if the preceding state was CONTACT_REPORT.
+       * If we were in (unreported) CONTACT_NEW or CONTACT_MOVE states, then
+       * this will overwrite that event and it will not be reported.  This
+       * opens the possibility for contact lost reports when no contact was
+       * ever reported.
+       *
+       * We could improve this be leaving the unreported states in place,
+       * remembering that the contact was lost, and then reporting the loss-
+       * of-contact after touch state is reported.
+       */
+
       sample->contact = CONTACT_LOST;
+
+      /* Reset the last position so that we guarantee that the next position
+       * will pass the thresholding test.
+       */
+
+      sample->lastx = INVALID_POSITION;
+      sample->lasty = INVALID_POSITION;
     }
   else
     {
@@ -813,32 +867,50 @@ static void mxt_touch_event(FAR struct mxt_dev_s *priv,
       sample->pressure = pressure;
       sample->valid    = true;
 
-      /* If the last loss-of-contact event has not been processed yet, then
-       * let's bump up the touch identifier and hope that the client is smart
-       * enough to infer the loss-of-contact event for the preceding touch.
+      /* If this is not the first touch report, then report it as a move:
+       * Same contact, same ID, but with a new, updated position.
+       * The CONTACT_REPORT state means that a contacted has been detected,
+       * but all contact events have been successfully reported.
        */
 
-      if (sample->contact == CONTACT_LOST)
+      if (sample->contact == CONTACT_REPORT)
         {
-           priv->id++;
-        }
+          uint16_t xdiff;
+          uint16_t ydiff;
 
-      /* If this is not the first touch report, then report it a move:
-       * Same contact, same ID, but a potentially new position.  If
-       * The move event has not been reported, then just overwrite the
-       * move.  That is harmless.
-       */
-
-      if (sample->contact == CONTACT_REPORT ||
-          sample->contact == CONTACT_MOVE)
-        {
-          /* Not a new contact.  Indicate a contact move event */
-
-          sample->contact = CONTACT_MOVE;
-
-          /* This state will be set to CONTACT_REPORT after it
-           * been reported.
+          /* Not a new contact.  Check if the new measurements represent a
+           * non-trivial change in position.  A trivial change is detected
+           * by comparing the change in position since the last report
+           * against configurable threshold values.
+           *
+           * REVISIT:  Should a large change in pressure also generate a
+           * event?
            */
+
+          xdiff = x > sample->lastx ? (x - sample->lastx) : (sample->lastx - x);
+          ydiff = y > sample->lasty ? (y - sample->lasty) : (sample->lasty - y);
+
+          /* Check the thresholds */
+
+          if (xdiff < CONFIG_MXT_THRESHX && ydiff < CONFIG_MXT_THRESHY)
+            {
+              /* Report a contact move event.  This state will be set back
+               * to CONTACT_REPORT after it been reported.
+               */
+
+              sample->contact = CONTACT_MOVE;
+
+              /* Update the last position for next threshold calculations */
+
+              sample->lastx   = x;
+              sample->lasty   = y;
+            }
+          else
+            {
+              /* Bail without reporting anything for this event */
+
+              return;
+            }
         }
 
       /* If we have seen this contact before but it has not yet been
@@ -846,10 +918,11 @@ static void mxt_touch_event(FAR struct mxt_dev_s *priv,
        * data.
        *
        * This the state must be one of CONTACT_NONE or CONTACT_LOST (see
-       * above) and we have a new contact with a new ID>
+       * above) and we have a new contact with a new ID.
        */
 
-      else if (sample->contact != CONTACT_NEW)
+      else if (sample->contact != CONTACT_NEW &&
+               sample->contact != CONTACT_MOVE)
         {
           /* First contact.  Save the contact event and assign a new
            * ID to the contact.
@@ -857,6 +930,11 @@ static void mxt_touch_event(FAR struct mxt_dev_s *priv,
 
           sample->contact = CONTACT_NEW;
           sample->id      = priv->id++;
+
+          /* Update the last position for next threshold calculations */
+
+          sample->lastx   = x;
+          sample->lasty   = y;
 
           /* This state will be set to CONTACT_REPORT after it
            * been reported.
@@ -1344,16 +1422,18 @@ static ssize_t mxt_read(FAR struct file *filep, FAR char *buffer, size_t len)
                 }
               else
                 {
-                  if (sample->contact == CONTACT_REPORT)
+                  /* We have contact.  Is it the first contact? */
+
+                  if (sample->contact == CONTACT_NEW)
                     {
-                      /* First loss of contact */
+                      /* Yes.. first contact. */
 
                       point->flags = TOUCH_DOWN | TOUCH_ID_VALID |
                                      TOUCH_POS_VALID;
                     }
                   else /* if (sample->contact == CONTACT_MOVE) */
                     {
-                      /* Movement of the same contact */
+                      /* No.. then it must be movement of the same contact */
 
                       point->flags = TOUCH_MOVE | TOUCH_ID_VALID |
                                      TOUCH_POS_VALID;

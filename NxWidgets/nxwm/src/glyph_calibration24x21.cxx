@@ -1,5 +1,5 @@
 /********************************************************************************************
- * NxWidgets/nxwm/src/glyph_calibration.cxx
+ * NxWidgets/nxwm/src/glyph_calibration24x21.cxx
  *
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -180,7 +180,7 @@ static const struct NXWidgets::SRlePaletteBitmapEntry g_calibrationRleEntries[] 
 };
 
 /********************************************************************************************
- * Public Bitmap Structure Defintions
+ * Public Bitmap Structure Definitions
  ********************************************************************************************/
 
 const struct NXWidgets::SRlePaletteBitmap NxWM::g_calibrationBitmap =
