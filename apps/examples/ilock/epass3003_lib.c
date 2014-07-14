@@ -116,9 +116,9 @@ struct usbhid_epass3003report_s
  * Name: ilock_main
  ****************************************************************************/
 
-int epass3003_sendapdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t *rxbuf, FAR size_t *rxlen)
+int epass3003_transmit_apdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t *rxbuf, FAR size_t *rxlen)
 {
-  struct usbhid_epass3003report_s rpt;
+  struct usbhid_epass3003report_s rpt = {0};
   
   int txpktsize = txpktlen;
   int txoffset = 0;
@@ -147,7 +147,7 @@ int epass3003_sendapdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t 
     memmove(rpt.buffer, txbuf, txsize)   ;
     txoffset += txsize;
     txbuf += txsize;
-    txpktsize -= txsize;
+    txpktlen -= txsize;
     //-------------------------------------------------------------------------------
     //  send this package
     ret = write(fd, &rpt, sizeof(struct usbhid_epass3003report_s));
@@ -173,9 +173,9 @@ int epass3003_sendapdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t 
       }
       else
       {
-        rxpktsize = rpt.pktsizeh << 8 + rpt.pktsizel;
-        rxoffset = rpt.blkoffseth << 8 +  rpt.blkoffsetl;
-        rxsize = rpt.blksizeh << 8 + rpt.blksizel;
+        rxpktsize = (rpt.pktsizeh << 8) + rpt.pktsizel;
+        rxoffset = (rpt.blkoffseth << 8) +  rpt.blkoffsetl;
+        rxsize = (rpt.blksizeh << 8) + rpt.blksizel;
         memmove(rxbuf + rxoffset, rpt.buffer, rxsize);
         if(rxoffset + rxsize == rxpktsize)
         {
@@ -195,7 +195,7 @@ int epass3003_sendapdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t 
 		0x00,0xc0,0x00,0x00,0x00
 	     };
 	   getresp[4] = rxbuf[1];
-	   return epass3003_sendapdu(fd, getresp, 5, rxbuf, rxlen);
+	   return epass3003_transmit_apdu(fd, getresp, 5, rxbuf, rxlen);
   	 }
     } 
   return 0;

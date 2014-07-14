@@ -33,24 +33,30 @@
 #
 ############################################################################
 
+APPNAME		= ilock
+ELFENTRY = $(APPNAME)_main
+
 -include $(TOPDIR)/.config
 -include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
 # iLock Application Example
 
-APPNAME		= ilock
 PRIORITY	= SCHED_PRIORITY_DEFAULT
 STACKSIZE	= 2048
 
 ASRCS		=
-CSRCS		= ilock_main.c
+CSRCS		= ilock_main.c epass3003_lib.c
 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
+AELFOBJS		= $(ASRCS:.S=.elf$(OBJEXT))
+CELFOBJS		= $(CSRCS:.c=.elf$(OBJEXT))
+
 SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
+ELFOBJS		= $(AELFOBJS) $(CELFOBJS)
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\..\libapps$(LIBEXT)
@@ -77,7 +83,19 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-.built: $(OBJS)
+$(AELFOBJS): %.elf$(OBJEXT): %.S
+	@echo "ELF-AS: $<"
+	$(Q) $(CC) -c $(AELFFLAGS) $< -o $@
+
+$(CELFOBJS): %.elf$(OBJEXT): %.c
+	@echo "ELF-CC: $<"
+	$(Q) $(CC) -c $(CELFFLAGS) $< -o $@
+	
+$(APPNAME): $(ELFOBJS)
+	@echo "ELF-LD: $@"
+	$(Q) $(LD) $(LDELFFLAGS) -o $@ $^
+	
+.built: $(OBJS) $(APPNAME)
 	$(call ARCHIVE, $(BIN), $(OBJS))
 	@touch .built
 

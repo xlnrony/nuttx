@@ -114,13 +114,14 @@
 
 int ilock_main(int argc, char *argv[])
 {
-  char buffer[256];
-  pid_t pid;
-  ssize_t nbytes;
+//  pid_t pid;
+//  ssize_t nbytes;
   int fd;
   int ret;
   bool connected = false;
   int rhpndx;
+  static FAR struct usbhost_connection_s *g_usbconn;
+  
 
   /* First, register all of the USB host HID keyboard class driver */
 
@@ -167,62 +168,54 @@ int ilock_main(int argc, char *argv[])
 	   return 0;
         }
 
-      (void)usbhost_connection_enumerate(g_usbconn, rhpndx);
-	  
-      /* Now just sleep.  Eventually logic here will open the kbd device and
-       * perform the HID keyboard test.
-       */
-#if 0
-      for (;;)
+      ret = usbhost_connection_enumerate(g_usbconn, rhpndx);
+      if (ret < 0)
+      	 {
+          printf("usbhost_connection_enumerate failed: %d\n", ret);
+          fflush(stdout);
+	   return 0;
+      	 }
+      printf("Opening device %s\n", CONFIG_EXAMPLES_EPASS3003_DEVNAME);
+      fd = open(CONFIG_EXAMPLES_EPASS3003_DEVNAME, O_RDWR);
+      if (fd < 0)
         {
-          /* Open the keyboard device.  Loop until the device is successfully
-           * opened.
-           */
-
-          do
-            {
-              printf("Opening device %s\n", CONFIG_EXAMPLES_EPASS3003_DEVNAME);
-              fd = open(CONFIG_EXAMPLES_EPASS3003_DEVNAME, O_RDWR);
-              if (fd < 0)
-                {
-                   printf("Failed: %d\n", errno);
-                   fflush(stdout);
-                   sleep(3);
-                }
-            }
-          while (fd < 0);
-
-          printf("Device %s opened\n", CONFIG_EXAMPLES_HIDKBD_DEVNAME);
+          printf("Failed: %d\n", errno);
           fflush(stdout);
-
-          /* Loop until there is a read failure (or EOF?) */
-
-          do
-            {
-              /* Read a buffer of data */
-
-              nbytes = read(fd, buffer, 256);
-              if (nbytes > 0)
-                {
-                  /* On success, echo the buffer to stdout */
-
-#ifdef CONFIG_EXAMPLES_HIDKBD_ENCODED
-                  hidkbd_decode(buffer, nbytes);
-#else
-                  (void)write(1, buffer, nbytes);
-#endif
-                }
-            }
-          while (nbytes > 0);
-
-          printf("Closing device %s: %d\n", CONFIG_EXAMPLES_HIDKBD_DEVNAME, (int)nbytes);
-          fflush(stdout);
-          close(fd);
+	   return 0;
         }
-#endif  
+	  
+      printf("Device %s opened\n", CONFIG_EXAMPLES_EPASS3003_DEVNAME);
+      fflush(stdout);
+
+      uint8_t txbuf[]="\x00\x84\x00\x00\x08";
+      size_t txpktlen=5;
+      uint8_t rxbuf[128]={0};
+      size_t rxlen=128;
+      char onebyte[4]={0};
+      char rxfmtbuf[384]={0};
+
+      ret = epass3003_transmit_apdu(fd, txbuf, txpktlen, rxbuf, &rxlen);
+      if (ret < 0)
+      	 {
+          printf("epass3003_transmit_apdu failed: %d\n", ret);
+          fflush(stdout);
+          goto errout;
+      	 }
+
+      int i;	
+      for(i=0;i<rxlen;i++)
+        {
+          sprintf(onebyte, "%02x ", rxbuf[i]);
+          strcat(rxfmtbuf, onebyte);
+      	 }
+      printf("epass3003_transmit_apdu result:%s\n", rxfmtbuf);  
+	  
+errout:
+      printf("Closing device %s\n", CONFIG_EXAMPLES_EPASS3003_DEVNAME);
+      fflush(stdout);
+      close(fd);
 	  
     }
 
   return 0;
 }
-

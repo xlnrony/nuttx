@@ -44,7 +44,7 @@
 
 #include <stdint.h>
 
-#ifdef defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_EPASS3003)
+#if defined(CONFIG_USBHOST) && defined(CONFIG_USBHOST_EPASS3003)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -70,7 +70,7 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
-EXTERN int epass3003_sendapdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t *rxbuf, FAR size_t *rxlen);
+EXTERN int epass3003_transmit_apdu(int fd, FAR uint8_t *txbuf, size_t txpktlen, FAR uint8_t *rxbuf, FAR size_t *rxlen);
 
 #undef EXTERN
 #ifdef __cplusplus
