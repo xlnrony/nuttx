@@ -452,3 +452,13 @@
   larger images for the media player (2014-7-14).
 * Kconfig, nxwm/src/cmediaplayer.cxx: Add options to manage spacing of media
   player buttons and borders vs. borderless buttons (2014-7-14).
+* NxWidgets::CImage: Fix setImageLeft and setImageTop methods (2014-7-14).
+* NxWidget::CImage: Now supports helper methods to align images in the
+  widget region (2014-7-14).
+* NxWM::CMediaPlayer now uses the new CImage methods to align media controls
+  in buttons (2014-7-14).
+* NxWidgets::CStickyImage:  A version of CImage that sticks in the selected
+  state when clicked (2014-7-15).
+* NxMW::CMediaPlayer: Now supports a pause button.  Initial check-in is not
+  rock solid (2014-7-15).
+
