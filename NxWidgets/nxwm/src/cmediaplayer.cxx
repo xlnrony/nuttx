@@ -3,6 +3,7 @@
  *
  *   Copyright (C) 2013 Ken Pettit. All rights reserved.
  *   Author: Ken Pettit <pettitkd@gmail.com>
+ *           Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -82,17 +83,33 @@ CMediaPlayer::CMediaPlayer(CTaskbar *taskbar, CApplicationWindow *window)
 {
   // Save the constructor data
 
-  m_taskbar = taskbar;
-  m_window  = window;
+  m_taskbar        = taskbar;
+  m_window         = window;
 
   // Nullify widgets that will be instantiated when the window is started
 
-  m_text    = (NXWidgets::CLabel       *)0;
-  m_font    = (NXWidgets::CNxFont      *)0;
+  m_listbox        = (NXWidgets::CListBox     *)0;
+  m_font           = (NXWidgets::CNxFont      *)0;
+  m_play           = (NXWidgets::CImage       *)0;
+  m_pause          = (NXWidgets::CImage       *)0;
+  m_rewind         = (NXWidgets::CStickyImage *)0;
+  m_fforward       = (NXWidgets::CStickyImage *)0;
+  m_volume         = (NXWidgets::CGlyphSliderHorizontal *)0;
+
+  // Nullify bitmaps that will be instantiated when the window is started
+
+  m_playBitmap     = (NXWidgets::CRlePaletteBitmap *)0;
+  m_pauseBitmap    = (NXWidgets::CRlePaletteBitmap *)0;
+  m_rewindBitmap   = (NXWidgets::CRlePaletteBitmap *)0;
+  m_fforwardBitmap = (NXWidgets::CRlePaletteBitmap *)0;
+  m_volumeBitmap   = (NXWidgets::CRlePaletteBitmap *)0;
 
   // Initial state is stopped
 
-  m_state   = MPLAYER_STOPPED;
+  m_state          = MPLAYER_STOPPED;
+  m_prevState      = MPLAYER_STOPPED;
+  m_pending        = PENDING_NONE;
+  m_fileIndex      = -1;
 
   // Add our personalized window label
 
@@ -118,14 +135,66 @@ CMediaPlayer::~CMediaPlayer(void)
 {
   // Destroy widgets
 
-  if (m_text)
+  if (m_listbox)
     {
-      delete m_text;
+      delete m_listbox;
     }
 
   if (m_font)
     {
       delete m_font;
+    }
+
+  if (m_play)
+    {
+      delete m_play;
+    }
+
+  if (m_pause)
+    {
+      delete m_pause;
+    }
+
+  if (m_rewind)
+    {
+      delete m_rewind;
+    }
+
+  if (m_fforward)
+    {
+      delete m_fforward;
+    }
+
+  if (m_volume)
+    {
+      delete m_volume;
+    }
+
+  // Destroy bitmaps
+
+  if (m_playBitmap)
+    {
+      delete m_playBitmap;
+    }
+
+  if (m_pauseBitmap)
+    {
+      delete m_pauseBitmap;
+    }
+
+  if (m_rewindBitmap)
+    {
+      delete m_rewindBitmap;
+    }
+
+  if (m_fforwardBitmap)
+    {
+      delete m_fforwardBitmap;
+    }
+
+  if (m_volumeBitmap)
+    {
+      delete m_volumeBitmap;
     }
 
   // Although we didn't create it, we are responsible for deleting the
@@ -181,7 +250,7 @@ bool CMediaPlayer::run(void)
 {
   // Create the widgets (if we have not already done so)
 
-  if (!m_text)
+  if (!m_listbox)
     {
       // Create the widgets
 
@@ -201,9 +270,14 @@ bool CMediaPlayer::run(void)
 
 void CMediaPlayer::stop(void)
 {
-  // Just disable further drawing
+  // Just disable further drawing on all widgets
 
-  m_text->disableDrawing();
+  m_listbox->disableDrawing();
+  m_play->disableDrawing();
+  m_pause->disableDrawing();
+  m_rewind->disableDrawing();
+  m_fforward->disableDrawing();
+  m_volume->disableDrawing();
 }
 
 /**
@@ -241,20 +315,27 @@ void CMediaPlayer::hide(void)
 /**
  * Redraw the entire window.  The application has been maximized or
  * otherwise moved to the top of the hierarchy.  This method is call from
- * CTaskbar when the application window must be displayed
+ * CTaskbar when the application window must be displayed.
  */
 
 void CMediaPlayer::redraw(void)
 {
-  // Redraw widgets (only).  Only one of the Play and Pause buttons should
-  // have drawing enabled.
+  // Get the widget control associated with the application window
 
-  m_text->redraw();
-  m_play->redraw();
-  m_pause->redraw();
-  m_rewind->redraw();
-  m_fforward->redraw();
-  m_volume->redraw();
+  NXWidgets::CWidgetControl *control = m_window->getWidgetControl();
+
+  // Get the CCGraphicsPort instance for this window
+
+  NXWidgets::CGraphicsPort *port = control->getGraphicsPort();
+
+  // Fill the entire window with the background color
+
+  port->drawFilledRect(0, 0, m_windowSize.w, m_windowSize.h,
+                       CONFIG_NXWM_MEDIAPLAYER_BACKGROUNDCOLOR);
+
+  // Redraw all widgets
+
+  redrawWidgets();
 }
 
 /**
@@ -271,6 +352,26 @@ bool CMediaPlayer::isFullScreen(void) const
 }
 
 /**
+ * Open a media file for playing.  Called after a file has been selected
+ * from the list box.
+ */
+
+bool CMediaPlayer::openMediaFile(const NXWidgets::CListBoxDataItem *item)
+{
+#warning Missing logic
+  return true;
+}
+
+/**
+ * Close media file.  Called when a new media file is selected, when a media file is de-selected, or when destroying the media player instance.
+    */
+
+void CMediaPlayer::closeMediaFile(void)
+{
+#warning Missing logic
+}
+
+/**
  * Select the geometry of the media player given the current window size.
  */
 
@@ -283,16 +384,44 @@ void CMediaPlayer::setGeometry(void)
   // Get the size of the window
 
   (void)window->getSize(&m_windowSize);
+}
 
-  // Get the size of the text box.  Same width as the m_keypad
+/**
+ * Load media files into the list box.
+ */
 
-  m_textSize.w   = m_windowSize.w - 10;
-  m_textSize.h   = 36;
+inline bool CMediaPlayer::showMediaFiles(const char *mediaPath)
+{
+  // Remove any filenames already in the list box
 
-  // Now position the text box
+  m_listbox->removeAllOptions();
 
-  m_textPos.x = 5;
-  m_textPos.y = 5;
+#if 0
+  // Open the media path directory
+  // Read each directory entry
+  // Add the directory entry to the list box
+  // Close the directory
+#else
+#  warning "Missing Logic"
+
+  // Just add a couple of dummy files for testing
+
+  m_listbox->addOption("File 1", 0,
+                      CONFIG_NXWIDGETS_DEFAULT_ENABLEDTEXTCOLOR,
+                      CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
+                      CONFIG_NXWIDGETS_DEFAULT_SELECTEDTEXTCOLOR,
+                      CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
+  m_listbox->addOption("File 2", 1,
+                      CONFIG_NXWIDGETS_DEFAULT_ENABLEDTEXTCOLOR,
+                      CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
+                      CONFIG_NXWIDGETS_DEFAULT_SELECTEDTEXTCOLOR,
+                      CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
+#endif
+
+  // Sort the file names in alphabetical order
+
+  m_listbox->sort();
+  return true;
 }
 
 /**
@@ -317,135 +446,153 @@ bool CMediaPlayer::createPlayer(void)
 
   NXWidgets::CWidgetControl *control = m_window->getWidgetControl();
 
-  // Create a label to show some text.  A simple label is used
-  // because the power of a text box is un-necessary in this application.
+  // Work out all of the vertical placement first.  In order to do that, we
+  // will need create all of the bitmaps first so that we an use the bitmap
+  // height in the calculation.
 
-  m_text = new NXWidgets::CLabel(control,
-                                 m_textPos.x, m_textPos.y,
-                                 m_textSize.w, m_textSize.h,
-                                 "0");
-  if (!m_text)
+  m_playBitmap     = new NXWidgets::CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_PLAY_ICON);
+  m_pauseBitmap    = new NXWidgets::CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_PAUSE_ICON);
+  m_rewindBitmap   = new NXWidgets::CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_REW_ICON);
+  m_fforwardBitmap = new NXWidgets::CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_FWD_ICON);
+  m_volumeBitmap   = new NXWidgets::CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_VOL_ICON);
+
+  if (!m_playBitmap || !m_pauseBitmap || !m_rewindBitmap ||
+      !m_fforwardBitmap || !m_volumeBitmap)
     {
-      gdbg("ERROR: Failed to create CLabel\n");
+      gdbg("ERROR: Failed to one or more bitmaps\n");
       return false;
     }
 
-  // Align text on the left
+  // Control image height.  Use the same height for all images
 
-  m_text->setTextAlignmentHoriz(NXWidgets::CLabel::TEXT_ALIGNMENT_HORIZ_RIGHT);
+  nxgl_coord_t controlH = m_playBitmap->getHeight();
 
-  // Disable drawing and events until we are asked to redraw the window
+  if (controlH < m_pauseBitmap->getHeight())
+    {
+      controlH = m_pauseBitmap->getHeight();
+    }
 
-  m_text->disableDrawing();
-  m_text->setRaisesEvents(false);
+  if (controlH < m_rewindBitmap->getHeight())
+    {
+      controlH = m_rewindBitmap->getHeight();
+    }
 
-  // Select the font
+  if (controlH < m_fforwardBitmap->getHeight())
+    {
+      controlH = m_fforwardBitmap->getHeight();
+    }
 
-  m_text->setFont(m_font);
+  controlH += 8;
 
-  // Add some dummy text for now
+  // Place the volume slider at a comfortable distance from the bottom of
+  // the display
 
-  m_text->setText("Coming soon...");
+  nxgl_coord_t volumeTop = m_windowSize.h - m_volumeBitmap->getHeight() -
+                           CONFIG_NXWM_MEDIAPLAYER_YSPACING;
 
-  // Create all bitmaps
+  // Place the player controls just above that.  The list box will then end
+  // just above the controls.
 
-  NXWidgets::CRlePaletteBitmap *playBitmap = new NXWidgets::
-      CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_PLAY_ICON);
+  nxgl_coord_t controlTop = volumeTop - controlH -
+                            CONFIG_NXWM_MEDIAPLAYER_YSPACING;
 
-  NXWidgets::CRlePaletteBitmap *pauseBitmap = new NXWidgets::
-      CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_PAUSE_ICON);
+  // The list box will then end just above the controls.  The end of the
+  // list box is the same as its height because the origin is zero.
 
-  NXWidgets::CRlePaletteBitmap *rewBitmap = new NXWidgets::
-      CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_REW_ICON);
+  nxgl_coord_t listHeight = controlTop - CONFIG_NXWM_MEDIAPLAYER_YSPACING;
 
-  NXWidgets::CRlePaletteBitmap *fwdBitmap = new NXWidgets::
-      CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_FWD_ICON);
+  // Create a list box to show media file selections.
+  // Note that the list box will extend all of the way to the edges of the
+  // display and is only limited at the bottom by the player controls.
+  // REVISIT: This should be a scrollable list box
 
-  // Button widths will depend on if the buttons will be bordered or not
+  m_listbox = new NXWidgets::CListBox(control, 0, 0,  m_windowSize.w, listHeight);
+  if (!m_listbox)
+    {
+      gdbg("ERROR: Failed to create CListBox\n");
+      return false;
+    }
 
-  nxgl_coord_t playButtonW;
-  nxgl_coord_t pauseButtonW;
-  nxgl_coord_t rewButtonW;
-  nxgl_coord_t fwdButtonW;
+  // Configure the list box
+
+  m_listbox->disableDrawing();
+  m_listbox->setAllowMultipleSelections(false);
+  m_listbox->setFont(m_font);
+  m_listbox->setBorderless(false);
+
+  // Register to get events when a new file is selected from the list box
+
+  m_listbox->addWidgetEventHandler(this);
+
+  // Show the media files that are available for playing
+
+  showMediaFiles(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
+
+  // Control image widths.
+  // Image widths will depend on if the images will be bordered or not
+
+  nxgl_coord_t playControlW;
+  nxgl_coord_t rewindControlW;
+  nxgl_coord_t fforwardControlW;
 
 #ifdef CONFIG_NXWM_MEDIAPLAYER_BORDERS
-  // Set the width to the widest button
+  // Use the same width for all control images.  Set the width to the width
+  // of the widest image
 
-  nxgl_coord_t buttonW = playBitmap->getWidth();
+  nxgl_coord_t imageW = m_playBitmap->getWidth();
 
-  if (buttonW < pauseBitmap->getWidth())
+  if (imageW < m_pauseBitmap->getWidth())
     {
-      buttonW = pauseBitmap->getWidth();
+      imageW = m_pauseBitmap->getWidth();
     }
 
-  if (buttonW < rewBitmap->getWidth())
+  if (imageW < m_rewindBitmap->getWidth())
     {
-      buttonW = rewBitmap->getWidth();
+      imageW = m_rewindBitmap->getWidth();
     }
 
-  if (buttonW < fwdBitmap->getWidth())
+  if (imageW < m_fforwardBitmap->getWidth())
     {
-      buttonW = fwdBitmap->getWidth();
+      imageW = m_fforwardBitmap->getWidth();
     }
 
-  // Add little space around the bitmap and use this width for all buttons
+  // Add little space around the bitmap and use this width for all images
 
-  buttonW     += 8;
-  playButtonW  = buttonW;
-  pauseButtonW = buttonW;
-  rewButtonW   = buttonW;
-  fwdButtonW   = buttonW;
+  imageW          += 8;
+  playControlW     = imageW;
+  rewindControlW   = imageW;
+  fforwardControlW = imageW;
 
 #else
-  // Use the bitmap image widths for the button widths (plus a bit)
+  // Use the bitmap image widths for the image widths (plus a bit)
 
-  playButtonW  = playBitmap->getWidth() + 8;
-  pauseButtonW = pauseBitmap->getWidth() + 8;
-  rewButtonW   = rewBitmap->getWidth()  + 8;
-  fwdButtonW   = fwdBitmap->getWidth()  + 8;
+  playControlW     = m_playBitmap->getWidth() + 8;
+  rewindControlW   = m_rewindBitmap->getWidth()  + 8;
+  fforwardControlW = m_fforwardBitmap->getWidth()  + 8;
 
-  // The Play and Pause buttons should be the same width.  But just
+  // The Play and Pause images should be the same width.  But just
   // in case, pick the larger width.
 
-  if (playButtonW < pauseButtonW)
+  nxgl_coord_t pauseControlW = m_pauseBitmap->getWidth() + 8;
+  if (playControlW < pauseControlW)
     {
-      playButtonW = pauseButtonW;
-    }
-  else
-    {
-      pauseButtonW = playButtonW;
+      playControlW = pauseControlW;
     }
 #endif
 
-  // Use the same height for all buttons
-
-  nxgl_coord_t buttonH = playBitmap->getHeight();
-
-  if (buttonH < pauseBitmap->getHeight())
-    {
-      buttonH = pauseBitmap->getHeight();
-    }
-
-  if (buttonH < rewBitmap->getHeight())
-    {
-      buttonH = rewBitmap->getHeight();
-    }
-
-  if (buttonH < fwdBitmap->getHeight())
-    {
-      buttonH = fwdBitmap->getHeight();
-    }
-
-  buttonH += 8;
-
   // Create the Play image
 
-  nxgl_coord_t playControlX = (m_windowSize.w >> 1) - (playButtonW >> 1);
-  uint32_t controlY         = (180 * m_windowSize.h) >> 8;
+  nxgl_coord_t playControlX = (m_windowSize.w >> 1) - (playControlW >> 1);
 
   m_play = new NXWidgets::
-      CImage(control, playControlX, (nxgl_coord_t)controlY,
-             playButtonW, buttonH, playBitmap);
+      CImage(control, playControlX, controlTop, playControlW, controlH,
+             m_playBitmap);
+
+  if (!m_play)
+    {
+      gdbg("ERROR: Failed to create play control\n");
+      return false;
+    }
 
   // Configure the Play image
 
@@ -465,8 +612,14 @@ bool CMediaPlayer::createPlayer(void)
   // Create the Pause image (at the same position ans size as the Play image)
 
   m_pause = new NXWidgets::
-      CImage(control, playControlX, (nxgl_coord_t)controlY,
-             playButtonW, buttonH, pauseBitmap);
+      CImage(control, playControlX, controlTop, playControlW, controlH,
+             m_pauseBitmap);
+
+  if (!m_pause)
+    {
+      gdbg("ERROR: Failed to create pause control\n");
+      return false;
+    }
 
   // Configure the Pause image (hidden and disabled initially)
 
@@ -485,12 +638,18 @@ bool CMediaPlayer::createPlayer(void)
 
   // Create the Rewind image
 
-  nxgl_coord_t rewControlX = playControlX - rewButtonW -
+  nxgl_coord_t rewControlX = playControlX - rewindControlW -
                              CONFIG_NXWM_MEDIAPLAYER_XSPACING;
 
   m_rewind = new NXWidgets::
-      CStickyImage(control, rewControlX, (nxgl_coord_t)controlY,
-                   rewButtonW, buttonH, rewBitmap);
+      CStickyImage(control, rewControlX, controlTop, rewindControlW,
+                   controlH, m_rewindBitmap);
+
+  if (!m_rewind)
+    {
+      gdbg("ERROR: Failed to create rewind control\n");
+      return false;
+    }
 
   // Configure the Rewind image
 
@@ -509,12 +668,18 @@ bool CMediaPlayer::createPlayer(void)
 
   // Create the Forward Image
 
-  nxgl_coord_t fwdControlX = playControlX + playButtonW +
+  nxgl_coord_t fwdControlX = playControlX + playControlW +
                              CONFIG_NXWM_MEDIAPLAYER_XSPACING;
 
   m_fforward = new NXWidgets::
-      CStickyImage(control, fwdControlX, (nxgl_coord_t)controlY,
-                   fwdButtonW, buttonH, fwdBitmap);
+      CStickyImage(control, fwdControlX, controlTop, fforwardControlW,
+                   controlH, m_fforwardBitmap);
+
+  if (!m_fforward)
+    {
+      gdbg("ERROR: Failed to create fast forward control\n");
+      return false;
+    }
 
   // Configure the Forward image
 
@@ -533,19 +698,27 @@ bool CMediaPlayer::createPlayer(void)
 
   // Create the Volume control
 
-  NXWidgets::CRlePaletteBitmap *volBitmap = new NXWidgets::
-      CRlePaletteBitmap(&CONFIG_NXWM_MPLAYER_VOL_ICON);
+  uint32_t volumeControlX     = (9 * (uint32_t)m_windowSize.w) >> 8;
+  nxgl_coord_t volumeControlW = (nxgl_coord_t)(m_windowSize.w - 2 * volumeControlX);
+  nxgl_coord_t volumeControlH = m_volumeBitmap->getHeight() - 4;
 
-  uint32_t volumeControlX = (9 * m_windowSize.w) >> 8;
-  uint32_t volumeControlY = (232 * m_windowSize.h) >> 8;
+  // Don't let the height of the volume control get too small
+
+  if (volumeControlH < CONFIG_NXWM_MEDIAPLAYER_MINVOLUMEHEIGHT)
+    {
+      volumeControlH = CONFIG_NXWM_MEDIAPLAYER_MINVOLUMEHEIGHT;
+    }
 
   m_volume = new NXWidgets::
-      CGlyphSliderHorizontal(control,
-                             (nxgl_coord_t)volumeControlX,
-                             (nxgl_coord_t)volumeControlY,
-                             (nxgl_coord_t)(m_windowSize.w - 2 * volumeControlX),
-                             volBitmap->getHeight() + 4, volBitmap,
-                             MKRGB(63, 90,192));
+      CGlyphSliderHorizontal(control, (nxgl_coord_t)volumeControlX, volumeTop,
+                             volumeControlW, volumeControlH, m_volumeBitmap,
+                             CONFIG_NXWM_MEDIAPLAYER_VOLUMECOLOR);
+
+  if (!m_volume)
+    {
+      gdbg("ERROR: Failed to create volume control\n");
+      return false;
+    }
 
   // Configure the volume control
 
@@ -553,29 +726,24 @@ bool CMediaPlayer::createPlayer(void)
   m_volume->setMinimumValue(0);
   m_volume->setMaximumValue(100);
   m_volume->setValue(15);
+  m_volume->setPageSize(CONFIG_NXWM_MEDIAPLAYER_VOLUMESTEP);
 
-  // Register to get events from the mouse clicks on the Forward image
+  // Register to get events from the value changes in the volume slider
 
   m_volume->addWidgetEventHandler(this);
-
-  // Redraw the background once only
-  // Get the CCGraphicsPort instance for this window
-
-  NXWidgets::CGraphicsPort *port = control->getGraphicsPort();
-
-  // Fill the entire window with the background color
-
-  port->drawFilledRect(0, 0, m_windowSize.w, m_windowSize.h,
-                       CONFIG_NXWM_MEDIAPLAYER_BACKGROUNDCOLOR);
 
   // Make sure that all widgets are setup for the STOPPED state.  Among other this,
   // this will enable drawing in the play widget (only)
 
   setMediaPlayerState(MPLAYER_STOPPED);
 
-  // Enable drawing in the text, rewind, fast-forward and drawing widgets.
+  // Set the volume level
 
-  m_text->enableDrawing();
+  setVolumeLevel();
+
+  // Enable drawing in the list box, rewind, fast-forward and drawing widgets.
+
+  m_listbox->enableDrawing();
   m_rewind->enableDrawing();
   m_fforward->enableDrawing();
   m_volume->enableDrawing();
@@ -583,12 +751,11 @@ bool CMediaPlayer::createPlayer(void)
   // And redraw all of the widgets that are enabled
 
   redraw();
-
   return true;
 }
 
 /**
- * Called when the window minimize button is pressed.
+ * Called when the window minimize image is pressed.
  */
 
 void CMediaPlayer::minimize(void)
@@ -597,12 +764,57 @@ void CMediaPlayer::minimize(void)
 }
 
 /**
- * Called when the window close button is pressed.
+ * Called when the window close image is pressed.
  */
 
 void CMediaPlayer::close(void)
 {
   m_taskbar->stopApplication(static_cast<IApplication*>(this));
+}
+
+/**
+ * Redraw all widgets.  Called from redraw() and also on any state
+ * change.
+ *
+ * @param state The new state to enter.
+ */
+
+void CMediaPlayer::redrawWidgets(void)
+{
+  // Redraw widgets.  We have to re-enable drawing all all widgets since
+  // drawing was disabled by the hide() method.
+
+  m_listbox->enableDrawing();
+  m_listbox->redraw();
+
+  // Only one of the Play and Pause images should have drawing enabled.
+
+  if (m_state != MPLAYER_STOPPED && m_prevState == MPLAYER_PLAYING)
+    {
+      // Playing... show the pause button
+      // REVISIT:  Really only available if there is a selected file in the list box
+
+      m_pause->enableDrawing();
+      m_pause->redraw();
+    }
+  else
+    {
+      // Paused or Stopped... show the play button
+
+      m_play->enableDrawing();
+      m_play->redraw();
+    }
+
+  // Rewind and play buttons
+
+  m_rewind->enableDrawing();
+  m_rewind->redraw();
+
+  m_fforward->enableDrawing();
+  m_fforward->redraw();
+
+  m_volume->enableDrawing();
+  m_volume->redraw();
 }
 
 /**
@@ -613,36 +825,47 @@ void CMediaPlayer::close(void)
 
 void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
 {
+  // Stop drawing on all widgets
+
+  stop();
+
   // Handle according to the new state
 
   switch (state)
     {
     case MPLAYER_STOPPED:    // Initial state.  Also the state after playing completes
-      m_state = MPLAYER_STOPPED;
+      m_state     = MPLAYER_STOPPED;
       m_prevState = MPLAYER_PLAYING;
 
-      // Text box is enabled and ready for text entry
+      // List box is enabled and ready for file selection
 
-      m_text->enable();
+      m_listbox->enable();
 
-      // Play button enabled and ready to start playing
+      // Play image is visible, but enabled and ready to start playing only
+      // if a file is selected
 
-      m_play->enable();
+      if (m_fileIndex < 0)
+        {
+          m_play->disable();
+        }
+      else
+        {
+          m_play->enable();
+        }
+
       m_play->show();
-      m_play->enableDrawing();
 
-      // Pause button is disabled and hidden
+      // Pause image is disabled and hidden
 
-      m_pause->disableDrawing();
       m_pause->disable();
       m_pause->hide();
 
-      // Fast forward button is disabled
+      // Fast forward image is disabled
 
       m_fforward->disable();
       m_fforward->setStuckSelection(false);
 
-      // Rewind button is disabled
+      // Rewind image is disabled
 
       m_rewind->disable();
       m_rewind->setStuckSelection(false);
@@ -654,203 +877,283 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       m_state     = MPLAYER_PLAYING;
       m_prevState = MPLAYER_PLAYING;
 
-      // Text box is not available while playing
+      // List box is not available while playing
 
-      m_text->disable();
+      m_listbox->disable();
 
-      // Play button hidden and disabled
+      // Play image hidden and disabled
 
-      m_play->disableDrawing();
       m_play->disable();
       m_play->hide();
 
-      // Pause button enabled and ready to pause playing
+      // Pause image enabled and ready to pause playing
 
       m_pause->enable();
       m_pause->show();
-      m_pause->enableDrawing();
 
-      // Fast forward button is enabled and ready for use
+      // Fast forward image is enabled and ready for use
 
       m_fforward->enable();
       m_fforward->setStuckSelection(false);
 
-      // Rewind button is enabled and ready for use
+      // Rewind image is enabled and ready for use
 
       m_rewind->enable();
       m_rewind->setStuckSelection(false);
-
-      m_volume->enable();
       break;
 
     case MPLAYER_PAUSED:     // Playing a media file but paused
       m_state     = MPLAYER_PAUSED;
       m_prevState = MPLAYER_PAUSED;
 
-      // Text box is enabled a ready for text entry
+      // List box is enabled a ready for file selection
 
-      m_text->enable();
+      m_listbox->enable();
 
-      // Play button enabled and ready to resume playing
+      // Play image enabled and ready to resume playing
 
       m_play->enable();
       m_play->show();
-      m_play->enableDrawing();
 
-      // Pause button is disabled and hidden
+      // Pause image is disabled and hidden
 
-      m_pause->disableDrawing();
       m_pause->disable();
       m_pause->hide();
 
-      // Fast forward button is enabled and ready for use
+      // Fast forward image is enabled and ready for use
 
-      m_fforward->enable();
       m_fforward->setStuckSelection(false);
 
-      // Rewind button is enabled and ready for use
+      // Rewind image is enabled and ready for use
 
-      m_rewind->enable();
       m_rewind->setStuckSelection(false);
-
-      m_volume->enable();
       break;
 
     case MPLAYER_FFORWARD:   // Fast forwarding through a media file */
-      m_state  = MPLAYER_FFORWARD;
+      m_state = MPLAYER_FFORWARD;
 
-      // Text box is not available while fast forwarding
+      // List box is not available while fast forwarding
 
-      m_text->disable();
+      m_listbox->disable();
 
       if (m_prevState == MPLAYER_PLAYING)
         {
-          // Play button enabled and ready to resume playing
+          // Play image hidden and disabled
 
-          m_play->enable();
-          m_play->show();
-          m_play->enableDrawing();
-
-          // Pause button is hidden and disabled
-
-          m_pause->disableDrawing();
-          m_pause->disable();
-          m_pause->hide();
-        }
-      else
-        {
-          // Play button hidden and disabled
-
-          m_play->disableDrawing();
           m_play->disable();
           m_play->hide();
 
-          // Pause button button enabled and ready to stop fast forwarding
+          // Pause image enabled and ready to stop fast forwarding
 
           m_pause->enable();
           m_pause->show();
-          m_pause->enableDrawing();
+        }
+      else
+        {
+          // Play image enabled and ready to stop fast forwarding
+
+          m_play->enable();
+          m_play->show();
+
+          // Pause image is hidden and disabled
+
+          m_pause->disable();
+          m_pause->hide();
         }
 
-      // Fast forward button is enabled, highlighted and ready for use
+      // Fast forward image is enabled, highlighted and ready for use
 
-      m_fforward->enable();
       m_fforward->setStuckSelection(true);
 
       // Rewind is enabled and ready for use
 
-      m_rewind->enable();
       m_rewind->setStuckSelection(false);
-
-      m_volume->enable();
       break;
 
     case MPLAYER_FREWIND:    // Rewinding a media file
-      m_state  = MPLAYER_FREWIND;
+      m_state = MPLAYER_FREWIND;
 
-      // Text box is not available while rewinding
+      // List box is not available while rewinding
 
-      m_text->disable();
+      m_listbox->disable();
 
       if (m_prevState == MPLAYER_PLAYING)
         {
-          // Play button enabled and ready to resume playing
+          // Play image hidden and disabled
 
-          m_play->enable();
-          m_play->show();
-          m_play->enableDrawing();
-
-          // Pause button is hidden and disabled
-
-          m_pause->disableDrawing();
-          m_pause->disable();
-          m_pause->hide();
-        }
-      else
-        {
-          // Play button hidden and disabled
-
-          m_play->disableDrawing();
           m_play->disable();
           m_play->hide();
 
-          // Pause button button enabled and ready to stop fast forwarding
+          // Pause image enabled and ready to stop rewinding
 
           m_pause->enable();
           m_pause->show();
-          m_pause->enableDrawing();
+        }
+      else
+        {
+          // Play image enabled and ready to stop rewinding
+
+          m_play->enable();
+          m_play->show();
+
+          // Pause image is hidden and disabled
+
+          m_pause->disable();
+          m_pause->hide();
         }
 
-      // Fast forward button is enabled and ready for use
+      // Fast forward image is enabled and ready for use
 
-      m_fforward->enable();
       m_fforward->setStuckSelection(false);
 
-      // Rewind button is enabled, highlighted, and ready for use
+      // Rewind image is enabled, highlighted, and ready for use
 
-      m_rewind->enable();
       m_rewind->setStuckSelection(true);
-
-      m_volume->enable();
       break;
 
     default:
       break;
     }
+
+  // Re-enable drawing and redraw all widgets for the new state
+
+  redrawWidgets();
 }
 
 /**
- * Handle a widget action event.  For CButtonArray, this is a button pre-
- * release event.
+ * Set the new volume level based on the position of the volume slider.
+ */
+
+void CMediaPlayer::setVolumeLevel(void)
+{
+  // Get the current volume level value.  This is already pre-scaled in the
+  // range 0-100
+
+  int newLevel =  m_volume->getValue();
+
+  // Has the volume level changed?
+
+  if (m_level != newLevel)
+    {
+      // Yes.. provide the new volume setting to the NX Player
+#warning Missing logic
+      m_level = newLevel;
+    }
+}
+
+/**
+ * Check if a new file has been selected (or de-selected) in the list box
+ */
+
+void CMediaPlayer::checkFileSelection(void)
+{
+  // Check for new file selections from the list box
+
+  int newFileIndex = m_listbox->getSelectedIndex();
+
+  // Check if anything is selected
+
+  if (newFileIndex < 0)
+    {
+      // No file is selected
+
+      m_fileIndex = -1;
+
+      // Nothing is selected.. If we are not stopped, then stop now
+
+      if (m_state != MPLAYER_STOPPED)
+        {
+          closeMediaFile();
+          setMediaPlayerState(MPLAYER_STOPPED);
+        }
+    }
+
+  // A media file is selected.  Were stopped before?
+
+  else if (m_state == MPLAYER_STOPPED)
+    {
+      // Yes.. open the new media file and go to the PAUSE state
+
+      if (!openMediaFile(m_listbox->getSelectedOption()))
+        {
+          // Remain in the stopped state if we fail to open the file
+
+          m_fileIndex = -1;
+          gdbg("openMediaFile failed\n");
+        }
+      else
+        {
+          // And go to the PAUSED state (enabling the PLAY button)
+
+          m_fileIndex = newFileIndex;
+          setMediaPlayerState(MPLAYER_PAUSED);
+        }
+    }
+
+  // We already have a media file loaded.  Is it the same file?
+
+  else if (m_fileIndex != newFileIndex)
+    {
+      // No.. It is a new file.  Close that media file, load the newly
+      // selected file, and make sure that we are in the paused state
+      // (that should already be the case)
+
+      closeMediaFile();
+      if (!openMediaFile(m_listbox->getSelectedOption()))
+        {
+          // Go to the STOPPED state on a failure to open the media file
+          // The play button will be disabled because m_fileIndex == -1.
+
+          gdbg("openMediaFile failed\n");
+          m_fileIndex = -1;
+          setMediaPlayerState(MPLAYER_STOPPED);
+        }
+      else
+        {
+          // And go to the PAUSED state (enabling the PLAY button)
+
+          m_fileIndex = newFileIndex;
+          setMediaPlayerState(MPLAYER_PAUSED);
+        }
+    }
+}
+
+/**
+ * Handle a widget action event.  For this application, that means image
+ * pre-release events.
  *
  * @param e The event data.
  */
 
 void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
 {
-  // Check if the Play button was clicked
+  // Check if the Play image was clicked
 
   if (m_play->isClicked() && m_state != MPLAYER_PLAYING)
     {
-      // Yes... then now we are playing
+      // Just arm the state change now, but don't do anything until the
+      // release occurs.  Trying to do the state change before the NxWidgets
+      // release processing completes causes issues.
 
-      setMediaPlayerState(MPLAYER_PLAYING);
+      m_pending = PENDING_PLAY_RELEASE;
     }
 
   // These only make sense in non-STOPPED states
 
   if (m_state != MPLAYER_STOPPED)
     {
-      // Check if the Pause button was clicked
+      // Check if the Pause image was clicked
 
       if (m_pause->isClicked() && m_state != MPLAYER_PAUSED)
         {
-          // Yes... then now we are playing
+         // Just arm the state change now, but don't do anything until the
+         // release occurs.  Trying to do the state change before the NxWidgets
+         // release processing completes causes issues.
 
-          setMediaPlayerState(MPLAYER_PAUSED);
+          m_pending = PENDING_PAUSE_RELEASE;
         }
 
-      // Check if the rewind button was clicked
+      // Check if the rewind image was clicked
 
       if (m_rewind->isClicked())
         {
@@ -874,7 +1177,7 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
             }
         }
 
-      // Check if the fast forward button was clicked
+      // Check if the fast forward image was clicked
 
       if (m_fforward->isClicked())
         {
@@ -898,11 +1201,93 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
             }
         }
     }
+}
 
-  if (m_volume->isClicked())
+/**
+ * Handle a widget release event.  Only the play and pause image release
+ * are of interest.
+ */
+
+void CMediaPlayer::handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e)
+{
+  // Check if the Play image was released
+
+  if (m_pending == PENDING_PLAY_RELEASE && !m_play->isClicked())
     {
-printf("Volume clicked\n"); // REMOVE ME
+      // Yes.. Now perform the delayed state change
+      //
+      // If we were previously STOPPED or PAUSED, then enter the PLAYING
+      // state.
+
+      if (m_state == MPLAYER_STOPPED || m_state == MPLAYER_PAUSED)
+        {
+          setMediaPlayerState(MPLAYER_PLAYING);
+        }
+
+      // Ignore the event if we are already in the PLAYING state
+
+      else if (m_state != MPLAYER_PLAYING)
+        {
+          // Otherwise, we must be fast forwarding or rewinding.  In these
+          // cases, stop the action and return to the previous state
+
+          setMediaPlayerState(m_prevState);
+        }
+
+      // No longer any action pending the PLAY image release
+
+      m_pending = PENDING_NONE;
     }
+
+  // Check if the Pause image was released
+
+  else if (m_pending == PENDING_PAUSE_RELEASE && !m_pause->isClicked())
+    {
+      // Yes.. Now perform the delayed state change
+      //
+      // If we were previously PLAYING, then enter the PAUSED state.
+
+      if (m_state == MPLAYER_PLAYING)
+        {
+          setMediaPlayerState(MPLAYER_PAUSED);
+        }
+
+      // Ignore the event if we are already in the PAUSED or STOPPED states
+
+      else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_PAUSED)
+        {
+          // Otherwise, we must be fast forwarding or rewinding.  In these
+          // cases, stop the action and return to the previous state
+
+          setMediaPlayerState(m_prevState);
+        }
+
+      // No longer any action pending the PAUSE image release
+
+      m_pending = PENDING_NONE;
+    }
+}
+
+/**
+ * Handle a widget release event when the widget WAS dragged outside of
+ * its original bounding box.  Only the play and pause image release
+ * are of interest.
+ */
+
+void CMediaPlayer::handleReleaseOutsideEvent(const NXWidgets::CWidgetEventArgs &e)
+{
+  handleReleaseEvent(e);
+}
+
+/**
+ * Handle value changes.  This will get events when there is a change in the
+ * volume level or a file is selected or deselected.
+ */
+
+void CMediaPlayer::handleValueChangeEvent(const NXWidgets::CWidgetEventArgs &e)
+{
+  setVolumeLevel();
+  checkFileSelection();
 }
 
 /**

@@ -73,8 +73,8 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
-#include <stdbool.h>
+#include <cstdint>
+#include <cstdbool>
 
 #include "cnxwidget.hxx"
 #include "cgraphicsport.hxx"
@@ -100,7 +100,7 @@ using namespace NXWidgets;
 /**
  * Constructor.
  *
- * @param pWidgetControl The controllwing widget for the display
+ * @param pWidgetControl The controlling widget for the display
  * @param x The x coordinate of the widget.
  * @param y The y coordinate of the widget.
  * @param width The width of the widget.
@@ -158,10 +158,10 @@ CNxWidget::CNxWidget(CWidgetControl *pWidgetControl,
 
   // Dragging values
 
-  m_grabPointX          = 0;
-  m_grabPointY          = 0;
-  m_newX                = 0;
-  m_newY                = 0;
+  m_grabPointX            = 0;
+  m_grabPointY            = 0;
+  m_newX                  = 0;
+  m_newY                  = 0;
 
   // Set initial flag values
 
@@ -177,24 +177,24 @@ CNxWidget::CNxWidget(CWidgetControl *pWidgetControl,
 
   // Set hierarchy pointers
 
-  m_parent              = (CNxWidget *)NULL;
-  m_focusedChild        = (CNxWidget *)NULL;
+  m_parent                = (CNxWidget *)NULL;
+  m_focusedChild          = (CNxWidget *)NULL;
 
   // Double-click
 
   clock_gettime(CLOCK_REALTIME, &m_lastClickTime);
-  m_lastClickX          = 0;
-  m_lastClickY          = 0;
-  m_doubleClickBounds   = DOUBLE_CLICK_BOUNDS;
+  m_lastClickX            = 0;
+  m_lastClickY            = 0;
+  m_doubleClickBounds     = DOUBLE_CLICK_BOUNDS;
 
   // Set border size to 1 line
 
-  m_borderSize.top      = 1;
-  m_borderSize.right    = 1;
-  m_borderSize.bottom   = 1;
-  m_borderSize.left     = 1;
+  m_borderSize.top        = 1;
+  m_borderSize.right      = 1;
+  m_borderSize.bottom     = 1;
+  m_borderSize.left       = 1;
 
-  m_widgetEventHandlers = new CWidgetEventHandlerList(this);
+  m_widgetEventHandlers   = new CWidgetEventHandlerList(this);
 }
 
 /**
@@ -466,6 +466,8 @@ void CNxWidget::setBorderless(bool borderless)
  * Sets the font.
  *
  * @param font A pointer to the font to use.
+ *
+ * NOTE: This font is not deleted when the widget is destroyed!
  */
 
 void CNxWidget::setFont(CNxFont *font)
@@ -781,7 +783,7 @@ bool CNxWidget::release(nxgl_coord_t x, nxgl_coord_t y)
 
   onPreRelease(x, y);
 
-  // Now mark the widget as NOT clicked and stop draggin actions.
+  // Now mark the widget as NOT clicked and stop dragging actions.
 
   m_flags.clicked = false;
   stopDragging(x, y);
@@ -831,9 +833,9 @@ bool CNxWidget::release(nxgl_coord_t x, nxgl_coord_t y)
 
 bool CNxWidget::drag(nxgl_coord_t x, nxgl_coord_t y, nxgl_coord_t vX, nxgl_coord_t vY)
 {
-  if ((isEnabled()) && (m_flags.dragging))
+  if (isEnabled() && m_flags.dragging)
     {
-      if ((vX != 0) || (vY != 0))
+      if (vX != 0 || vY != 0)
         {
           onDrag(x, y, vX, vY);
           m_widgetEventHandlers->raiseDragEvent(x, y, vX, vY);
@@ -1408,6 +1410,7 @@ const CNxWidget *CNxWidget::getChild(int index) const
     {
       return m_children[index];
     }
+
   return (CNxWidget *)NULL;
 }
 

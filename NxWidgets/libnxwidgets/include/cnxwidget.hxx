@@ -170,7 +170,7 @@ namespace NXWidgets
 
   protected:
     CWidgetControl *m_widgetControl;  /**< The controlling widget for the display */
-    CRect m_rect;                     /**< Rectange bounding the widget. */
+    CRect m_rect;                     /**< Rectangle bounding the widget. */
 
     // Dragging variables
 
@@ -801,6 +801,7 @@ namespace NXWidgets
      *
      * @return Const pointer to CWidgetStyle stored inside this widget.
      */
+
     inline const CWidgetStyle *getWidgetStyle() const { return &m_style; }
 
     /**
@@ -865,6 +866,17 @@ namespace NXWidgets
     inline void removeWidgetEventHandler(CWidgetEventHandler* eventHandler)
     {
       m_widgetEventHandlers->removeWidgetEventHandler(eventHandler);
+    }
+
+   /**
+     * Return the number of registered event handlers
+     *
+     * @return The number of registered event handlers
+     */
+
+    inline int nWidgetEventHandlers(void) const
+    {
+      return m_widgetEventHandlers->size();
     }
 
     /**
@@ -1000,6 +1012,8 @@ namespace NXWidgets
      * Sets the font.
      *
      * @param font A pointer to the font to use.
+     *
+     * NOTE: This font is not deleted when the widget is destroyed!
      */
 
     virtual void setFont(CNxFont *font);

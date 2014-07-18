@@ -1,7 +1,7 @@
 /****************************************************************************
  * NxWidgets/nxwm/include/nxwmconfig.hxx
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -429,7 +429,7 @@
  * CONFIG_NXWM_TOUCHSCREEN_SIGNO - The realtime signal used to wake up the
  *   touchscreen listener thread.  Default: 5
  * CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO - Priority of the touchscreen listener
- *   thread.  Default: SCHED_PRIORITY_DEFAULT
+ *   thread.  Default: (SCHED_PRIORITY_DEFAULT + 20)
  * CONFIG_NXWM_TOUCHSCREEN_LISTENERSTACK - Touchscreen listener thread stack
  *   size.  Default 1024
  */
@@ -447,7 +447,11 @@
 #endif
 
 #ifndef CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO
-#  define CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO SCHED_PRIORITY_DEFAULT
+#  define CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO (SCHED_PRIORITY_DEFAULT + 20)
+#endif
+
+#if CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO <= CONFIG_NXWM_CALIBRATION_LISTENERPRIO
+#  warning You should have CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO > CONFIG_NXWM_CALIBRATION_LISTENERPRIO
 #endif
 
 #ifndef CONFIG_NXWM_TOUCHSCREEN_LISTENERSTACK
@@ -465,7 +469,7 @@
  * CONFIG_NXWM_KEYBOARD_BUFSIZE - The size of the keyboard read data buffer.
  *   Default: 16
  * CONFIG_NXWM_KEYBOARD_LISTENERPRIO - Priority of the touchscreen listener
- *   thread.  Default: SCHED_PRIORITY_DEFAULT
+ *   thread.  Default: (SCHED_PRIORITY_DEFAULT + 20)
  * CONFIG_NXWM_KEYBOARD_LISTENERSTACK - Keyboard listener thread stack
  *   size.  Default 1024
  */
@@ -483,7 +487,7 @@
 #endif
 
 #ifndef CONFIG_NXWM_KEYBOARD_LISTENERPRIO
-#  define CONFIG_NXWM_KEYBOARD_LISTENERPRIO SCHED_PRIORITY_DEFAULT
+#  define CONFIG_NXWM_KEYBOARD_LISTENERPRIO (SCHED_PRIORITY_DEFAULT + 20)
 #endif
 
 #ifndef CONFIG_NXWM_KEYBOARD_LISTENERSTACK
@@ -628,12 +632,32 @@
  *   Default: CONFIG_NXWM_DEFAULT_FONTID
  */
 
+#ifndef CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH
+#  define CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH "/mnt/sdcard"
+#endif
+
 #ifndef CONFIG_NXWM_MEDIAPLAYER_BACKGROUNDCOLOR
 #  define CONFIG_NXWM_MEDIAPLAYER_BACKGROUNDCOLOR CONFIG_NXWM_DEFAULT_BACKGROUNDCOLOR
 #endif
 
 #ifndef CONFIG_NXWM_MEDIAPLAYER_XSPACING
-#  define CONFIG_NXWM_MEDIAPLAYER_XSPACING 16
+#  define CONFIG_NXWM_MEDIAPLAYER_XSPACING 12
+#endif
+
+#ifndef CONFIG_NXWM_MEDIAPLAYER_YSPACING
+#  define CONFIG_NXWM_MEDIAPLAYER_YSPACING 8
+#endif
+
+#ifndef CONFIG_NXWM_MEDIAPLAYER_VOLUMESTEP
+#  define CONFIG_NXWM_MEDIAPLAYER_VOLUMESTEP 5
+#endif
+
+#ifndef CONFIG_NXWM_MEDIAPLAYER_MINVOLUMEHEIGHT
+#  define CONFIG_NXWM_MEDIAPLAYER_MINVOLUMEHEIGHT 6
+#endif
+
+#ifndef CONFIG_NXWM_MEDIAPLAYER_VOLUMECOLOR
+#  define CONFIG_NXWM_MEDIAPLAYER_VOLUMECOLOR MKRGB(63,90,192)
 #endif
 
 #ifndef CONFIG_NXWM_MEDIAPLAYER_ICON

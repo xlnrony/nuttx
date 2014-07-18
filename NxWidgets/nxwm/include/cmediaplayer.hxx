@@ -46,10 +46,11 @@
 #include <nuttx/nx/nxtk.h>
 #include <nuttx/nx/nxconsole.h>
 
+#include "cnxfont.hxx"
 #include "cimage.hxx"
 #include "cstickyimage.hxx"
-#include "clabel.hxx"
-#include "cnxfont.hxx"
+#include "clistbox.hxx"
+#include "clistboxdataitem.hxx"
 #include "cglyphsliderhorizontal.hxx"
 
 #include "iapplication.hxx"
@@ -93,6 +94,13 @@ namespace NxWM
       MPLAYER_FREWIND,                     /**< Rewinding a media file */
     };
 
+    enum EPendingRelease
+    {
+      PENDING_NONE = 0,                    /**< Nothing is pending */
+      PENDING_PLAY_RELEASE,                /**< Expect play image to be released */
+      PENDING_PAUSE_RELEASE                /**< Expect pause image to be released */
+    };
+
     /**
      * The structure defines a pending operation.
      */
@@ -109,6 +117,15 @@ namespace NxWM
 
     enum EMediaPlayerState   m_state;      /**< Media player current state */
     enum EMediaPlayerState   m_prevState;  /**< Media player previous state */
+    enum EPendingRelease     m_pending;    /**< Pending image release event */
+    int                      m_level;      /**< Current volume level */
+    int                      m_fileIndex;  /**< Index to selected file in the list box */
+
+    /**
+     * Media player geometry.
+     */
+
+    struct nxgl_size_s       m_windowSize; /**< The size of the media player window */
 
     /**
      * Cached constructor parameters.
@@ -121,7 +138,7 @@ namespace NxWM
      * Widgets
      */
 
-    NXWidgets::CLabel       *m_text;       /**< Some text in the app for now */
+    NXWidgets::CListBox     *m_listbox;    /**< List box containing media files selections */
     NXWidgets::CNxFont      *m_font;       /**< The font used in the media player */
     NXWidgets::CImage       *m_play;       /**< Play control */
     NXWidgets::CImage       *m_pause;      /**< Pause control */
@@ -130,30 +147,54 @@ namespace NxWM
     NXWidgets::CGlyphSliderHorizontal *m_volume; /**< Volume control */
 
     /**
-     * Calculator geometry.  This stuff does not really have to be retained
-     * in memory.  If you are pinched for memory, get rid of these.
+     * Bitmaps
+     *
+     * These are retained only so that they can be released when the media
+     * is closed player
      */
 
-    struct nxgl_size_s       m_windowSize; /**< The size of the media player window */
-    struct nxgl_size_s       m_textSize;   /**< The size of the media player textbox */
-    struct nxgl_point_s      m_textPos;    /**< The position of the media player textbox */
+    NXWidgets::CRlePaletteBitmap *m_playBitmap;     /**< Bitmap for the play control */
+    NXWidgets::CRlePaletteBitmap *m_pauseBitmap;    /**< Bitmap for the pause control */
+    NXWidgets::CRlePaletteBitmap *m_rewindBitmap;   /**< Bitmap for the rewind control */
+    NXWidgets::CRlePaletteBitmap *m_fforwardBitmap; /**< Bitmap for the fast forward control */
+    NXWidgets::CRlePaletteBitmap *m_volumeBitmap;   /**< Volume control grip bitmap */
 
     /**
-    * Select the geometry of the media player given the current window size.
-    * Only called as part of construction.
-    */
+     * Open a media file for playing.  Called after a file has been selected
+     * from the list box.
+     */
 
-   inline void setGeometry(void);
+    inline bool openMediaFile(const NXWidgets::CListBoxDataItem *item);
 
     /**
-     * Create the Media Player conrols.  Only start as part of the applicaiton
+     * Close media file.  Called when a new media file is selected, when a
+     * media file is de-selected, or when destroying the media player instance.
+     */
+
+     inline void closeMediaFile(void);
+
+    /**
+     * Select the geometry of the media player given the current window size.
+     * Only called as part of construction.
+     */
+
+    inline void setGeometry(void);
+
+    /**
+     * Load media files into the list box.
+     */
+
+    inline bool showMediaFiles(const char *mediaPath);
+
+    /**
+     * Create the Media Player controls.  Only start as part of the application
      * start method.
      */
 
    inline bool createPlayer(void);
 
     /**
-     * Called when the window minimize button is pressed.
+     * Called when the window minimize image is pressed.
      */
 
     void minimize(void);
@@ -165,6 +206,15 @@ namespace NxWM
     void close(void);
 
     /**
+     * Redraw all widgets.  Called from redraw() and also on any state
+     * change.
+     *
+     * @param state The new state to enter.
+     */
+
+    void redrawWidgets(void);
+
+    /**
      * Transition to a new media player state.
      *
      * @param state The new state to enter.
@@ -173,13 +223,46 @@ namespace NxWM
     void setMediaPlayerState(enum EMediaPlayerState state);
 
     /**
-     * Handle a widget action event.  This includes a button pre/release
-     * release events and volume slider change events.
+     * Set the new volume level based on the position of the volume slider.
+     */
+
+    void setVolumeLevel(void);
+
+    /**
+     * Check if a new file has been selected (or de-selected) in the list box
+     */
+
+    inline void checkFileSelection(void);
+
+    /**
+     * Handle a widget action event.  For this application, that means image
+     * pre-release events.
      *
      * @param e The event data.
      */
 
     void handleActionEvent(const NXWidgets::CWidgetEventArgs &e);
+
+    /**
+     * Handle a widget release event.  Only the play and pause image release
+     * are of interest.
+     */
+
+    void handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e);
+
+    /**
+     * Handle a widget release event when the widget WAS dragged outside of
+     * its original bounding box.  Only the play and pause image release
+     * are of interest.
+     */
+
+    void handleReleaseOutsideEvent(const NXWidgets::CWidgetEventArgs &e);
+
+    /**
+     * Handle changes in the volume level.
+     */
+
+    void handleValueChangeEvent(const NXWidgets::CWidgetEventArgs &e);
 
   public:
     /**
