@@ -7740,3 +7740,15 @@
 	  for the case of the framebuffer device.  In this case, the logic
 	  for clearing the vacated region at the bottom was missing so garbage
 	  up from the last, uncleared line (2014-7-17).
+	* drivers/audio/wm8904.c/.h and include/nuttx/audio.wm8904.h:  Framework
+	  for a WM8904 audio driver.  The initial driver check-in is simply Ken
+	  Pettit's VS1053 driver forced to compile with only WM8904 definitions
+	  (2014-7-18).
+	* configs/sama5d4-ek/src/sam_wm8904.c:  Add logic to configure and
+	  initialize the WM8904 audio CODEC (2014-7-17).
+	* arch/arm/src/sama5/sam_sckc.c/.h and chip/sam_sckc.h:  Add SAMA5
+	  slow clock support.
+	* arch/arm/src/sama5/sam_pck.c and .h:  Add support to use the slow
+	  clock as the PCK clock source (2014-7-19).
+	* drivers/audio/wm8904.c/:  The WM8904 audio driver is mostly code
+	  complete and ready to begin initial testing (2014-7-19).

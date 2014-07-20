@@ -1,8 +1,8 @@
 /****************************************************************************
- * include/nuttx/audio/vs1053.h
+ * arch/arm/src/sama5/sam_sckc.h
  *
- *   Copyright (C) 2013 Ken Pettit. All rights reserved.
- *   Author: Ken Pettit <pettitkd@gmail.com>
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
+ *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,94 +33,59 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_NUTTX_AUDIO_VS1053_H
-#define __INCLUDE_NUTTX_AUDIO_VS1053_H
+#ifndef __ARCH_ARM_SRC_SAMA5_SAM_SCKC_H
+#define __ARCH_ARM_SRC_SAMA5_SAM_SCKC_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <stdint.h>
+#include <nuttx/config.h>
+
 #include <stdbool.h>
 
-#include <nuttx/irq.h>
+#include "chip.h"
+#include "chip/sam_sckc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* VS1053 Configuration Settings:
- *
- * CONFIG_VS1053 - Enabled VS1053 support
- * CONFIG_VS1053_SPIMODE - Controls the SPI mode
- */
+#ifndef __ASSEMBLY__
 
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/* The VS1053 provides Data Request (DREQ) interrupts to the MCU via a GPIO
- * pin and also has a chip reset GPIO.  The following structure provides an
- * MCU-independent mechanism for controlling the VS1053 GPIOs.
- */
-
-struct vs1053_lower_s
-{
-  int  (*attach)(FAR const struct vs1053_lower_s *lower, xcpt_t handler);
-  void (*enable)(FAR const struct vs1053_lower_s *lower);
-  void (*disable)(FAR const struct vs1053_lower_s *lower);
-  void (*reset)(FAR const struct vs1053_lower_s *lower, bool state);
-  int  (*read_dreq)(FAR const struct vs1053_lower_s *lower);
-  int  irq;
-};
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-#ifdef __cplusplus
+#undef EXTERN
+#if defined(__cplusplus)
 #define EXTERN extern "C"
-extern "C"
-{
+extern "C" {
 #else
 #define EXTERN extern
 #endif
 
 /****************************************************************************
- * Public Function Prototypes
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Function: vs1053_initialize
+ * Name: sam_sckc_enable
  *
  * Description:
- *   Initialize the VS1053 driver.  This will perform a chip reset of the
- *   device as part of initialization.
+ *   Enable or disable the slow clock oscillator driver by an external
+ *   crystal.
  *
- * Parameters:
- *   spi   - A reference to the platform's SPI driver for the VS1053
- *   lower - The MCU-specific interrupt used to control low-level MCU
- *           functions (i.e., VS1053 GPIO interrupts).
- *   devno - If more than one VS1053 is supported, then this is the
- *           zero based number that identifies the VS1053;
+ * Input Parameters:
+ *   enable - True: enable the slow clock, False: disable the slow clock
  *
  * Returned Value:
- *   OK on success; Negated errno on failure.
- *
- * Assumptions:
+ *   None
  *
  ****************************************************************************/
 
-struct spi_dev_s;         /* See nuttx/spi/spi.h */
-struct audio_lowerhalf_s; /* See nuttx/audio/audio.h */
-
-FAR struct audio_lowerhalf_s *vs1053_initialize(FAR struct spi_dev_s *spi,
-                          FAR const struct vs1053_lower_s *lower,
-                          unsigned int devno);
+void sam_sckc_enable(bool enable);
 
 #undef EXTERN
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
-#endif /* __INCLUDE_NUTTX_AUDIO_VS1053_H */
+#endif /* __ASSEMBLY__ */
+#endif /* __ARCH_ARM_SRC_SAMA5_SAM_SCKC_H */
