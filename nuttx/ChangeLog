@@ -7752,3 +7752,101 @@
 	  clock as the PCK clock source (2014-7-19).
 	* drivers/audio/wm8904.c/:  The WM8904 audio driver is mostly code
 	  complete and ready to begin initial testing (2014-7-19).
+	* arch/arm/src/sama5/sam_pio.c:  Logic for Schmitt trigger selection
+	  backward (2014-7-20).
+	* drivers/net/slip.c:  Fix an error in SLIP escaping.  From Max
+	  Neklyudov (2014-7-22).
+	* drivers/input/Kconfg: Add missing configuration option to select the
+	  MAX11802 touchscreen controller. From Petteri Aimonen (2014-7-22).
+	* arm/src/stm32/chip/stm32_dac.h:  Fix typos, from Peterri Aimonen
+	  (2014-7-22).
+	* arch/arm/src/stm32/stm32_otgfsdev.c: STM32 OTGFS device:  Various
+	  changes to try to reduce that amount of time in interrupts handles and
+	  with interrupts disbled.  Needs verification on other platforms.  From
+	  Petteri Aimonen (2014-7-22).
+	* arch/arm/src/sama5/sam_pck.c: Fix a recently introduced typo that was
+	  being masked by some bad conditional compilation (2015=4-7-22).
+	* drivers/audio/wm8904.c and include/nuttx/audio/wm8904.h: Remove WM8904
+	  driver unused parameters, clean-up comments, remove some kruft in
+	  capability reporting (2014-7-22).
+	* audio/Makefile and pcm_decode.c, include/nuttx/audio/pcm_decode.c,
+	  configs/sama5d4-ek/src/sam_wm8904.c and others:  Add new framework for
+	  the PCM decoder.  It is now a 'front end' for lower-level drivers like
+	  the WM8904 that performs the PCM decoding from end (2014-7-22).
+	* audio/pcm_decode.c, configs/sama5d4-ek/src/sam_wm8904.c,
+	  drivers/audio/wm8904.c, and include/nuttx/audio/pcm.h:  Rename
+	  pcm_decode.h to pcm.h since it will hold more than just decoding
+	  definitions.  Fix some porting errors like idbg should auddbg, etc.
+	  Add wav file header and a few low-level wav utilities (2014-7-22).
+	* audio/pcm_decode.c and include/nuttx/audio/pcm.h:  Flesh out a few
+	  more PCM methods, still incomplete.  Re-vision PCM structure
+	  definition (2014-7-22).
+	* configs/sama*:  Disable MMC/SD multiblock transfers in all SAMA5D3/4
+	  configurations.  I suspect an issue but have not had time to run it
+	  down yet so the easiest thing is simply to disable the feature for
+	  now (2014-7-23).
+	* drivers/audio/audio_null.c, include/nuttx/audio/audio_null.c, and
+	  configs/sama5d4-ek/src/sam_audio_null.c: Add a NULL audio device that
+	  can be used to simply unit-level testing of audio decoders (2014-7/23).
+	* audio/pcm_decode.c, include/nuttx/audio/audio.h, and drivers/audio/audio_null.c
+	  and wm8904.c: Add ioctls so that PCM decoder can configure the driver
+	  bitrate, num channels, and sample width (2014-7-23).
+	* drivers/audio/Kconfig: Fix a typo in the audio Kconfig file,
+	  UDIO->AUDIO (2014-7-23).
+	* configs/sama5d4-ek/nxwm/defconfig:  The NxPlayer and audio system are
+	  now enabled in the default configuration (although they have not yet
+	  been fully integrated into the NxWM media player) (2014-7-23).
+	* configs/sama5d4-ek/nsh/defconfig: Enable the command line media player
+	  in the NSH configuration as well (still does not work, however)
+	  (2014-7-23).
+	* audio/Kconfig, audio.c, and include/nuttx/audio/audio.h: Add hooks for
+	  fast-forward and rewind needed by CMediaPlayer; add hooks for
+	  equalizer settings needed by the WM8904 (2014-7-24).
+	* drivers/audio/audio_null.c and wm8904.c: Fix some compile errors when
+	  audio DEBUG is enabled (2014-7-24).
+	* SAMA5D4-EK NxWM:  Configuration refreshed (2014-7-24).
+	* arch/arm/src/armv7-m/up_initialstate.c:  Correct the initial value of
+	  the BASEPRI register.  This was apparently never being initialized!
+	  From Max (2014-7-24).
+	* configs/mbed/src/up_adc.c, up_dac.c, and up_pwm.c and include/board.h:
+	  Port ADC, DAC, and PWM logic from the configs/zkit-arm-1769.  From Max
+	  (2014-7-24).
+	* arch/arm/src/lpc17xx/lpc176x_rtc.c: Eliminate warnings.  From Max
+	  (2014-7-24).
+	* arch/arm/src/lpc17xx/lpc17_pwm.c, lpc17_timer.c, lpc17_dac.c: Mostly
+	  cosmetic updates from Max (2014-7-24).
+	* arch/arm/src/lpc17xx/lpc17_adc.c and Kconfig : Added burstmode ADC
+	  conversion mode, with CONFIG_ADC_BURSTMODE option in Kconfig.  From
+	  Max (2014-7-24).
+	* arch/arm/src/lpc17xx/lpc17_ethernet.c: Added option to use the kernel
+	  worker thread to do most of the workload with CONFIG_NET_WORKER_THREAD
+	  option in Kconfig.  Eliminated a problem with PHY DP83848C : it doesn't
+	  need a specific initialization on mbed. Critical bufix: From time to
+	  time (after some hours) the Ethernet receiver would lose one receive
+	  interrupt and the IP stack never recover because there is no receive
+	  watchdog as the transmit watchdog.  From Max (2013-7-24).
+	* audio/pcm_decode.c: Add missing audio callback forwarding logic
+	  (2014-7-25).
+	* arch/arm/armv7-a/l2cc_pl310.h:  Move arch/arm/sama5/chip/sam_l2cc.h to
+	  arch/arm/armv7-a/l2cc_pl310.h.  Adjust the two corresponding Kconfig
+	  files as well (2014-7-25).
+	* arch/arm/src/armv7-a/arm_l2cc_pl310.c, l2cc.h, l2cc_pl310.h, Kconfig:
+	  Add initial support for the ARM L2CC-PL310 L2 cache (2014-7-26).
+	* arch/arm/src/armv7-a/cp15_cacheops.h: Rename ARMv7-A cache.h to
+	  cp15_cache.h.  Things will be broken on this commit until I get the
+	  new cache.h in place (2014-7-26).
+	* arch/arm/src/armv7-a/cache.h: New cache.h file.  Renames all functions
+	  like cp15_XYZ_cache() to arch_XYZ_cache() and adds L2 cache support if
+	  L2 cache is enabled (2014-7-26).
+	* arch/arm/src/sama5/*.c (many files): Change naming from cp_XYZ_cache()
+	  to arch_XYP_cache() so that all cache operations will pick up L2
+	  support if it is enabled (2014-7-26).
+	* arch/arm/src/sama5/sam_boot.c: Enables cache early in boot-up sequence
+	  (2014-7-26).
+	* arch/arm/src/armv7-a/arm_l2cc_pl310.c and l2cc.h: Minor bugfixes/
+	  improvements (2014-7-26)
+	* arch/arm/src/armv7-a/Kconfig: L2 Cache currently depends on
+	  EXPERIMENTAL because it does not yet work properly (2014-7-26).
+	* include/nuttx/audio/audio.h: Move subsampling rate definitions from
+	  nxplayer.h to audio.h (2014-7-17).
+

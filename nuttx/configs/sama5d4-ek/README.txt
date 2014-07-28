@@ -1517,10 +1517,10 @@ HSMCI Card Slots
   following settings:
 
     System Type->ATSAMA5 Peripheral Support
-      CONFIG_SAMA5_HSMCI0=y                 : Enable HSMCI0 support
-      CONFIG_SAMA5_HSMCI1=y                 : Enable HSMCI1 support
-      CONFIG_SAMA5_XDMAC1=y                 : XDMAC1 is needed by HSMCI0/1
-
+      CONFIG_SAMA5_HSMCI0=y                 : To enable HSMCI0 support
+      CONFIG_SAMA5_HSMCI1=y                 : To enable HSMCI1 support
+      CONFIG_SAMA5_XDMAC0=y                 : XDMAC0 is needed by HSMCI0/1
+                                            : (HSMCI0 seemds to be secure by default)
     System Type
       CONFIG_SAMA5_PIO_IRQ=y                : PIO interrupts needed
       CONFIG_SAMA5_PIOE_IRQ=y               : Card detect pins are on PE5 and PE6
@@ -1528,6 +1528,7 @@ HSMCI Card Slots
     Device Drivers -> MMC/SD Driver Support
       CONFIG_MMCSD=y                        : Enable MMC/SD support
       CONFIG_MMSCD_NSLOTS=1                 : One slot per driver instance
+      CONFIG_MMCSD_MULTIBLOCK_DISABLE=y     : (REVISIT)
       CONFIG_MMCSD_HAVECARDDETECT=y         : Supports card-detect PIOs
       CONFIG_MMCSD_MMCSUPPORT=n             : Interferes with some SD cards
       CONFIG_MMCSD_SPI=n                    : No SPI-based MMC/SD support
@@ -2740,7 +2741,7 @@ Audio Support
     System Type -> SAMA5 Peripheral Support
       CONFIG_SAMA5_TWI0=y                   : Enable TWI0 driver support
       CONFIG_SAMA5_SSCO=y                   : Enable SSC0 driver support
-      CONFIG_SAMA5_XDMAC1=y                 : XDMAC0 required by SSC0
+      CONFIG_SAMA5_XDMAC0=y                 : XDMAC0 required by SSC0
 
     System Type -> SSC0 Configuration
       CONFIG_SAMA5_SSC_MAXINFLIGHT=16
@@ -2791,7 +2792,22 @@ Audio Support
   The NxPlayer is a audio library and command line application for playing
   audio file.  The NxPlayer can be found at apps/system/nxplayer.  If you
   would like to add the NxPlayer, here are some recommended configuration
-  settings:
+  settings.
+
+  First of all, the NxPlayer depends on the NuttX audio subsystem.  Here are some recommended settings for the audio subsystem:
+
+  Audio Support ->
+    CONFIG_AUDIO=y
+    CONFIG_AUDIO_NUM_BUFFERS=4
+    CONFIG_AUDIO_BUFFER_NUMBYTES=8192
+    CONFIG_AUDIO_FORMAT_PCM=y
+
+    CONFIG_AUDIO_NULL=y
+    CONFIG_AUDIO_NULL_BUFFER_SIZE=8192
+    CONFIG_AUDIO_NULL_MSG_PRIO=1
+    CONFIG_AUDIO_NULL_WORKER_STACKSIZE=768
+
+  Then the NxPlayer can be enabled as follows:
 
   System Libraries and NSH Add-Ons -> NxPlayer media player / command line ->
     CONFIG_NXPLAYER_PLAYTHREAD_STACKSIZE=1500    : Size of the audio player stack
@@ -2800,7 +2816,7 @@ Audio Support
     CONFIG_NXPLAYER_INCLUDE_HELP=y               : Includes a help command
     CONFIG_NXPLAYER_INCLUDE_DEVICE_SEARCH=n      : (Since there is only one audio device)
     CONFIG_NXPLAYER_INCLUDE_PREFERRED_DEVICE=y   : Only one audio device is supported
-    CONFIG_NXPLAYER_FMT_FROM_EXT=n               : (Since only PCM is supported)
+    CONFIG_NXPLAYER_FMT_FROM_EXT=y               : (Since only PCM is supported)
     NXPLAYER_FMT_FROM_HEADER=n                   : (Since only PCM is supported)
     CONFIG_NXPLAYER_INCLUDE_MEDIADIR=y           : Specify a media directory
     CONFIG_NXPLAYER_DEFAULT_MEDIADIR="/mnt/sdcard"  : See below
@@ -3584,6 +3600,9 @@ Configurations
           LCD/Touchscreen" and also below in this notes.
        d. An LCD/graphics test program.  See the section above entitle
           "TM7000 LCD/Touchscreen" and also below in this notes.
+       e. The NxPlayer command line media player.  This is a work in
+          progress see the "Audio Support" section above and additional
+          notes below.
 
     9. This configuration has support for the FAT, ROMFS, and PROCFS file
        systems built in.
@@ -3737,16 +3756,9 @@ Configurations
        in a different manner, this HSMCI1 slot may not be useful to you
        anyway.
 
-       STATUS:  There are unresolved issue with HSMCI0 as of this writing.
-       No errors are reported so most the handshaking signals and command
-       transfers are working, but all data transfers return the value zero
-       (with or without DMA).  This seems like some pin configuration issue.
-
-       Also, we should be receiving interrupts when an SD card is inserted
-       or removed; we are not.
-
-       If these behaviors are a problem for you, then you may want to
-       disable HSMCI0 as well.
+       STATUS:  Seems to be completely functional.  TX DMA is currently
+       disabled; there was a problem at one time but that has probably
+       been fixed.  HSCMI with TX DMA re-enabled needs to be verified.
 
    13. Networking is supported via EMAC0.  See the "Networking" section
        above for detailed configuration settings.  DHCP is not used in
@@ -3839,12 +3851,44 @@ Configurations
        See apps/examples/README.txt for information about configuring these
        examples.
 
-   19. The SAMA5D4-EK includes for an AT25 serial DataFlash.  That support is
+   19. NxPlayer
+
+       This configuration has the command NxPlayer enabled.  That player is still a work in progress and is only tested as of this writing.
+
+       At present, the the WM8904 driver is not included in the
+       configuration.  Instead the "NULL" audio device in built in to
+       support higher level testing (there are also some unresolved I2C
+       communication issues the the current WM8904 driver).
+
+       This configuration depends on media files in the default mountpoint
+       at /mnt/sdard.  You will need to mount the media before running
+       NxPlayer.  Here are the general steps to play a file:
+
+         a. You will need an (full size) SD card containing the .WAV files
+            that you want to play (.WAV is only format supported as of this
+            writing).  That SD card should be inserted in the HSMCI0 media
+            slot A (best done before powering up).
+
+         b. Then from NSH prompt, you need to mount the media volume like:
+
+              nsh> mount -t vfat /dev/mmcsd0 /mnt/sdcard
+
+            NOTE:  The SAMA5D4-EK board support allows an application to
+            connect to the SD card detect signal.  That application could
+            then auto-mount the SD card.
+
+         c. Then you can run the media player like:
+
+              nsh> nxplayer
+              nxplayer> device pcm0
+              nxplayer> play <filename>
+
+   20. The SAMA5D4-EK includes for an AT25 serial DataFlash.  That support is
        NOT enabled in this configuration.  Support for that serial FLASH could
        be enabled by modifying the NuttX configuration as described above in
        the paragraph entitled "AT25 Serial FLASH".
 
-   20. This example can be configured to exercise the watchdog timer test
+   21. This example can be configured to exercise the watchdog timer test
        (apps/examples/watchdog).  See the detailed configuration settings in
        the section entitled "Watchdog Timer" above.
 
@@ -3889,39 +3933,7 @@ Configurations
        - Obviously, the nx and touchscreen built in applications cannot
          be supported.
 
-    3. NSH Console Access.
-
-       This configuration boots directly into a graphic, window manage
-       environment.  There is no serial console.  Some initial stdout
-       information will go to the USART3 serial output, but otherwise
-       the serial port will be silent.
-
-       Access to the NSH console is available in two ways:
-
-       a. The NxWM provides a graphics-based terminals (called NxConsoles);
-          The console command line is still available within NxConsole
-          windows once NxWM is up and running.  The console input is still
-          via stdin (the host terminal window), but console output will go
-          to the NxConsole terminal.
-
-          NOTES:
-
-          i)  Later I plan to integrate a USB keyboard so that the
-              console input will come from a keyboard attached to the
-              SAMA5D4-EK.
-          ii) It would also not be a difficult task to add a serial console
-              as part of the NxWM console.  That is an option if a serial
-              console is really necessary but is not currently planned.
-
-       b. Telnet NSH sessions are still supported and this is, in general,
-          the convenient way to access the shell (and RAMLOG).
-
-       As with the NSH configuration, debug output will still go to the
-       circular RAMLOG buffer but cannot be accessed from a serial console.
-       Instead, you will need use the dmesg command from an NxConsole or
-       from a Telnet session to see the debug output
-
-    4. Here is the quick summary of the build steps.  These steps assume
+    3. Here is the quick summary of the build steps.  These steps assume
        that you have the entire NuttX GIT in some directory ~/nuttx-git.
        You may have these components installed elsewhere.  In that case, you
        will need to adjust all of the paths in the following accordingly:
@@ -3969,14 +3981,90 @@ Configurations
            $ cd ~/nuttx-git/nuttx
            $ make
 
-    5. The NxWM example was designed tiny displays.  On this larger 800x480
-       display, the icons are too tiny to be usable.  I have created a
-       larger 320x320 logo for the opening screen and added image scaling
-       to expand the images in the taskbar.  The expanded images are not
-       great. The same problems exist in the application toolbar and in the
-       start window.  These icons are not yet scaled.
+    4. NSH Console Access.
 
-       I plan to correct these images in the very near future.
+       This configuration boots directly into a graphic, window manage
+       environment.  There is no serial console.  Some initial stdout
+       information will go to the USART3 serial output, but otherwise
+       the serial port will be silent.
+
+       Access to the NSH console is available in two ways:
+
+       a. The NxWM provides a graphics-based terminals (called NxConsoles);
+          The console command line is still available within NxConsole
+          windows once NxWM is up and running.  The console input is still
+          via stdin (the host terminal window), but console output will go
+          to the NxConsole terminal.
+
+          NOTES:
+
+          i)  Later I plan to integrate a USB keyboard so that the
+              console input will come from a keyboard attached to the
+              SAMA5D4-EK.
+          ii) It would also not be a difficult task to add a serial console
+              as part of the NxWM console.  That is an option if a serial
+              console is really necessary but is not currently planned.
+
+       b. Telnet NSH sessions are still supported and this is, in general,
+          the convenient way to access the shell (and RAMLOG).
+
+       As with the NSH configuration, debug output will still go to the
+       circular RAMLOG buffer but cannot be accessed from a serial console.
+       Instead, you will need use the dmesg command from an NxConsole or
+       from a Telnet session to see the debug output
+
+    5. Media Player
+
+       This configuration has the media player application enabled.  That
+       player is still a work in progress and is only partially integrated
+       with the NxPlayer as of this writing.
+
+       At present, the the WM8904 driver is not included in the
+       configuration.  Instead the "NULL" audio device in built in to
+       support higher level testing (there are also some unresolved I2C
+       communication issues the the current WM8904 driver).
+
+       This configuration depends on media files in the default mountpoint
+       at /mnt/sdard (configurable).  If you see the message "Media volume
+       not mounted" in the media player text box, then you will need to
+       mount the media volume:
+
+         a. You will need an (full size) SD card containing the .WAV files
+            that you want to play (.WAV is only format supported as of this
+            writing).  That SD card should be inserted in the HSMCI0 media
+            slot A (best done before powering up).
+
+         b. Then from NSH prompt, you need to mount the media volume from
+            an NSH session like:
+
+              nsh> mount -t vfat /dev/mmcsd0 /mnt/sdcard
+
+            I usually do this via Telnet from the host PC.  Here is a
+            complete host Telnet session:
+
+              $ telnet 10.0.0.2
+              Trying 10.0.0.2...
+              Connected to 10.0.0.2.
+              Escape character is '^]'.
+
+              NuttShell (NSH) NuttX-7.3
+              nsh> mount -t vfat /dev/mmcsd0 /mnt/sdcard
+              nsh> exit
+              Connection closed by foreign host.
+
+            NOTE:  The SAMA5D4-EK board support allows an application to
+            connect to the SD card detect signal.  That application could
+            then auto-mount the SD card.  The capability is, however, not
+            implemented in this demo.
+
+         c. Then if you close the old media player window and bring up a
+            new one, you should see the .WAV files on the SD card in the lis
+            box.
+
+       Currently the list box is not scollable.  So you will be limited to
+       the number .WAV files that will fit in the existing list box (a
+       scrollable list box class exists, but has not been integrated into
+       the media play demo).
 
    STATUS:
        See the To-Do list below
@@ -4048,16 +4136,16 @@ To-Do List
    endpoint support in the EHCI driver is untested (but works in similar
    EHCI drivers).
 
-2) HSCMI TX DMA support is currently commented out.
+2) HSCMI TX DMA support is currently commented out.  There were problems at
+   one time (on the SAMA5D3) and the temporary workaround was simply to
+   disable TX DMA.  There have been several fixes to both HSMCI and DMA
+   support since then and TX DMA is very likely okay now.  But this needs
+   to be verified by re-enabled HSMCI TX DMA.
 
-3) Currently HSMCI0 does not work correctly.  No errors are reported so all of
-   the card handshakes must be working, but only zero values are read from the
-   card (with or without DMA).  Sounds like a pin configuration issue.
+   Also, CONFIG_MMCSD_MULTIBLOCK_DISABLE=y is set to disable multi-block
+   transfers.
 
-   Also, we should be receiving interrupts when an SD card is inserted or
-   removed; we are not.
-
-4) There is a kludge in place in the Ethernet code to work around a problem
+3) There is a kludge in place in the Ethernet code to work around a problem
    that I see.  The problem that I see is as follows:
 
      a. To send packets, the software keeps a queue of TX descriptors in
@@ -4087,7 +4175,7 @@ To-Do List
    occurs, than the USED bit would not be set and the transfer would be
    lost.
 
-5) Some drivers may require some adjustments if you intend to run from SDRAM.
+4) Some drivers may require some adjustments if you intend to run from SDRAM.
    That is because in this case macros like BOARD_MCK_FREQUENCY are not constants
    but are instead function calls:  The MCK clock frequency is not known in
    advance but instead has to be calculated from the bootloader PLL configuration.

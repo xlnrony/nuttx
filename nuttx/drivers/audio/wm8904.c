@@ -49,6 +49,7 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -94,7 +95,7 @@ struct wm8904_dev_s
    * "half" that is referred to as "lower".
    */
 
-  struct audio_lowerhalf_s dev;             /* WM8904 audio lower half (this drive) */
+  struct audio_lowerhalf_s dev;             /* WM8904 audio lower half (this device) */
 
   /* Our specific driver data goes here */
 
@@ -180,15 +181,10 @@ static int      wm8904_stop(FAR struct audio_lowerhalf_s *dev);
 #ifdef CONFIG_AUDIO_MULTI_SESSION
 static int      wm8904_pause(FAR struct audio_lowerhalf_s *dev,
                   FAR void* session);
-#else
-static int      wm8904_pause(FAR struct audio_lowerhalf_s *dev);
-#endif
-#endif
-#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
-#ifdef CONFIG_AUDIO_MULTI_SESSION
 static int      wm8904_resume(FAR struct audio_lowerhalf_s *dev,
                   FAR void* session);
 #else
+static int      wm8904_pause(FAR struct audio_lowerhalf_s *dev);
 static int      wm8904_resume(FAR struct audio_lowerhalf_s *dev);
 #endif
 #endif
@@ -235,8 +231,8 @@ static const struct audio_ops_s g_audioops =
   wm8904_pause,         /* pause          */
   wm8904_resume,        /* resume         */
 #endif
-  NULL,                 /* alloc_buffer   */
-  NULL,                 /* free_buffer    */
+  NULL,                 /* allocbuffer    */
+  NULL,                 /* freebuffer     */
   wm8904_enqueuebuffer, /* enqueue_buffer */
   wm8904_cancelbuffer,  /* cancel_buffer  */
   wm8904_ioctl,         /* ioctl          */
@@ -294,16 +290,16 @@ static uint16_t wm8904_readreg(FAR struct wm8904_dev_s *priv, uint8_t regaddr)
 #ifdef CONFIG_I2C_RESET
           /* Perhaps the I2C bus is locked up?  Try to shake the bus free */
 
-          idbg("WARNING: I2C_TRANSFER failed: %d ... Resetting\n", ret);
+          auddbg("WARNING: I2C_TRANSFER failed: %d ... Resetting\n", ret);
 
           ret = up_i2creset(priv->i2c);
           if (ret < 0)
             {
-              idbg("ERROR: up_i2creset failed: %d\n", ret);
+              auddbg("ERROR: up_i2creset failed: %d\n", ret);
               break;
             }
 #else
-          idbg("ERROR: I2C_TRANSFER failed: %d\n", ret);
+          auddbg("ERROR: I2C_TRANSFER failed: %d\n", ret);
 #endif
         }
       else
@@ -319,7 +315,7 @@ static uint16_t wm8904_readreg(FAR struct wm8904_dev_s *priv, uint8_t regaddr)
           return regval;
         }
 
-      ivdbg("retries=%d regaddr=%04x\n", retries, regaddr);
+      audvdbg("retries=%d regaddr=%02x\n", retries, regaddr);
     }
 
   /* No error indication is returned on a failure... just return zero */
@@ -375,16 +371,16 @@ static void wm8904_writereg(FAR struct wm8904_dev_s *priv, uint8_t regaddr,
 #ifdef CONFIG_I2C_RESET
           /* Perhaps the I2C bus is locked up?  Try to shake the bus free */
 
-          idbg("WARNING: I2C_TRANSFER failed: %d ... Resetting\n", ret);
+          auddbg("WARNING: I2C_TRANSFER failed: %d ... Resetting\n", ret);
 
           ret = up_i2creset(priv->i2c);
           if (ret < 0)
             {
-              idbg("ERROR: up_i2creset failed: %d\n", ret);
+              auddbg("ERROR: up_i2creset failed: %d\n", ret);
               break;
             }
 #else
-          idbg("ERROR: I2C_TRANSFER failed: %d\n", ret);
+          auddbg("ERROR: I2C_TRANSFER failed: %d\n", ret);
 #endif
         }
       else
@@ -397,7 +393,7 @@ static void wm8904_writereg(FAR struct wm8904_dev_s *priv, uint8_t regaddr,
           return;
         }
 
-      ivdbg("retries=%d regaddr=%04x\n", retries, regaddr);
+      audvdbg("retries=%d regaddr=%02x\n", retries, regaddr);
     }
 }
 
@@ -567,12 +563,8 @@ static int wm8904_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
   /* Fill in the caller's structure based on requested info */
 
-  caps->ac_format[0]   = 0;
-  caps->ac_format[1]   = 0;
-  caps->ac_controls[0] = 0;
-  caps->ac_controls[1] = 0;
-  caps->ac_controls[2] = 0;
-  caps->ac_controls[3] = 0;
+  caps->ac_format.hw  = 0;
+  caps->ac_controls.w = 0;
 
   switch (caps->ac_type)
     {
@@ -589,49 +581,25 @@ static int wm8904_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
         switch (caps->ac_subtype)
           {
             case AUDIO_TYPE_QUERY:
-              /* The input formats we can decode / accept */
-
-              *((uint16_t *) &caps->ac_format[0]) = 0
-#ifdef CONFIG_AUDIO_FORMAT_AC3
-                    | (1 << (AUDIO_FMT_AC3 - 1))
-#endif
-#ifdef CONFIG_AUDIO_FORMAT_MP3
-                    | (1 << (AUDIO_FMT_MP3 - 1))
-#endif
-#ifdef CONFIG_AUDIO_FORMAT_WMA
-                    | (1 << (AUDIO_FMT_WMA - 1))
-#endif
-#ifdef CONFIG_AUDIO_FORMAT_MIDI
-                    | (1 << (AUDIO_FMT_MIDI - 1))
-#endif
-#ifdef CONFIG_AUDIO_FORMAT_PCM
-                    | (1 << (AUDIO_FMT_PCM - 1))
-#endif
-#ifdef CONFIG_AUDIO_FORMAT_OGG_VORBIS
-                    | (1 << (AUDIO_FMT_OGG_VORBIS - 1))
-#endif
-                ;
+              /* We don't decode any formats!  Only something above us in
+               * the audio stream can perform decoding on our behalf.
+               */
 
               /* The types of audio units we implement */
 
-              caps->ac_controls[0] = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
+              caps->ac_controls.b[0] = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
                                      AUDIO_TYPE_PROCESSING;
 
               break;
 
-            /* Report sub-formats for MIDI if requested */
-
-#ifdef CONFIG_AUDIO_FORMAT_MIDI
             case AUDIO_FMT_MIDI:
               /* We only support Format 0 */
 
-              caps->ac_controls[0] = AUDIO_SUBFMT_MIDI_0;
-              caps->ac_controls[1] = AUDIO_SUBFMT_END;
+              caps->ac_controls.b[0] = AUDIO_SUBFMT_END;
               break;
-#endif
 
             default:
-              caps->ac_controls[0] = AUDIO_SUBFMT_END;
+              caps->ac_controls.b[0] = AUDIO_SUBFMT_END;
               break;
           }
 
@@ -649,24 +617,15 @@ static int wm8904_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* Report the Sample rates we support */
 
-              caps->ac_controls[0] = AUDIO_SAMP_RATE_8K | AUDIO_SAMP_RATE_11K |
-                                      AUDIO_SAMP_RATE_16K | AUDIO_SAMP_RATE_22K |
-                                      AUDIO_SAMP_RATE_32K | AUDIO_SAMP_RATE_44K |
-                                      AUDIO_SAMP_RATE_48K;
+              caps->ac_controls.b[0] = AUDIO_SAMP_RATE_8K | AUDIO_SAMP_RATE_11K |
+                                       AUDIO_SAMP_RATE_16K | AUDIO_SAMP_RATE_22K |
+                                       AUDIO_SAMP_RATE_32K | AUDIO_SAMP_RATE_44K |
+                                       AUDIO_SAMP_RATE_48K;
               break;
 
             case AUDIO_FMT_MP3:
             case AUDIO_FMT_WMA:
             case AUDIO_FMT_PCM:
-              /* Report the Bit rates we support.  The bit rate support is actually a
-               * complex function of the format and selected sample rate, and the datasheet
-               * has multiple tables to indicate the supported bit rate vs sample rate vs
-               * format.  The selected sample rate should be provided in the ac_format
-               * field of the query, and only a single sample rate should be given.
-               */
-
-              /* TODO:  Create a table or set of tables to report this! */
-
               break;
 
             default:
@@ -685,8 +644,8 @@ static int wm8904_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
           {
             /* Fill in the ac_controls section with the Feature Units we have */
 
-            caps->ac_controls[0] = AUDIO_FU_VOLUME | AUDIO_FU_BASS | AUDIO_FU_TREBLE;
-            caps->ac_controls[1] = AUDIO_FU_BALANCE >> 8;
+            caps->ac_controls.b[0] = AUDIO_FU_VOLUME | AUDIO_FU_BASS | AUDIO_FU_TREBLE;
+            caps->ac_controls.b[1] = AUDIO_FU_BALANCE >> 8;
           }
         else
           {
@@ -707,14 +666,14 @@ static int wm8904_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* Provide the type of Processing Units we support */
 
-              caps->ac_controls[0] = AUDIO_PU_STEREO_EXTENDER;
+              caps->ac_controls.b[0] = AUDIO_PU_STEREO_EXTENDER;
               break;
 
             case AUDIO_PU_STEREO_EXTENDER:
 
               /* Provide capabilities of our Stereo Extender */
 
-              caps->ac_controls[0] = AUDIO_STEXT_ENABLE | AUDIO_STEXT_WIDTH;
+              caps->ac_controls.b[0] = AUDIO_STEXT_ENABLE | AUDIO_STEXT_WIDTH;
               break;
 
             default:
@@ -767,13 +726,14 @@ static int wm8904_configure(FAR struct audio_lowerhalf_s *dev,
 #endif
   int ret = OK;
 
-  audvdbg("Entry\n");
+  audvdbg("ac_type: %d\n", caps->ac_type);
 
   /* Process the configure operation */
 
   switch (caps->ac_type)
     {
     case AUDIO_TYPE_FEATURE:
+      audvdbg("  AUDIO_TYPE_FEATURE\n");
 
       /* Process based on Feature Unit */
 
@@ -784,7 +744,9 @@ static int wm8904_configure(FAR struct audio_lowerhalf_s *dev,
           {
             /* Set the volume */
 
-            uint16_t volume = *(uint16_t *)caps->ac_controls;
+            uint16_t volume = caps->ac_controls.hw[0];
+            audvdbg("    Volume: %d\n", volume);
+
             if (volume >= 0 && volume <= 1000)
               {
                 /* Scale the volume setting to the range {0.. 63} */
@@ -803,10 +765,12 @@ static int wm8904_configure(FAR struct audio_lowerhalf_s *dev,
         case AUDIO_FU_BASS:
           {
             /* Set the bass.  The percentage level (0-100) is in the
-             * ac_controls[0] parameter.
+             * ac_controls.b[0] parameter.
              */
 
-            uint8_t bass = caps->ac_controls[0];
+            uint8_t bass = caps->ac_controls.b[0];
+            audvdbg("    Bass: %d\n", bass);
+
             if (bass <= 100)
               {
                 wm8904_setbass(priv, bass);
@@ -821,10 +785,12 @@ static int wm8904_configure(FAR struct audio_lowerhalf_s *dev,
         case AUDIO_FU_TREBLE:
           {
             /* Set the treble.  The percentage level (0-100) is in the
-             * ac_controls[0] parameter.
+             * ac_controls.b[0] parameter.
              */
 
-            uint8_t treble = caps->ac_controls[0];
+            uint8_t treble = caps->ac_controls.b[0];
+            audvdbg("    Treble: %d\n", treble);
+
             if (treble <= 100)
               {
                 wm8904_settreble(priv, treble);
@@ -838,19 +804,21 @@ static int wm8904_configure(FAR struct audio_lowerhalf_s *dev,
 #endif  /* CONFIG_AUDIO_EXCLUDE_TONE */
 
         default:
+          auddbg("    Unrecognized feature unit\n");
           ret = -ENOTTY;
           break;
         }
         break;
 
-    case AUDIO_TYPE_PROCESSING:
-      {
-        /* We only support STEREO_EXTENDER */
+    case AUDIO_TYPE_OUTPUT:
+      audvdbg("  AUDIO_TYPE_OUTPUT:\n");
+      audvdbg("    Number of channels: %u\n", caps->ac_channels);
+      audvdbg("    Sample rate:        %u\n", caps->ac_controls.hw[0]);
+      audvdbg("    Sample width:       %u\n", caps->ac_controls.b[2]);
+#warning Missing logic
+      break;
 
-        if (*((uint16_t *) caps->ac_format) == AUDIO_PU_STEREO_EXTENDER)
-          {
-          }
-      }
+    case AUDIO_TYPE_PROCESSING:
       break;
     }
 
@@ -1485,21 +1453,27 @@ static int wm8904_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
        */
 
       case AUDIOIOC_HWRESET:
-        wm8904_reset((FAR struct wm8904_dev_s *)dev);
+        {
+          audvdbg("AUDIOIOC_HWRESET:\n");
+          wm8904_reset((FAR struct wm8904_dev_s *)dev);
+        }
         break;
 
        /* Report our preferred buffer size and quantity */
 
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
       case AUDIOIOC_GETBUFFERINFO:
-
-        bufinfo              = (FAR struct ap_buffer_info_s *) arg;
-        bufinfo->buffer_size = CONFIG_WM8904_BUFFER_SIZE;
-        bufinfo->nbuffers    = CONFIG_WM8904_NUM_BUFFERS;
+        {
+          audvdbg("AUDIOIOC_GETBUFFERINFO:\n");
+          bufinfo              = (FAR struct ap_buffer_info_s *) arg;
+          bufinfo->buffer_size = CONFIG_WM8904_BUFFER_SIZE;
+          bufinfo->nbuffers    = CONFIG_WM8904_NUM_BUFFERS;
+        }
         break;
 #endif
 
       default:
+        audvdbg("Ignored\n");
         break;
     }
 
@@ -1532,7 +1506,7 @@ static int wm8904_reserve(FAR struct audio_lowerhalf_s *dev)
     }
   else
     {
-      /* Initialize the session context.  We don't really use it. */
+      /* Initialize the session context */
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
      *session           = NULL;
@@ -1785,18 +1759,16 @@ static void wm8904_audio_input(FAR struct wm8904_dev_s *priv)
  *   i2c     - An I2C driver instance
  *   i2s     - An I2S driver instance
  *   lower   - Persistent board configuration data
- *   minor   - The input device minor number
- *   session - Returned if multi-sessions are supported
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is
- *   returned to indicate the nature of the failure.
+ *   A new lower half audio interface for the WM8904 device is returned on
+ *   success; NULL is returned on failure.
  *
  ****************************************************************************/
 
 FAR struct audio_lowerhalf_s *
   wm8904_initialize(FAR struct i2c_dev_s *i2c, FAR struct i2s_dev_s *i2s,
-                    FAR const struct wm8904_lower_s *lower, unsigned int devno)
+                    FAR const struct wm8904_lower_s *lower)
 {
   FAR struct wm8904_dev_s *priv;
   uint16_t regval;
@@ -1827,6 +1799,7 @@ FAR struct audio_lowerhalf_s *
 
       /* Initialize I2C */
 
+      auddbg("address=%02x frequency=%d\n", lower->address, lower->frequency);
       I2C_SETFREQUENCY(i2c, lower->frequency);
       I2C_SETADDRESS(i2c, lower->address, 7);
 

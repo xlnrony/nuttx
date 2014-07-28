@@ -1,7 +1,14 @@
 /************************************************************************************
- * arch/arm/src/sama5/chip.h
+ * configs/mbed/src/up_dac.c
  *
- *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
+ * Based on configs/zkit-arm-1769/src/up_dac.c
+ *
+ *   Copyright (C) 2013 Zilogic Systems. All rights reserved.
+ *   Author: Kannan <code@nuttx.org>
+ *
+ * Based on configs/stm3220g-eval/src/up_dac.c
+ *
+ *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,27 +40,62 @@
  *
  ************************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_SAMA5_CHIP_H
-#define __ARCH_ARM_SRC_SAMA5_CHIP_H
-
 /************************************************************************************
  * Included Files
  ************************************************************************************/
 
 #include <nuttx/config.h>
-#include <arch/sama5/chip.h>
 
-#include "chip/sam_memorymap.h"
+#include <errno.h>
+#include <debug.h>
+
+#include <nuttx/analog/dac.h>
+#include <arch/board/board.h>
+
+#include "up_arch.h"
+#include "up_internal.h"
+
+#include "lpc17_dac.h"
+
+#ifdef CONFIG_DAC
 
 /************************************************************************************
- * Pre-processor Definitions
+ * Name: dac_devinit
+ *
+ * Description:
+ *   All LPC17xx architectures must provide the following interface to work with
+ *   examples/diag.
+ *
  ************************************************************************************/
 
-/* arch/arm/src/armv7-a/l2cc_pl310.h includes this file and expects it to provide the
- * address of the L2CC-PL310 implementation.
- */
+int dac_devinit(void)
+{
+  static bool initialized = false;
+  struct dac_dev_s *dac;
+  int ret;
 
-#define L2CC_VBASE SAM_L2CC_VSECTION
+  if (!initialized)
+  {
+    /* Call lpc17_dacinitialize() to get an instance of the dac interface */
 
-#endif /* __ARCH_ARM_SRC_SAMA5_CHIP_H */
+    dac = lpc17_dacinitialize();
+    if (dac == NULL)
+      {
+        adbg("ERROR: Failed to get dac interface\n");
+        return -ENODEV;
+      }
 
+    ret = dac_register("/dev/dac0", dac);
+    if (ret < 0)
+      {
+        adbg("dac_register failed: %d\n", ret);
+        return ret;
+      }
+
+    initialized = true;
+  }
+
+  return OK;
+}
+
+#endif /* CONFIG_DAC */

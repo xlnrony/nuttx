@@ -47,6 +47,7 @@
 
 #include <nuttx/i2c.h>
 #include <nuttx/audio/i2s.h>
+#include <nuttx/audio/pcm.h>
 #include <nuttx/audio/wm8904.h>
 
 #include <arch/board/board.h>
@@ -151,13 +152,13 @@ static int wm8904_attach(FAR const struct wm8904_lower_s *lower,
        * new handler will called via wm8904_interrupt() when the interrupt occurs.
        */
 
-      ivdbg("Attaching %p\n", isr);
+      audvdbg("Attaching %p\n", isr);
       g_mxtinfo.handler = isr;
       g_mxtinfo.arg = arg;
     }
   else
     {
-      ivdbg("Detaching %p\n", g_mxtinfo.handler);
+      audvdbg("Detaching %p\n", g_mxtinfo.handler);
       wm8904_enable(lower, false);
       g_mxtinfo.handler = NULL;
       g_mxtinfo.arg = NULL;
@@ -220,11 +221,12 @@ static int wm8904_interrupt(int irq, FAR void *context)
 
 int sam_wm8904_initialize(int minor)
 {
-  FAR struct audio_lowerhalf_s *audio;
+  FAR struct audio_lowerhalf_s *wm8904;
+  FAR struct audio_lowerhalf_s *pcm;
   FAR struct i2c_dev_s *i2c;
   FAR struct i2s_dev_s *i2s;
   static bool initialized = false;
-  char devname[8];
+  char devname[12];
   int ret;
 
   auddbg("minor %d\n", minor);
@@ -266,21 +268,20 @@ int sam_wm8904_initialize(int minor)
        * MW8904 which will return an audio interface.
        */
 
-      audio = wm8904_initialize(i2c, i2s, &g_mxtinfo.lower, minor);
-      if (!audio)
+      wm8904 = wm8904_initialize(i2c, i2s, &g_mxtinfo.lower);
+      if (!wm8904)
         {
           auddbg("Failed to initialize the WM8904\n");
           ret = -ENODEV;
           goto errout_with_i2s;
         }
 
-      /* Configure the DAC master clock.  This clock is provided by PCK0 (PB26)
-       * that is connected to the WM8904 BCLK/GPIO4 and also drives the SSC
-       * TK0 input clock.
+      /* Configure the DAC master clock.  This clock is provided by PCK2 (PB10)
+       * that is connected to the WM8904 MCLK.
        */
 
       sam_sckc_enable(true);
-      (void)sam_pck_configure(PCK0, PCKSRC_SCK, BOARD_SLOWCLK_FREQUENCY);
+      (void)sam_pck_configure(PCK2, PCKSRC_SCK, BOARD_SLOWCLK_FREQUENCY);
 
       /* Enable the DAC master clock */
 
@@ -292,21 +293,37 @@ int sam_wm8904_initialize(int minor)
       ret = irq_attach(IRQ_INT_WM8904, wm8904_interrupt);
       if (ret < 0)
         {
-          auddbg("ERROR: Failed to register WM8904 device: %d\n", ret);
+          auddbg("ERROR: Failed to attach WM8904 interrupt: %d\n", ret);
           goto errout_with_audio;
+        }
+
+      /* No we can embed the WM8904/I2C/I2S conglomerate into a PCM decoder
+       * instance so that we will have a PCM front end for the the WM8904
+       * driver.
+       */
+
+      pcm = pcm_decode_initialize(wm8904);
+      if (!pcm)
+        {
+          auddbg("ERROR: Failed create the PCM decoder\n");
+          ret = -ENODEV;
+          goto errout_with_irq;
         }
 
       /* Create a device name */
 
-      snprintf(devname, 8, "wm8904%c", 'a' + minor);
+      snprintf(devname, 12, "pcm%d",  minor);
 
-      /* Register the WM8904 audio device */
+      /* Finally, we can register the PCM/WM8904/I2C/I2S audio device.
+       *
+       * Is anyone young enough to remember Rube Goldberg?
+       */
 
-      ret = audio_register(devname, audio);
+      ret = audio_register(devname, pcm);
       if (ret < 0)
         {
           auddbg("ERROR: Failed to register /dev/%s device: %d\n", devname, ret);
-          goto errout_with_irq;
+          goto errout_with_pcm;
         }
 
       /* Now we are initialized */
@@ -317,9 +334,10 @@ int sam_wm8904_initialize(int minor)
   return OK;
 
   /* Error exits.  Unfortunately there is no mechanism in place now to
-   * recover errors on initialization failures.
+   * recover resources from most errors on initialization failures.
    */
 
+errout_with_pcm:
 errout_with_irq:
   irq_detach(IRQ_INT_WM8904);
 errout_with_audio:

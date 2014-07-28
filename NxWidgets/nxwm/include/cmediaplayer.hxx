@@ -83,16 +83,48 @@ namespace NxWM
   private:
     /**
      * This enumeration identifies the state of the media player
+     *
+     *                         State Transition Table
+     * ---------+----------+----------+----------+----------+----------+----------+
+     *          |   FILE   |   FILE   |          |          |   FAST   |          |
+     * STATE    | SELECTED |DESELECTED|   PLAY   |   PAUSE  |  FORWARD |  REWIND  |
+     * ---------+----------+----------+----------+----------+----------+----------+
+     * STOPPED  |  STAGED  |    X     |     X    |     X    |    X     |    X     |
+     * STAGED   |  STAGED  | STOPPED  |  PLAYING |     X    |    X     |    X     |
+     * PLAYING  |    X     |    X     |     X    |  PAUSED  |FFORWARD2 | REWIND2  |
+     * PAUSED   |  STAGED  | STOPPED  |  PLAYING |     X    |FFORWARD1 | REWIND1  |
+     * FFORWARD1|    X     |    X     |  PAUSED  |     X    |  PAUSED  | REWIND1  |
+     * REWIND1  |    X     |    X     |  PAUSED  |     X    |FFORWARD1 |  PAUSED  |
+     * FFORWARD2|    X     |    X     |     X    |  PLAYING | PLAYING  | REWIND1  |
+     * REWIND2  |    X     |    X     |     X    |  PLAYING |FFORWARD1 | PLAYING  |
+     * ---------+----------+----------+----------+----------+----------+----------+
+     *
+     * Configuration Dependencies.  States in the above state transition table may
+     * not be supported if any of the following features are excluded from the
+     * configuration:
+     *
+     *   CONFIG_AUDIO_EXCLUDE_STOP
+     *   CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
+     *   CONFIG_AUDIO_EXCLUDE_VOLUME
+     *   CONFIG_AUDIO_EXCLUDE_FFORWARD
+     *   CONFIG_AUDIO_EXCLUDE_REWIND
      */
 
     enum EMediaPlayerState
     {
       MPLAYER_STOPPED = 0,                 /**< No media file has been selected */
+      MPLAYER_STAGED,                      /**< Media file selected, not playing */
       MPLAYER_PLAYING,                     /**< Playing a media file */
       MPLAYER_PAUSED,                      /**< Playing a media file but paused */
       MPLAYER_FFORWARD,                    /**< Fast forwarding through a media file */
       MPLAYER_FREWIND,                     /**< Rewinding a media file */
     };
+
+    /**
+     * Describes the state of an image touch.  Some image touch cannot be
+     * processed until the image contact is lost.  This enumeration arms and
+     * manages those cases.
+     */
 
     enum EPendingRelease
     {
@@ -115,11 +147,16 @@ namespace NxWM
      * Media player state data.
      */
 
+    FAR struct nxplayer_s   *m_player;     /**< NxPlayer handle */
     enum EMediaPlayerState   m_state;      /**< Media player current state */
     enum EMediaPlayerState   m_prevState;  /**< Media player previous state */
     enum EPendingRelease     m_pending;    /**< Pending image release event */
-    int                      m_level;      /**< Current volume level */
-    int                      m_fileIndex;  /**< Index to selected file in the list box */
+    NXWidgets::CNxString     m_filePath;   /**< The full path to the selected file */
+    unsigned int             m_fileIndex;  /**< Last selected text box selection */
+    bool                     m_fileReady;  /**< True: Ready to play */
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
+    uint8_t                  m_level;      /**< Current volume level, range 0-100 */
+#endif
 
     /**
      * Media player geometry.
@@ -160,18 +197,26 @@ namespace NxWM
     NXWidgets::CRlePaletteBitmap *m_volumeBitmap;   /**< Volume control grip bitmap */
 
     /**
-     * Open a media file for playing.  Called after a file has been selected
-     * from the list box.
+     * Get the full media file path and make ready for playing.  Called
+     * after a file has been selected from the list box.
      */
 
-    inline bool openMediaFile(const NXWidgets::CListBoxDataItem *item);
+    bool getMediaFile(const NXWidgets::CListBoxDataItem *item);
 
     /**
-     * Close media file.  Called when a new media file is selected, when a
-     * media file is de-selected, or when destroying the media player instance.
+     * Get the full media file path and make ready for playing.  Called
+     * after a file has been selected from the list box.
      */
 
-     inline void closeMediaFile(void);
+    bool openMediaFile(const NXWidgets::CListBoxDataItem *item);
+
+    /**
+     * Stop playing the current file.  Called when a new media file is selected,
+     * when a media file is de-selected, or when destroying the media player
+     * instance.
+     */
+
+    void stopPlaying(void);
 
     /**
      * Select the geometry of the media player given the current window size.
@@ -184,7 +229,21 @@ namespace NxWM
      * Load media files into the list box.
      */
 
-    inline bool showMediaFiles(const char *mediaPath);
+    inline bool showMediaFiles(FAR const char *mediaPath);
+
+#ifdef CONFIG_NXPLAYER_INCLUDE_PREFERRED_DEVICE
+    /**
+     * Set the preferred audio device for playback
+     */
+
+    inline bool setDevice(FAR const char *devPath);
+#endif
+
+    /**
+     * Configure the NxPlayer.
+     */
+
+   inline bool configureNxPlayer(void);
 
     /**
      * Create the Media Player controls.  Only start as part of the application
@@ -222,11 +281,13 @@ namespace NxWM
 
     void setMediaPlayerState(enum EMediaPlayerState state);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
     /**
      * Set the new volume level based on the position of the volume slider.
      */
 
     void setVolumeLevel(void);
+#endif
 
     /**
      * Check if a new file has been selected (or de-selected) in the list box
@@ -259,7 +320,8 @@ namespace NxWM
     void handleReleaseOutsideEvent(const NXWidgets::CWidgetEventArgs &e);
 
     /**
-     * Handle changes in the volume level.
+     * Handle value changes.  This will get events when there is a change in the
+     * volume level or a file is selected or deselected.
      */
 
     void handleValueChangeEvent(const NXWidgets::CWidgetEventArgs &e);

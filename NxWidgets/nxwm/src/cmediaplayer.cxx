@@ -2,6 +2,7 @@
  * NxWidgets/nxwm/src/cmediaplayer.cxx
  *
  *   Copyright (C) 2013 Ken Pettit. All rights reserved.
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
  *   Author: Ken Pettit <pettitkd@gmail.com>
  *           Gregory Nutt <gnutt@nuttx.org>
  *
@@ -40,8 +41,16 @@
 
 #include <nuttx/config.h>
 
+#include <sys/stat.h>
+
 #include <cstdio>
+#include <cstring>
+#include <cerrno>
+#include <dirent.h>
 #include <debug.h>
+
+#include <apps/nxplayer.h>
+#include <nuttx/audio/audio.h>
 
 #include "cwidgetcontrol.hxx"
 
@@ -52,6 +61,20 @@
 /********************************************************************************************
  * Pre-Processor Definitions
  ********************************************************************************************/
+
+/* We want debug output from this file if either audio or graphics debug is enabled. */
+
+#if !defined(CONFIG_DEBUG_AUDIO) && !defined(CONFIG_DEBUG_GRAPHICS)
+#  undef dbg
+#  undef vdbg
+#  ifdef CONFIG_CPP_HAVE_VARARGS
+#    define dbg(x...)
+#    define vdbg(x...)
+#  else
+#    define dbg  (void)
+#    define vdbg (void)
+#  endif
+#endif
 
 /********************************************************************************************
  * Private Types
@@ -106,10 +129,15 @@ CMediaPlayer::CMediaPlayer(CTaskbar *taskbar, CApplicationWindow *window)
 
   // Initial state is stopped
 
+  m_player         = (FAR struct nxplayer_s   *)0;
   m_state          = MPLAYER_STOPPED;
   m_prevState      = MPLAYER_STOPPED;
   m_pending        = PENDING_NONE;
   m_fileIndex      = -1;
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
+  m_level          = 0;
+#endif
+  m_fileReady      = false;
 
   // Add our personalized window label
 
@@ -197,6 +225,13 @@ CMediaPlayer::~CMediaPlayer(void)
       delete m_volumeBitmap;
     }
 
+  // Release the NxPlayer
+
+  if (m_player)
+    {
+      nxplayer_release(m_player);
+    }
+
   // Although we didn't create it, we are responsible for deleting the
   // application window
 
@@ -248,15 +283,24 @@ NXWidgets::CNxString CMediaPlayer::getName(void)
 
 bool CMediaPlayer::run(void)
 {
-  // Create the widgets (if we have not already done so)
+  // Configure the NxPlayer and create the widgets (if we have not already
+  // done so)
 
-  if (!m_listbox)
+  if (!m_player)
     {
+      // Configure the NxPlayer library and player thread
+
+      if (!configureNxPlayer())
+        {
+          dbg("ERROR: Failed to configure NxPlayer\n");
+          return false;
+        }
+
       // Create the widgets
 
       if (!createPlayer())
         {
-          gdbg("ERROR: Failed to create widgets\n");
+          dbg("ERROR: Failed to create widgets\n");
           return false;
         }
     }
@@ -352,23 +396,97 @@ bool CMediaPlayer::isFullScreen(void) const
 }
 
 /**
- * Open a media file for playing.  Called after a file has been selected
- * from the list box.
+ * Get the full media file path and make ready for playing.  Called
+ * after a file has been selected from the list box.
  */
 
-bool CMediaPlayer::openMediaFile(const NXWidgets::CListBoxDataItem *item)
+bool CMediaPlayer::getMediaFile(const NXWidgets::CListBoxDataItem *item)
 {
-#warning Missing logic
+  // Get the full path to the file
+
+  NXWidgets::CNxString newFilePath(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH "/");
+  newFilePath.append(item->getText());
+
+  // Make sure that this is a different name than the one we already have
+
+  if (!m_fileReady || m_filePath.compareTo(newFilePath) != 0)
+    {
+      // It is a new file name
+      // Get the path to the file as a regular C-style string
+
+      NXWidgets::nxwidget_char_t *filePath =
+        new NXWidgets::nxwidget_char_t[newFilePath.getAllocSize()];
+
+      if (!filePath)
+        {
+          dbg("ERROR: Failed to allocate file path\n");
+          return false;
+        }
+
+      newFilePath.copyToCharArray(filePath);
+
+      // Verify that the file of this name exists and that it is a not
+      // something weird (like a directory or a block device).
+      //
+      // REVISIT: Should check if read-able as well.
+
+      struct stat buf;
+      int ret = stat((FAR const char *)filePath, &buf);
+      delete[] filePath;
+
+      if (ret < 0)
+        {
+          int errcode = errno;
+          dbg("ERROR: Could not stat file %s: %d\n", filePath, errcode);
+
+          // Make sure there is no previous file information
+
+          m_fileReady = false;
+          m_filePath.remove(0);
+          return false;
+        }
+
+      if (S_ISDIR(buf.st_mode) || S_ISBLK(buf.st_mode))
+        {
+          dbg("ERROR: Not a regular file\n");
+
+          // Make sure there is no previous file information
+
+          m_fileReady = false;
+          m_filePath.remove(0);
+          return false;
+        }
+    }
+
+  // Save the new file path and mark ready to play
+
+  m_filePath  = newFilePath;
+  m_fileReady = true;
   return true;
 }
 
 /**
- * Close media file.  Called when a new media file is selected, when a media file is de-selected, or when destroying the media player instance.
-    */
+ * Stop playing the current file.  Called when a new media file is selected,
+ * when a media file is de-selected, or when destroying the media player
+ * instance.
+ */
 
-void CMediaPlayer::closeMediaFile(void)
+void CMediaPlayer::stopPlaying(void)
 {
-#warning Missing logic
+#ifndef CONFIG_AUDIO_EXCLUDE_STOP
+  // Stop playing the file
+
+  int ret = nxplayer_stop(m_player);
+  if (ret < 0)
+    {
+      auddbg("ERROR: nxplayer_stop failed: %d\n", ret);
+    }
+#endif
+
+  // Clear information about the selected file
+
+  m_fileReady = false;
+  m_filePath.remove(0);
 }
 
 /**
@@ -396,31 +514,176 @@ inline bool CMediaPlayer::showMediaFiles(const char *mediaPath)
 
   m_listbox->removeAllOptions();
 
-#if 0
   // Open the media path directory
+
+  FAR DIR *dirp = opendir(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
+  if (!dirp)
+    {
+       m_listbox->addOption("Media volume is not mounted", 0,
+                            MKRGB(192, 0, 0),
+                            CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
+                            MKRGB(255, 0, 0),
+                            CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
+       return false;
+    }
+
   // Read each directory entry
-  // Add the directory entry to the list box
-  // Close the directory
-#else
-#  warning "Missing Logic"
 
-  // Just add a couple of dummy files for testing
+  FAR struct dirent *direntry;
+  int index;
 
-  m_listbox->addOption("File 1", 0,
-                      CONFIG_NXWIDGETS_DEFAULT_ENABLEDTEXTCOLOR,
-                      CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
-                      CONFIG_NXWIDGETS_DEFAULT_SELECTEDTEXTCOLOR,
-                      CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
-  m_listbox->addOption("File 2", 1,
-                      CONFIG_NXWIDGETS_DEFAULT_ENABLEDTEXTCOLOR,
-                      CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
-                      CONFIG_NXWIDGETS_DEFAULT_SELECTEDTEXTCOLOR,
-                      CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
+  for (direntry = readdir(dirp), index = 0;
+       direntry;
+       direntry = readdir(dirp))
+    {
+      // TODO: Recursively examine files in all sub-directories
+      // Ignore directory entries beginning with '.'
+
+      if (direntry->d_name[0] == '.')
+        {
+          continue;
+        }
+
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER)
+      // Filter files by extension
+
+      FAR const char *extension = std::strchr(direntry->d_name, '.');
+      if (!extension || (true
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_AC3)
+          && std::strcasecmp(extension, ".ac3") != 0
 #endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_DTS)
+          && std::strcasecmp(extension, ".dts") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_WAV)
+          && std::strcasecmp(extension, ".wav") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_PCM)
+          && std::strcasecmp(extension, ".pcm") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_MP3)
+          && std::strcasecmp(extension, ".mp3") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_MIDI)
+          && std::strcasecmp(extension, ".mid") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_WMA)
+          && std::strcasecmp(extension, ".wma") != 0
+#endif
+#if defined(CONFIG_NXWM_MEDIAPLAYER_FILTER_OGGVORBIS)
+          && std::strcasecmp(extension, ".ogg") != 0
+#endif
+         ))
+        {
+          // File does not match any configured extension
+
+          continue;
+        }
+#endif
+
+      // Add the directory entry to the list box
+
+       m_listbox->addOption(direntry->d_name, index,
+                            CONFIG_NXWIDGETS_DEFAULT_ENABLEDTEXTCOLOR,
+                            CONFIG_NXWIDGETS_DEFAULT_BACKGROUNDCOLOR,
+                            CONFIG_NXWIDGETS_DEFAULT_SELECTEDTEXTCOLOR,
+                            CONFIG_NXWM_DEFAULT_SELECTEDBACKGROUNDCOLOR);
+       index++;
+    }
+
+  // Close the directory
+
+  (void)closedir(dirp);
 
   // Sort the file names in alphabetical order
 
   m_listbox->sort();
+  return true;
+}
+
+/**
+ * Set the preferred audio device for playback
+ */
+
+#ifdef CONFIG_NXPLAYER_INCLUDE_PREFERRED_DEVICE
+bool CMediaPlayer::setDevice(FAR const char *devPath)
+{
+  // First try to open the file using the device name as provided
+
+  int ret = nxplayer_setdevice(m_player, devPath);
+  if (ret == -ENOENT)
+    {
+      char path[32];
+
+      // Append the device path and try again
+
+#ifdef CONFIG_AUDIO_CUSTOM_DEV_PATH
+#ifdef CONFIG_AUDIO_DEV_ROOT
+      std::snprintf(path, sizeof(path), "/dev/%s", devPath);
+#else
+      std::snprintf(path, sizeof(path), CONFIG_AUDIO_DEV_PATH "/%s", devPath);
+#endif
+#else
+      std::snprintf(path, sizeof(path), "/dev/audio/%s", devPath);
+#endif
+      ret = nxplayer_setdevice(m_player, path);
+    }
+
+  // Test if the device file exists
+
+  if (ret == -ENOENT)
+    {
+      // Device doesn't exit.  Report an error
+
+      dbg("ERROR: Device %s not found\n", devPath);
+      return false;
+    }
+
+  // Test if is is an audio device
+
+  if (ret == -ENODEV)
+    {
+      dbg("ERROR: Device %s is not an audio device\n", devPath);
+      return false;
+    }
+
+  if (ret < 0)
+    {
+      dbg("ERROR: Error selecting device %s\n", devPath);
+      return false;
+    }
+
+  // Device set successfully
+
+  return true;
+}
+#endif
+
+/**
+ * Configure the NxPlayer.
+ */
+
+bool CMediaPlayer::configureNxPlayer(void)
+{
+  // Get the NxPlayer handle
+
+  m_player = nxplayer_create();
+  if (!m_player)
+    {
+      dbg("ERROR: Failed get NxPlayer handle\n");
+      return false;
+    }
+
+#ifdef CONFIG_NXPLAYER_INCLUDE_PREFERRED_DEVICE
+  // Set the NxPlayer audio device
+
+  if (!setDevice(CONFIG_NXWM_MEDIAPLAYER_PREFERRED_DEVICE))
+    {
+      dbg("ERROR: Failed select NxPlayer audio device\n");
+      return false;
+    }
+#endif
+
   return true;
 }
 
@@ -438,7 +701,7 @@ bool CMediaPlayer::createPlayer(void)
                                   CONFIG_NXWM_TRANSPARENT_COLOR);
   if (!m_font)
     {
-      gdbg("ERROR failed to create font\n");
+      dbg("ERROR: Failed to create font\n");
       return false;
     }
 
@@ -459,7 +722,7 @@ bool CMediaPlayer::createPlayer(void)
   if (!m_playBitmap || !m_pauseBitmap || !m_rewindBitmap ||
       !m_fforwardBitmap || !m_volumeBitmap)
     {
-      gdbg("ERROR: Failed to one or more bitmaps\n");
+      dbg("ERROR: Failed to one or more bitmaps\n");
       return false;
     }
 
@@ -509,7 +772,7 @@ bool CMediaPlayer::createPlayer(void)
   m_listbox = new NXWidgets::CListBox(control, 0, 0,  m_windowSize.w, listHeight);
   if (!m_listbox)
     {
-      gdbg("ERROR: Failed to create CListBox\n");
+      dbg("ERROR: Failed to create CListBox\n");
       return false;
     }
 
@@ -526,7 +789,7 @@ bool CMediaPlayer::createPlayer(void)
 
   // Show the media files that are available for playing
 
-  showMediaFiles(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
+  (void)showMediaFiles(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
 
   // Control image widths.
   // Image widths will depend on if the images will be bordered or not
@@ -590,7 +853,7 @@ bool CMediaPlayer::createPlayer(void)
 
   if (!m_play)
     {
-      gdbg("ERROR: Failed to create play control\n");
+      dbg("ERROR: Failed to create play control\n");
       return false;
     }
 
@@ -617,7 +880,7 @@ bool CMediaPlayer::createPlayer(void)
 
   if (!m_pause)
     {
-      gdbg("ERROR: Failed to create pause control\n");
+      dbg("ERROR: Failed to create pause control\n");
       return false;
     }
 
@@ -647,7 +910,7 @@ bool CMediaPlayer::createPlayer(void)
 
   if (!m_rewind)
     {
-      gdbg("ERROR: Failed to create rewind control\n");
+      dbg("ERROR: Failed to create rewind control\n");
       return false;
     }
 
@@ -662,9 +925,11 @@ bool CMediaPlayer::createPlayer(void)
   m_rewind->setBorderless(false);
 #endif
 
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
   // Register to get events from the mouse clicks on the Rewind image
 
   m_rewind->addWidgetEventHandler(this);
+#endif
 
   // Create the Forward Image
 
@@ -677,7 +942,7 @@ bool CMediaPlayer::createPlayer(void)
 
   if (!m_fforward)
     {
-      gdbg("ERROR: Failed to create fast forward control\n");
+      dbg("ERROR: Failed to create fast forward control\n");
       return false;
     }
 
@@ -692,9 +957,11 @@ bool CMediaPlayer::createPlayer(void)
   m_fforward->setBorderless(false);
 #endif
 
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
   // Register to get events from the mouse clicks on the Forward image
 
   m_fforward->addWidgetEventHandler(this);
+#endif
 
   // Create the Volume control
 
@@ -716,7 +983,7 @@ bool CMediaPlayer::createPlayer(void)
 
   if (!m_volume)
     {
-      gdbg("ERROR: Failed to create volume control\n");
+      dbg("ERROR: Failed to create volume control\n");
       return false;
     }
 
@@ -728,18 +995,22 @@ bool CMediaPlayer::createPlayer(void)
   m_volume->setValue(15);
   m_volume->setPageSize(CONFIG_NXWM_MEDIAPLAYER_VOLUMESTEP);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
   // Register to get events from the value changes in the volume slider
 
   m_volume->addWidgetEventHandler(this);
+#endif
 
   // Make sure that all widgets are setup for the STOPPED state.  Among other this,
   // this will enable drawing in the play widget (only)
 
   setMediaPlayerState(MPLAYER_STOPPED);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
   // Set the volume level
 
   setVolumeLevel();
+#endif
 
   // Enable drawing in the list box, rewind, fast-forward and drawing widgets.
 
@@ -788,8 +1059,12 @@ void CMediaPlayer::redrawWidgets(void)
   m_listbox->redraw();
 
   // Only one of the Play and Pause images should have drawing enabled.
+  // Play should be visible if we are in any STOPPED state of if we
+  // are fast forward or rewind state that came from the PAUSED state
 
-  if (m_state != MPLAYER_STOPPED && m_prevState == MPLAYER_PLAYING)
+  if (m_state != MPLAYER_STOPPED &&    // Stopped states
+      m_state != MPLAYER_STAGED &&
+      m_prevState == MPLAYER_PLAYING)  // Previously playing
     {
       // Playing... show the pause button
       // REVISIT:  Really only available if there is a selected file in the list box
@@ -835,24 +1110,16 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
     {
     case MPLAYER_STOPPED:    // Initial state.  Also the state after playing completes
       m_state     = MPLAYER_STOPPED;
-      m_prevState = MPLAYER_PLAYING;
+      m_prevState = MPLAYER_STOPPED;
 
       // List box is enabled and ready for file selection
 
       m_listbox->enable();
 
-      // Play image is visible, but enabled and ready to start playing only
-      // if a file is selected
+      // Play image is visible, but disabled.  It will not enabled until
+      // we enter the MPLAYER_STAGED state after a file is selected
 
-      if (m_fileIndex < 0)
-        {
-          m_play->disable();
-        }
-      else
-        {
-          m_play->enable();
-        }
-
+      m_play->disable();
       m_play->show();
 
       // Pause image is disabled and hidden
@@ -870,7 +1137,46 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       m_rewind->disable();
       m_rewind->setStuckSelection(false);
 
+      // Volume slider is available
+
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
       m_volume->enable();
+#endif
+      break;
+
+    case MPLAYER_STAGED:     // Media file selected, not playing
+      m_state     = MPLAYER_STAGED;
+      m_prevState = MPLAYER_STOPPED;
+
+      // List box is still enabled a ready for file selection
+
+      m_listbox->enable();
+
+      // Play image enabled and ready to start playing
+
+      m_play->enable();
+      m_play->show();
+
+      // Pause image is disabled and hidden
+
+      m_pause->disable();
+      m_pause->hide();
+
+      // Fast forward image is disabled
+
+      m_fforward->disable();
+      m_fforward->setStuckSelection(false);
+
+      // Rewind image is disabled
+
+      m_rewind->disable();
+      m_rewind->setStuckSelection(false);
+
+      // Volume slider is available
+
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
+      m_volume->enable();
+#endif
       break;
 
     case MPLAYER_PLAYING:    // Playing a media file
@@ -888,18 +1194,24 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
 
       // Pause image enabled and ready to pause playing
 
+#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
       m_pause->enable();
+#endif
       m_pause->show();
 
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
       // Fast forward image is enabled and ready for use
 
       m_fforward->enable();
       m_fforward->setStuckSelection(false);
+#endif
 
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
       // Rewind image is enabled and ready for use
 
       m_rewind->enable();
       m_rewind->setStuckSelection(false);
+#endif
       break;
 
     case MPLAYER_PAUSED:     // Playing a media file but paused
@@ -920,16 +1232,21 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       m_pause->disable();
       m_pause->hide();
 
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
       // Fast forward image is enabled and ready for use
 
       m_fforward->setStuckSelection(false);
+#endif
 
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
       // Rewind image is enabled and ready for use
 
       m_rewind->setStuckSelection(false);
+#endif
       break;
 
     case MPLAYER_FFORWARD:   // Fast forwarding through a media file */
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
       m_state = MPLAYER_FFORWARD;
 
       // List box is not available while fast forwarding
@@ -945,7 +1262,9 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
 
           // Pause image enabled and ready to stop fast forwarding
 
+#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
           m_pause->enable();
+#endif
           m_pause->show();
         }
       else
@@ -965,12 +1284,16 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
 
       m_fforward->setStuckSelection(true);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
       // Rewind is enabled and ready for use
 
       m_rewind->setStuckSelection(false);
+#endif
+#endif
       break;
 
     case MPLAYER_FREWIND:    // Rewinding a media file
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
       m_state = MPLAYER_FREWIND;
 
       // List box is not available while rewinding
@@ -986,7 +1309,9 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
 
           // Pause image enabled and ready to stop rewinding
 
+#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
           m_pause->enable();
+#endif
           m_pause->show();
         }
       else
@@ -1002,13 +1327,16 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
           m_pause->hide();
         }
 
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
       // Fast forward image is enabled and ready for use
 
       m_fforward->setStuckSelection(false);
+#endif
 
       // Rewind image is enabled, highlighted, and ready for use
 
       m_rewind->setStuckSelection(true);
+#endif
       break;
 
     default:
@@ -1024,22 +1352,38 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
  * Set the new volume level based on the position of the volume slider.
  */
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 void CMediaPlayer::setVolumeLevel(void)
 {
   // Get the current volume level value.  This is already pre-scaled in the
   // range 0-100
 
   int newLevel =  m_volume->getValue();
+  if (newLevel < 0 || newLevel > 100)
+    {
+      dbg("ERROR: volume is out of range: %d\n", newLevel);
+    }
 
   // Has the volume level changed?
 
-  if (m_level != newLevel)
+  else if ((int)m_level != newLevel)
     {
       // Yes.. provide the new volume setting to the NX Player
-#warning Missing logic
-      m_level = newLevel;
+
+      int ret = nxplayer_setvolume(m_player, (uint16_t)newLevel);
+      if (ret < OK)
+        {
+          dbg("ERROR: nxplayer_setvolume failed: %d\n", ret);
+        }
+      else
+        {
+          // New volume set successfully.. save the new setting
+
+          m_level = (uint8_t)newLevel;
+        }
     }
 }
+#endif
 
 /**
  * Check if a new file has been selected (or de-selected) in the list box
@@ -1057,63 +1401,61 @@ void CMediaPlayer::checkFileSelection(void)
     {
       // No file is selected
 
+      m_fileReady = false;
       m_fileIndex = -1;
 
       // Nothing is selected.. If we are not stopped, then stop now
 
       if (m_state != MPLAYER_STOPPED)
         {
-          closeMediaFile();
+          // Stop playing.  Should be okay if m_state == MPLAYER_STAGED.
+          // We are not really playing yet, but NxPlayer should be able
+          // to handle that.
+
+          stopPlaying();
+
+          // Then go to the STOPPED state
+
           setMediaPlayerState(MPLAYER_STOPPED);
         }
     }
 
-  // A media file is selected.  Were stopped before?
+  // Ignore the file selection if it is the same file that was selected
+  // last time.
 
-  else if (m_state == MPLAYER_STOPPED)
+  else if (newFileIndex != m_fileIndex)
     {
-      // Yes.. open the new media file and go to the PAUSE state
+      // Remember the file selection
 
-      if (!openMediaFile(m_listbox->getSelectedOption()))
-        {
-          // Remain in the stopped state if we fail to open the file
+      m_fileIndex = newFileIndex;
 
-          m_fileIndex = -1;
-          gdbg("openMediaFile failed\n");
-        }
-      else
-        {
-          // And go to the PAUSED state (enabling the PLAY button)
+      // A media file is selected.  Were we in a STOPPED state before?
+      // Make sure that we are not already playing.  Should be okay if
+      // are in a STOPPED or STAGED state. We are not really playing
+      // yet those cases, but NxPlayer should be able to handle any
+      // spurious stops.
 
-          m_fileIndex = newFileIndex;
-          setMediaPlayerState(MPLAYER_PAUSED);
-        }
-    }
+      stopPlaying();
 
-  // We already have a media file loaded.  Is it the same file?
+      // Get the path to the newly selected file
 
-  else if (m_fileIndex != newFileIndex)
-    {
-      // No.. It is a new file.  Close that media file, load the newly
-      // selected file, and make sure that we are in the paused state
-      // (that should already be the case)
-
-      closeMediaFile();
-      if (!openMediaFile(m_listbox->getSelectedOption()))
+      if (!getMediaFile(m_listbox->getSelectedOption()))
         {
           // Go to the STOPPED state on a failure to open the media file
-          // The play button will be disabled because m_fileIndex == -1.
+          // The play button will be disabled because m_fileReady is false.
+          // No harm done if we were already STOPPED.
 
-          gdbg("openMediaFile failed\n");
-          m_fileIndex = -1;
+          dbg("ERROR: getMediaFile failed\n");
           setMediaPlayerState(MPLAYER_STOPPED);
         }
       else
         {
-          // And go to the PAUSED state (enabling the PLAY button)
+          // We have the file.  Go to the STAGED state (enabling the PLAY
+          // button).  NOTE that if for some reason this is the same file
+          // that we were already and playing, then playing will be
+          // restarted.
 
-          m_fileIndex = newFileIndex;
-          setMediaPlayerState(MPLAYER_PAUSED);
+          setMediaPlayerState(MPLAYER_STAGED);
         }
     }
 }
@@ -1140,7 +1482,7 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
 
   // These only make sense in non-STOPPED states
 
-  if (m_state != MPLAYER_STOPPED)
+  if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_STAGED)
     {
       // Check if the Pause image was clicked
 
@@ -1153,6 +1495,7 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
           m_pending = PENDING_PAUSE_RELEASE;
         }
 
+#ifndef CONFIG_AUDIO_EXCLUDE_REWIND
       // Check if the rewind image was clicked
 
       if (m_rewind->isClicked())
@@ -1164,19 +1507,37 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
               // Yes.. then revert to the previous play/pause state
               // REVISIT: Or just increase rewind speed?
 
-              setMediaPlayerState(m_prevState);
+              int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+              if (ret < 0)
+                {
+                  dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+                }
+              else
+                {
+                  setMediaPlayerState(m_prevState);
+                }
             }
 
-          // We should not be stopped here, but let's check anyway
+          // We should not be in a STOPPED state here, but let's check anyway
 
-          else if (m_state != MPLAYER_STOPPED)
+          else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_STAGED)
             {
               // Start rewinding
 
-              setMediaPlayerState(MPLAYER_FREWIND);
+              int ret = nxplayer_rewind(m_player, SUBSAMPLE_4X);
+              if (ret < 0)
+                {
+                  dbg("ERROR: nxplayer_rewind failed: %d\n", ret);
+                }
+              else
+                {
+                  setMediaPlayerState(MPLAYER_FREWIND);
+                }
             }
         }
+#endif
 
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
       // Check if the fast forward image was clicked
 
       if (m_fforward->isClicked())
@@ -1188,18 +1549,35 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
               // Yes.. then revert to the previous play/pause state
               // REVISIT: Or just increase fast forward  speed?
 
-              setMediaPlayerState(m_prevState);
+              int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+              if (ret < 0)
+                {
+                  dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+                }
+              else
+                {
+                  setMediaPlayerState(m_prevState);
+                }
             }
 
-          // We should not be stopped here, but let's check anyway
+          // We should not be in a STOPPED state here, but let's check anyway
 
-          else if (m_state != MPLAYER_STOPPED)
+          else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_STAGED)
             {
               // Start fast forwarding
 
-              setMediaPlayerState(MPLAYER_FFORWARD);
+              int ret = nxplayer_fforward(m_player, SUBSAMPLE_4X);
+              if (ret < 0)
+                {
+                  dbg("ERROR: nxplayer_fforward failed: %d\n", ret);
+                }
+              else
+                {
+                  setMediaPlayerState(MPLAYER_FFORWARD);
+                }
             }
         }
+#endif
     }
 }
 
@@ -1214,31 +1592,95 @@ void CMediaPlayer::handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e)
 
   if (m_pending == PENDING_PLAY_RELEASE && !m_play->isClicked())
     {
-      // Yes.. Now perform the delayed state change
+      // Yes.. Now perform the delayed state change.
       //
       // If we were previously STOPPED or PAUSED, then enter the PLAYING
       // state.
+      // If there is no selected file, then the play button does nothing
 
-      if (m_state == MPLAYER_STOPPED || m_state == MPLAYER_PAUSED)
+#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
+      if (m_state == MPLAYER_PAUSED)
         {
-          setMediaPlayerState(MPLAYER_PLAYING);
+          // Resume playing
+
+          int ret = nxplayer_resume(m_player);
+          if (ret < 0)
+            {
+              dbg("ERROR: nxplayer_resume() failed: %d\n", ret);
+            }
+          else
+            {
+              setMediaPlayerState(MPLAYER_PLAYING);
+            }
+        }
+      else if (m_state == MPLAYER_STAGED)
+#else
+      if (m_state == MPLAYER_STAGED || m_state == MPLAYER_PAUSED)
+#endif
+        {
+          // Has a file been selected?  If not the ignore the event
+
+          if (m_fileReady)
+            {
+              // Get the path to the file as a regular C-style string
+
+              NXWidgets::nxwidget_char_t *filePath =
+                new NXWidgets::nxwidget_char_t[m_filePath.getAllocSize()];
+
+              if (!filePath)
+                {
+                  dbg("ERROR: Failed to allocate file path\n");
+                  return;
+                }
+
+              m_filePath.copyToCharArray(filePath);
+
+              // And start playing
+
+              int ret = nxplayer_playfile(m_player, (FAR const char *)filePath,
+                                          AUDIO_FMT_UNDEF, AUDIO_FMT_UNDEF);
+              if (ret < 0)
+                {
+                  dbg("ERROR: nxplayer_playfile %s failed: %d\n", filePath, ret);
+                }
+              else
+                {
+                  setMediaPlayerState(MPLAYER_PLAYING);
+                }
+
+              delete[] filePath;
+            }
         }
 
-      // Ignore the event if we are already in the PLAYING state
+      // Ignore the event if (1) we are already in the PLAYING state, or (2)
+      // we are still in the STOPPED state (with no file selected).
 
-      else if (m_state != MPLAYER_PLAYING)
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+      // The remaining cases include only the FFORWARD and REWIND states
+
+      else if (m_state == MPLAYER_FFORWARD || m_state == MPLAYER_FREWIND)
         {
-          // Otherwise, we must be fast forwarding or rewinding.  In these
-          // cases, stop the action and return to the previous state
+          // In these states, stop the fast motion action and return to the
+          // previous state
 
-          setMediaPlayerState(m_prevState);
+          int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+          if (ret < 0)
+            {
+              dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+            }
+          else
+            {
+              setMediaPlayerState(m_prevState);
+            }
         }
+#endif
 
       // No longer any action pending the PLAY image release
 
       m_pending = PENDING_NONE;
     }
 
+#ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
   // Check if the Pause image was released
 
   else if (m_pending == PENDING_PAUSE_RELEASE && !m_pause->isClicked())
@@ -1249,23 +1691,46 @@ void CMediaPlayer::handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e)
 
       if (m_state == MPLAYER_PLAYING)
         {
-          setMediaPlayerState(MPLAYER_PAUSED);
+          // Pause playing
+
+          int ret = nxplayer_pause(m_player);
+          if (ret < 0)
+            {
+              dbg("ERROR: nxplayer_pause() failed: %d\n", ret);
+            }
+          else
+            {
+              setMediaPlayerState(MPLAYER_PAUSED);
+            }
         }
 
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
       // Ignore the event if we are already in the PAUSED or STOPPED states
 
-      else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_PAUSED)
+      else if (m_state != MPLAYER_STOPPED &&
+               m_state != MPLAYER_STAGED &&
+               m_state != MPLAYER_PAUSED)
         {
           // Otherwise, we must be fast forwarding or rewinding.  In these
           // cases, stop the action and return to the previous state
 
-          setMediaPlayerState(m_prevState);
+          int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+          if (ret < 0)
+            {
+              dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+            }
+          else
+            {
+              setMediaPlayerState(m_prevState);
+            }
         }
+#endif
 
       // No longer any action pending the PAUSE image release
 
       m_pending = PENDING_NONE;
     }
+#endif
 }
 
 /**
@@ -1286,7 +1751,9 @@ void CMediaPlayer::handleReleaseOutsideEvent(const NXWidgets::CWidgetEventArgs &
 
 void CMediaPlayer::handleValueChangeEvent(const NXWidgets::CWidgetEventArgs &e)
 {
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
   setVolumeLevel();
+#endif
   checkFileSelection();
 }
 
@@ -1313,7 +1780,7 @@ IApplication *CMediaPlayerFactory::create(void)
   CApplicationWindow *window = m_taskbar->openApplicationWindow();
   if (!window)
     {
-      gdbg("ERROR: Failed to create CApplicationWindow\n");
+      dbg("ERROR: Failed to create CApplicationWindow\n");
       return (IApplication *)0;
     }
 
@@ -1321,7 +1788,7 @@ IApplication *CMediaPlayerFactory::create(void)
 
   if (!window->open())
     {
-      gdbg("ERROR: Failed to open CApplicationWindow\n");
+      dbg("ERROR: Failed to open CApplicationWindow\n");
       delete window;
       return (IApplication *)0;
     }
@@ -1332,7 +1799,7 @@ IApplication *CMediaPlayerFactory::create(void)
   CMediaPlayer *mediaPlayer = new CMediaPlayer(m_taskbar, window);
   if (!mediaPlayer)
     {
-      gdbg("ERROR: Failed to instantiate CMediaPlayer\n");
+      dbg("ERROR: Failed to instantiate CMediaPlayer\n");
       delete window;
       return (IApplication *)0;
     }
