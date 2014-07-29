@@ -76,6 +76,8 @@
 #  endif
 #endif
 
+#define AUDIO_NSUBSAMPLES 4
+
 /********************************************************************************************
  * Private Types
  ********************************************************************************************/
@@ -83,6 +85,11 @@
 /********************************************************************************************
  * Private Data
  ********************************************************************************************/
+
+static const uint8_t g_motionSteps[AUDIO_NSUBSAMPLES] =
+{
+  AUDIO_SUBSAMPLE_2X, AUDIO_SUBSAMPLE_4X, AUDIO_SUBSAMPLE_8X, AUDIO_SUBSAMPLE_16X
+};
 
 /********************************************************************************************
  * Private Functions
@@ -118,6 +125,9 @@ CMediaPlayer::CMediaPlayer(CTaskbar *taskbar, CApplicationWindow *window)
   m_rewind         = (NXWidgets::CStickyImage *)0;
   m_fforward       = (NXWidgets::CStickyImage *)0;
   m_volume         = (NXWidgets::CGlyphSliderHorizontal *)0;
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  m_speed          = (NXWidgets::CLabel       *)0;
+#endif
 
   // Nullify bitmaps that will be instantiated when the window is started
 
@@ -136,6 +146,9 @@ CMediaPlayer::CMediaPlayer(CTaskbar *taskbar, CApplicationWindow *window)
   m_fileIndex      = -1;
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
   m_level          = 0;
+#endif
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  m_subSample      = 0;
 #endif
   m_fileReady      = false;
 
@@ -197,6 +210,13 @@ CMediaPlayer::~CMediaPlayer(void)
     {
       delete m_volume;
     }
+
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  if (m_speed)
+    {
+      delete m_speed;
+    }
+#endif
 
   // Destroy bitmaps
 
@@ -322,6 +342,9 @@ void CMediaPlayer::stop(void)
   m_rewind->disableDrawing();
   m_fforward->disableDrawing();
   m_volume->disableDrawing();
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  m_speed->disableDrawing();
+#endif
 }
 
 /**
@@ -1001,6 +1024,32 @@ bool CMediaPlayer::createPlayer(void)
   m_volume->addWidgetEventHandler(this);
 #endif
 
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  // Create the speed of motion indicator
+  // The bounding box is determined by the font size
+
+  nxgl_coord_t motionW = (nxgl_coord_t)(3 * m_font->getMaxWidth());
+  nxgl_coord_t motionH = (nxgl_coord_t)(m_font->getHeight());
+
+  // Horizontal position: aligned with the right size of volume slider
+  // Vertical postion: same as the motion controls
+
+  m_speed = new NXWidgets::CLabel(control,
+                                  volumeControlX + volumeControlW - motionW,
+                                  controlTop + (controlH - motionH) / 2,
+                                  motionW, motionH, "");
+
+  // Configure the speed indicator
+
+  m_speed->disableDrawing();
+  m_speed->setBorderless(true);
+  m_speed->setRaisesEvents(false);
+  m_speed->setFont(m_font);
+  m_speed->setTextAlignmentHoriz(NXWidgets::CLabel::TEXT_ALIGNMENT_HORIZ_RIGHT);
+  m_speed->setTextAlignmentVert(NXWidgets::CLabel::TEXT_ALIGNMENT_VERT_CENTER);
+  m_speed->hide();
+#endif
+
   // Make sure that all widgets are setup for the STOPPED state.  Among other this,
   // this will enable drawing in the play widget (only)
 
@@ -1088,6 +1137,11 @@ void CMediaPlayer::redrawWidgets(void)
   m_fforward->enableDrawing();
   m_fforward->redraw();
 
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  m_speed->enableDrawing();
+  m_speed->redraw();
+#endif
+
   m_volume->enableDrawing();
   m_volume->redraw();
 }
@@ -1137,9 +1191,9 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       m_rewind->disable();
       m_rewind->setStuckSelection(false);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
       // Volume slider is available
 
-#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
       m_volume->enable();
 #endif
       break;
@@ -1172,9 +1226,9 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       m_rewind->disable();
       m_rewind->setStuckSelection(false);
 
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
       // Volume slider is available
 
-#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
       m_volume->enable();
 #endif
       break;
@@ -1343,6 +1397,12 @@ void CMediaPlayer::setMediaPlayerState(enum EMediaPlayerState state)
       break;
     }
 
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+  // Update the motion indicator for the new state
+
+  updateMotionIndicator();
+#endif
+
   // Re-enable drawing and redraw all widgets for the new state
 
   redrawWidgets();
@@ -1461,6 +1521,57 @@ void CMediaPlayer::checkFileSelection(void)
 }
 
 /**
+ * Update fast forward/rewind speed indicator.  Called on each state change
+ * and after each change in the speed of motion.
+ */
+
+#if !defined(CONFIG_AUDIO_EXCLUDE_FFORWARD) || !defined(CONFIG_AUDIO_EXCLUDE_REWIND)
+void CMediaPlayer::updateMotionIndicator(void)
+{
+  m_speed->disableDrawing();
+  if (m_state == MPLAYER_FFORWARD || m_state == MPLAYER_FREWIND)
+    {
+      // Set the new speed string
+
+      char buffer[8];
+      (void)std::snprintf(buffer, 8, "%dX", g_motionSteps[m_subSample]);
+
+      NXWidgets::CNxString speed(buffer);
+      m_speed->setText(speed);
+
+      // Show (un-hide) the speed indicator
+
+      m_speed->show();
+
+      // Redraw the speed indicator
+
+      m_speed->enableDrawing();
+      m_speed->redraw();
+    }
+
+  // No, then the speed indicator should be hidden.  But don't redraw if
+  // it is already hidden
+
+  else if (!m_speed->isHidden())
+    {
+      // Clear the new speed string
+
+      NXWidgets::CNxString nospeed("");
+      m_speed->setText(nospeed);
+
+      // Redraw the empty speed indicator
+
+      m_speed->enableDrawing();
+      m_speed->redraw();
+
+      // Hide the speed indicator
+
+      m_speed->hide();
+    }
+}
+#endif
+
+/**
  * Handle a widget action event.  For this application, that means image
  * pre-release events.
  *
@@ -1504,27 +1615,35 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
 
           if (m_state == MPLAYER_FREWIND)
             {
-              // Yes.. then revert to the previous play/pause state
-              // REVISIT: Or just increase rewind speed?
+              // Yes.. then just increase rewind rate (by specifying a
+              // higher level of sub-sampling)
 
-              int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+              m_subSample++;
+              if (m_subSample >= AUDIO_NSUBSAMPLES)
+                {
+                  m_subSample = 0;
+                }
+
+              int ret = nxplayer_rewind(m_player, g_motionSteps[m_subSample]);
               if (ret < 0)
                 {
-                  dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+                  dbg("ERROR: nxplayer_rewind failed: %d\n", ret);
                 }
-              else
-                {
-                  setMediaPlayerState(m_prevState);
-                }
+
+              // Update the speed indicator
+
+              updateMotionIndicator();
             }
 
           // We should not be in a STOPPED state here, but let's check anyway
 
           else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_STAGED)
             {
-              // Start rewinding
+              // Start rewinding at the minimum rate
 
-              int ret = nxplayer_rewind(m_player, SUBSAMPLE_4X);
+              m_subSample = 0;
+
+              int ret = nxplayer_rewind(m_player, g_motionSteps[m_subSample]);
               if (ret < 0)
                 {
                   dbg("ERROR: nxplayer_rewind failed: %d\n", ret);
@@ -1546,27 +1665,35 @@ void CMediaPlayer::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
 
           if (m_state == MPLAYER_FFORWARD)
             {
-              // Yes.. then revert to the previous play/pause state
-              // REVISIT: Or just increase fast forward  speed?
+              // Yes.. then just increase fast forward rate (by specifying a
+              // level level of sub-sampling)
 
-              int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
+              m_subSample++;
+              if (m_subSample >= AUDIO_NSUBSAMPLES)
+                {
+                  m_subSample = 0;
+                }
+
+              int ret = nxplayer_fforward(m_player, g_motionSteps[m_subSample]);
               if (ret < 0)
                 {
-                  dbg("ERROR: nxplayer_cancel_motion failed: %d\n", ret);
+                  dbg("ERROR: nxplayer_fforward failed: %d\n", ret);
                 }
-              else
-                {
-                  setMediaPlayerState(m_prevState);
-                }
+
+              // Update the speed indicator
+
+              updateMotionIndicator();
             }
 
           // We should not be in a STOPPED state here, but let's check anyway
 
           else if (m_state != MPLAYER_STOPPED && m_state != MPLAYER_STAGED)
             {
-              // Start fast forwarding
+              // Start fast forwarding at the minimum rate
 
-              int ret = nxplayer_fforward(m_player, SUBSAMPLE_4X);
+              m_subSample = 0;
+
+              int ret = nxplayer_fforward(m_player, g_motionSteps[m_subSample]);
               if (ret < 0)
                 {
                   dbg("ERROR: nxplayer_fforward failed: %d\n", ret);
@@ -1663,6 +1790,8 @@ void CMediaPlayer::handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e)
           // In these states, stop the fast motion action and return to the
           // previous state
 
+          m_subSample = 0;
+
           int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
           if (ret < 0)
             {
@@ -1713,6 +1842,8 @@ void CMediaPlayer::handleReleaseEvent(const NXWidgets::CWidgetEventArgs &e)
         {
           // Otherwise, we must be fast forwarding or rewinding.  In these
           // cases, stop the action and return to the previous state
+
+          m_subSample = 0;
 
           int ret = nxplayer_cancel_motion(m_player, m_prevState == MPLAYER_PAUSED);
           if (ret < 0)

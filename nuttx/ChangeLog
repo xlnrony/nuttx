@@ -7847,6 +7847,24 @@
 	  improvements (2014-7-26)
 	* arch/arm/src/armv7-a/Kconfig: L2 Cache currently depends on
 	  EXPERIMENTAL because it does not yet work properly (2014-7-26).
-	* include/nuttx/audio/audio.h: Move subsampling rate definitions from
+	* include/nuttx/audio/audio.h: Move sub-sampling rate definitions from
 	  nxplayer.h to audio.h (2014-7-17).
-
+	* audio/pcm_decode.c: PCM: First cut at fast forward by sub-sampling.
+	  This design is overkill:  It manages too many audio buffers.  I think
+	  that a cleaner design could do all sub-sampling in place without
+	  managing additional audio buffers (2014-7-27).
+	* drivers/audio/audio_null.c:  Was not returning buffers to the upper
+	  level (2014-7-27)
+	* include/nuttx/audio/audio.h and audio/pcm_decode.c: Misc bugfixes
+	  while integrating fast forward by sub-sampling (2014-7-27).
+	* audio/pcm_decode.c: Back out a change; the fix really belongs in
+	  NxPlayer. (2014-7-27).
+	* arch/arm/src/lpc17xx/lpc17_adc.c and arch/arm/src/lpc17xx/lpc17_ethernet.c:
+	  ADC updates from Max.  Also fixes some syntax errors that I introduced in
+	  the last commit (2014-7-28).
+	* audio/pcm_decode.c:  Fix a logic error in a DEBUG assertion (2014-7-28).
+	* configs/sama5d4-ek/src/sam_pmic.c, dram_main.c, sama5d4-ek.h, Makefile.
+	  Add logic to disable the faulty PMIC.  This must be done with JP23 open.
+	  It is performed only from the DRAMBOOT loader (2014-7-28).
+	* drivers/audio/wm8904.c: Fix some compile problems with the WM8904 driver
+	  due to recent audio subsystem changes (2014-7-28).

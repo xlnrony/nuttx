@@ -62,9 +62,19 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
 /* Configuration ************************************************************/
+
 #define CONFIG_PCM_DEBUG 1 /* For now */
+
+/* Often defined and re-defined macros */
+
+#ifndef MIN
+#  define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#  define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
 
 /****************************************************************************
  * Private Types
@@ -103,17 +113,20 @@ struct pcm_decode_s
 
   /* These are values extracted from WAV file header */
 
-  uint32_t samprate;      /* 8000, 44100, ... */
-  uint32_t byterate;      /* samprate * nchannels * bpsamp / 8 */
-  uint8_t  align;         /* nchannels * bpsamp / 8 */
-  uint8_t  bpsamp;        /* Bits per sample: 8 bits = 8, 16 bits = 16 */
-  uint8_t  nchannels;     /* Mono=1, Stereo=2 */
+  uint32_t samprate;               /* 8000, 44100, ... */
+  uint32_t byterate;               /* samprate * nchannels * bpsamp / 8 */
+  uint8_t  align;                  /* nchannels * bpsamp / 8 */
+  uint8_t  bpsamp;                 /* Bits per sample: 8 bits = 8, 16 bits = 16 */
+  uint8_t  nchannels;              /* Mono=1, Stereo=2 */
+  bool     streaming;              /* Streaming PCM data chunk */
 
-  /* Set to true once we have parse a valid header and have begun stream
-   * audio.
-   */
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+  /* Fast forward support */
 
-  bool streaming;
+  uint8_t  subsample;              /* Fast forward rate: See AUDIO_SUBSAMPLE_* defns */
+  uint8_t  skip;                   /* Number of sample bytes to be skipped */
+  uint8_t  npartial;               /* Size of the partially copied sample */
+#endif
 };
 
 /****************************************************************************
@@ -138,6 +151,13 @@ static uint16_t pcm_leuint32(uint32_t value);
 
 static inline bool pcm_validwav(FAR const struct wav_header_s *wav);
 static bool pcm_parsewav(FAR struct pcm_decode_s *priv, uint8_t *data);
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+static void pcm_subsample_configure(FAR struct pcm_decode_s *priv,
+              uint8_t subsample);
+static void pcm_subsample(FAR struct pcm_decode_s *priv,
+              FAR struct ap_buffer_s *apb);
+#endif
 
 /* struct audio_lowerhalf_s methods *****************************************/
 
@@ -368,12 +388,274 @@ static bool pcm_parsewav(FAR struct pcm_decode_s *priv, uint8_t *data)
       priv->align       = localwav.fmt.align;     /* nchannels * bpsamp / 8 */
       priv->bpsamp      = localwav.fmt.bpsamp;    /* Bits per sample: 8 bits = 8, 16 bits = 16 */
       priv->nchannels   = localwav.fmt.nchannels; /* Mono=1, Stereo=2 */
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+      /* We are going to subsample, there then are some restrictions on the
+       * number of channels and sample sizes that we can handle.
+       */
+
+      if (priv->bpsamp != 8 && priv->bpsamp != 16)
+        {
+          auddbg("ERROR: Cannot support bits per sample of %d in this mode\n",
+                 priv->bpsamp);
+          return -EINVAL;
+        }
+
+      if (priv->nchannels != 1 && priv->nchannels != 2)
+        {
+          auddbg("ERROR: Cannot support number of channles of %d in this mode\n",
+                 priv->nchannels);
+          return -EINVAL;
+        }
+
+      DEBUGASSERT(priv->align == priv->nchannels * priv->bpsamp / 8);
+#endif
     }
 
   /* And return true if the the file is a valid WAV header file */
 
   return ret;
 }
+
+/****************************************************************************
+ * Name: pcm_subsample_configure
+ *
+ * Description:
+ *   Configure to perform sub-sampling (or not) on the following audio
+ *   buffers.
+ *
+ ****************************************************************************/
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+static void pcm_subsample_configure(FAR struct pcm_decode_s *priv,
+                                    uint8_t subsample)
+{
+  audvdbg("subsample: %d\n", subsample);
+
+  /* Three possibilities:
+   *
+   * 1. We were playing normally and we have been requested to begin fast
+   *    forwarding.
+   */
+
+  if (priv->subsample == AUDIO_SUBSAMPLE_NONE)
+    {
+      /* Ignore request to stop fast forwarding if we are already
+       * fast forwarding.
+       */
+
+      if (subsample != AUDIO_SUBSAMPLE_NONE)
+        {
+          audvdbg("Start sub-sampling\n");
+
+          /* Save the current subsample setting. Subsampling will begin on
+           * then next audio buffer that we receive.
+           */
+
+          priv->npartial  = 0;
+          priv->skip      = 0;
+          priv->subsample = subsample;
+        }
+    }
+
+  /* 2. Were already fast forwarding and we have been asked to change the
+   *    sub-sampling rate.
+   */
+
+  else if (subsample != AUDIO_SUBSAMPLE_NONE)
+    {
+      /* Just save the current subsample setting.  It will take effect
+       * on the next audio buffer that we receive.
+       */
+
+       priv->subsample = subsample;
+    }
+
+  /* 3. We were already fast forwarding and we have been asked to return to
+   *    normal play.
+   */
+
+  else if (subsample != AUDIO_SUBSAMPLE_NONE)
+    {
+      audvdbg("Stop sub-sampling\n");
+
+      /* Indicate that we are in normal play mode.  This will take effect
+       * when the next audio buffer is received.
+       */
+
+      priv->npartial  = 0;
+      priv->skip      = 0;
+      priv->subsample = AUDIO_SUBSAMPLE_NONE;
+    }
+}
+#endif
+
+/****************************************************************************
+ * Name: pcm_subsample
+ *
+ * Description:
+ *   Given a newly received audio buffer, perform sub-sampling in-place in
+ *   the audio buffer.  Since the sub-sampled data will always be smaller
+ *   than the original buffer, no additional buffering should be necessary.
+ *
+ ****************************************************************************/
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+static void pcm_subsample(FAR struct pcm_decode_s *priv,
+                          FAR struct ap_buffer_s *apb)
+{
+  FAR const uint8_t *src;
+  FAR uint8_t *dest;
+  unsigned int destsize;
+  unsigned int srcsize;
+  unsigned int skipsize;
+  unsigned int copysize;
+  unsigned int i;
+
+  /* Are we sub-sampling? */
+
+  if (priv->subsample == AUDIO_SUBSAMPLE_NONE)
+    {
+      /* No.. do nothing to the buffer */
+
+      return;
+    }
+
+  /* Yes.. we will need to subsample the newly received buffer in-place by
+   * copying from the upper end of the buffer to the lower end.
+   */
+
+  src  = &apb->samp[apb->curbyte];
+  dest = apb->samp;
+
+  srcsize  = apb->nbytes - apb->curbyte;
+  destsize = apb->nmaxbytes;
+
+  /* This is the number of bytes that we need to skip between samples */
+
+  skipsize = priv->align * (priv->subsample - 1);
+
+  /* Let's deal with any partial samples from the last buffer */
+
+  if (priv->npartial > 0)
+    {
+      /* Let's get an impossible corner case out of the way.  What if we
+       * received a tiny audio buffer.  So small, that it (plus any previous
+       * sample) is smaller than one sample.
+       */
+
+      if (priv->npartial + srcsize < priv->align)
+        {
+          /* Update the partial sample size and return the unmodified
+           * buffer.
+           */
+
+          priv->npartial += srcsize;
+          return;
+        }
+
+      /* We do at least have enough to complete the sample.  If this data
+       * does not resides at the correct position at the from of the audio
+       * buffer, then we will need to copy it.
+       */
+
+      copysize = priv->align - priv->npartial;
+      if (apb->curbyte > 0)
+        {
+          /* We have to copy down */
+
+          for (i = 0; i < copysize; i++)
+            {
+              *dest++ = *src++;
+            }
+        }
+      else
+        {
+          /* If the data is already position at the beginning of the audio
+           * buffer, then just increment the buffer pointers around the
+           * data.
+           */
+
+          src  += copysize;
+          dest += copysize;
+        }
+
+      /* Update the number of bytes in the working buffer and reset the
+       * skip value
+       */
+
+      priv->npartial = 0;
+      srcsize       -= copysize;
+      destsize      -= copysize;
+      priv->skip     = skipsize;
+    }
+
+  /* Now loop until either the entire audio buffer has been sub-sampling.
+   * This copy in place works because we know that the sub-sampled data
+   * will always be smaller than the original data.
+   */
+
+  while (srcsize > 0)
+    {
+      /* Do we need to skip ahead in the buffer? */
+
+      if (priv->skip > 0)
+        {
+          /* How much can we skip in this buffer?  Depends on the smaller
+           * of (1) the number of bytes that we need to skip and (2) the
+           * number of bytes available in the newly received audio buffer.
+           */
+
+          copysize    = MIN(priv->skip, srcsize);
+
+          priv->skip -= copysize;
+          src        += copysize;
+          srcsize    -= copysize;
+        }
+
+      /* Copy the sample from the audio buffer into the working buffer. */
+
+      else
+        {
+          /* Do we have space for the whole sample? */
+
+          if (srcsize < priv->align)
+            {
+              /* No.. this is a partial copy */
+
+              copysize       = srcsize;
+              priv->npartial = srcsize;
+            }
+          else
+            {
+              /* Copy the whole sample and re-arm the skip size */
+
+              copysize       = priv->align;
+              priv->skip     = skipsize;
+            }
+
+          /* Now copy the sample from the end of audio buffer to the beginning. */
+
+          for (i = 0; i < copysize; i++)
+            {
+              *dest++ = *src++;
+            }
+
+          /* Updates bytes available in the source buffer and bytes
+           * remaining in the destination buffer.
+           */
+
+          srcsize  -= copysize;
+          destsize -= copysize;
+        }
+    }
+
+  /* Update the size and offset data in the audio buffer */
+
+  apb->curbyte = 0;
+  apb->nbytes  = apb->nmaxbytes - destsize;
+}
+#endif
 
 /****************************************************************************
  * Name: pcm_getcaps
@@ -450,7 +732,26 @@ static int pcm_configure(FAR struct audio_lowerhalf_s *dev,
 
   DEBUGASSERT(priv);
 
-  /* Defer the operation to the lower device driver */
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+  /* Pick off commands to perform sub-sampling.  Those are done by this
+   * decoder.  All of configuration settings are handled by the lower level
+   * audio driver.
+   */
+
+  if (caps->ac_type == AUDIO_TYPE_PROCESSING &&
+      caps->ac_format.hw == AUDIO_PU_SUBSAMPLE_FORWARD)
+    {
+      /* Configure sub-sampling and return to avoid forwarding the
+       * configuration to the lower level
+       * driver.
+       */
+
+      pcm_subsample_configure(priv, caps->ac_controls.b[0]);
+      return OK;
+    }
+#endif
+
+  /* Defer all other operations to the lower device driver */
 
   lower = priv->lower;
   DEBUGASSERT(lower && lower->ops->configure);
@@ -724,7 +1025,18 @@ static int pcm_enqueuebuffer(FAR struct audio_lowerhalf_s *dev,
 
   if (priv->streaming)
     {
-      /* Yes, just give the buffer to the lower driver */
+      /* Yes, we are streaming */
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+      audvdbg("Received: apb=%p curbyte=%d nbytes=%d\n",
+              apb, apb->curbyte, apb->nbytes);
+
+      /* Perform any necessary sub-sampling operations */
+
+      pcm_subsample(priv, apb);
+#endif
+
+      /* Then give the audio buffer to the lower driver */
 
       audvdbg("Pass to lower enqueuebuffer: apb=%p curbyte=%d nbytes=%d\n",
               apb, apb->curbyte, apb->nbytes);
@@ -778,9 +1090,21 @@ static int pcm_enqueuebuffer(FAR struct audio_lowerhalf_s *dev,
               return ret;
             }
 
-          /* Bump up the data offset and pass the buffer to the lower level */
+          /* Bump up the data offset */
 
           apb->curbyte += sizeof(struct wav_header_s);
+
+#ifndef CONFIG_AUDIO_EXCLUDE_FFORWARD
+          audvdbg("Begin streaming: apb=%p curbyte=%d nbytes=%d\n",
+                  apb, apb->curbyte, apb->nbytes);
+
+          /* Perform any necessary sub-sampling operations */
+
+          pcm_subsample(priv, apb);
+#endif
+
+          /* Then give the audio buffer to the lower driver */
+
           audvdbg("Pass to lower enqueuebuffer: apb=%p curbyte=%d nbytes=%d\n",
                   apb, apb->curbyte, apb->nbytes);
 
@@ -949,19 +1273,22 @@ static int pcm_release(FAR struct audio_lowerhalf_s *dev)
  *
  ****************************************************************************/
 
-/* Audio callback */
-
 #ifdef CONFIG_AUDIO_MULTI_SESSION
 static void pcm_callback(FAR void *arg, uint16_t reason,
-              FAR struct ap_buffer_s *apb, uint16_t status,
-              FAR void *session)
+                         FAR struct ap_buffer_s *apb, uint16_t status,
+                         FAR void *session)
 #else
 static void pcm_callback(FAR void *arg, uint16_t reason,
-              FAR struct ap_buffer_s *apb, uint16_t status)
+                         FAR struct ap_buffer_s *apb, uint16_t status)
+#endif
 {
   FAR struct pcm_decode_s *priv = (FAR struct pcm_decode_s *)arg;
 
-  /* Just forward the event to our upper half (I know, too many halves) */
+  DEBUGASSERT(priv && priv->export.upper);
+
+  /* The buffer belongs to to an upper level.  Just forward the event to
+   * the next level up.
+   */
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
   priv->export.upper(priv->export.priv, reason, apb, status, session);
@@ -969,7 +1296,6 @@ static void pcm_callback(FAR void *arg, uint16_t reason,
   priv->export.upper(priv->export.priv, reason, apb, status);
 #endif
 }
-#endif
 
 /****************************************************************************
  * Public Functions
