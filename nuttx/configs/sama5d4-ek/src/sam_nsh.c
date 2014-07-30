@@ -86,8 +86,9 @@
 
 int nsh_archinitialize(void)
 {
-#if defined(HAVE_NAND) || defined(HAVE_AT25) || defined(HAVE_HSMCI) || \
-    defined(HAVE_USBHOST) || defined(HAVE_USBMONITOR) || defined(HAVE_WM8904)
+#if defined(HAVE_NAND)    || defined(HAVE_AT25)       || defined(HAVE_HSMCI)  || \
+    defined(HAVE_USBHOST) || defined(HAVE_USBMONITOR) || defined(HAVE_WM8904) || \
+    defined(HAVE_AUTOMOUNTER)
   int ret;
 #endif
 
@@ -133,6 +134,12 @@ int nsh_archinitialize(void)
               HSMCI1_SLOTNO, HSMCI1_MINOR, ret);
     }
 #endif
+#endif
+
+#ifdef HAVE_AUTOMOUNTER
+  /* Initialize the auto-mounter */
+
+  sam_automount_initialize();
 #endif
 
 #ifdef HAVE_USBHOST
