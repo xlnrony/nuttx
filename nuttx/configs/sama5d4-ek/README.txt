@@ -560,8 +560,8 @@ Running NuttX from SDRAM
   advance but instead has to be calculated from the bootloader PLL configuration.
   See the TODO list at the end of this file for further information.
 
-NuttX Configuration
--------------------
+  NuttX Configuration
+  -------------------
 
   In order to run from SDRAM, NuttX must be built at origin 0x20008000 in
   SDRAM (skipping over SDRAM memory used by the bootloader).  The following
@@ -577,8 +577,8 @@ NuttX Configuration
   SDRAM.  Since NuttX is already running from SDRAM, it must accept the SDRAM
   configuration as set up by the bootloader.
 
-Boot sequence
--------------
+  Boot sequence
+  -------------
 
   Reference: http://www.at91.com/linux4sam/bin/view/Linux4SAM/GettingStarted
 
@@ -606,8 +606,8 @@ Boot sequence
 
    4. Then NuttX runs from SDRAM
 
-NAND FLASH Memory Map
----------------------
+  NAND FLASH Memory Map
+  ---------------------
 
   Reference: http://www.at91.com/linux4sam/bin/view/Linux4SAM/GettingStarted
 
@@ -619,8 +619,8 @@ NAND FLASH Memory Map
   0x0020:0000 - 0x007f:ffff: NuttX
   0x0080:0000 - end:         Available for use as a NAND file system
 
-Programming the AT91Boostrap Binary
------------------------------------
+  Programming the AT91Boostrap Binary
+  -----------------------------------
 
   Reference: http://www.at91.com/linux4sam/bin/view/Linux4SAM/AT91Bootstrap
 
@@ -664,8 +664,8 @@ Programming the AT91Boostrap Binary
      at91bootstrap binary file and to program the binary to the NandFlash.
    - Close SAM-BA, remove the USB Device cable.
 
-Programming U-Boot
--------------------
+  Programming U-Boot
+  -------------------
 
   Reference http://www.at91.com/linux4sam/bin/view/Linux4SAM/U-Boot
 
@@ -709,8 +709,8 @@ Programming U-Boot
 
   You should now be able to interrupt with U-Boot vie the DBGU interface.
 
-Load NuttX with U-Boot on AT91 boards
--------------------------------------
+  Load NuttX with U-Boot on AT91 boards
+  -------------------------------------
 
   Reference http://www.at91.com/linux4sam/bin/view/Linux4SAM/U-Boot
 
@@ -1592,7 +1592,10 @@ HSMCI Card Slots
 Auto-Mounter
 ============
 
-  NuttX implements an auto-mounter than can make working with SD cards easier.  With the auto-mounter, the file system will be automatically mounted when the SD card in the SD card is inserted into the HSMCI slot and automatically unmounted when the SD card is removed.
+  NuttX implements an auto-mounter than can make working with SD cards
+  easier.  With the auto-mounter, the file system will be automatically
+  mounted when the SD card is inserted into the HSMCI slot and automatically
+  unmounted when the SD card is removed.
 
   Here is a sample configuration for the auto-mounter:
 
@@ -1606,6 +1609,13 @@ Auto-Mounter
       CONFIG_SAMA5D4EK_HSMCI0_AUTOMOUNT_MOUNTPOINT="/mnt/sdcard"
       CONFIG_SAMA5D4EK_HSMCI0_AUTOMOUNT_DDELAY=1000
       CONFIG_SAMA5D4EK_HSMCI0_AUTOMOUNT_UDELAY=2000
+
+  WARNING:  SD cards should never be removed without first unmounting
+  them.  This is to avoid data and possible corruption of the file
+  system.  Certainly this is the case if you are writing to the SD card
+  at the time of the removal.  If you use the SD card for read-only access,
+  however, then I cannot think of any reason why removing the card without
+  mounting would be harmful.
 
 USB Ports
 =========
@@ -2995,7 +3005,7 @@ TM7000 LCD/Touchscreen
     CONFIG_NX_DISABLE_32BPP=y
 
     Graphics Support -> Input Devices ->
-    CONFIG_NX_XYINPUT=y                      : Build in mouse/touchscreen support (not used)
+    CONFIG_NX_XYINPUT=y                    : Build in mouse/touchscreen support (not used)
     CONFIG_NX_KBD=y                        : Build in keyboard support (not used)
 
     Graphics Support -> Framed Window Borders ->
@@ -3782,16 +3792,6 @@ Configurations
        The auto-mounter is also enabled.  See the section above entitled
        "Auto-Mounter".
 
-       STATUS:  Seems to be completely functional.  TX DMA is currently
-       disabled; there was a problem at one time but that has probably
-       been fixed.  HSCMI with TX DMA re-enabled needs to be verified.
-
-       There does seem to be an issue with removing then re-inserting
-       an SD card.  In that case, the SD card will fail to mount the
-       when the card is re-inserted.  Hopefully this problem will be
-       fixed before you read this (in which case, I forgot to remove
-       this note).
-
    13. Networking is supported via EMAC0.  See the "Networking" section
        above for detailed configuration settings.  DHCP is not used in
        this configuration; rather, a hard-coded IP address of 10.0.0.2 is
@@ -3893,7 +3893,7 @@ Configurations
 
    19. NxPlayer
 
-       This configuration has the command NxPlayer enabled.  That player is still a work in progress and is only tested as of this writing.
+       This configuration has the command line NxPlayer enabled.
 
        At present, the the WM8904 driver is not included in the
        configuration.  Instead the "NULL" audio device in built in to
@@ -3918,7 +3918,7 @@ Configurations
 
               nsh> mount -t vfat /dev/mmcsd0 /mnt/sdcard
 
-            NOTE:  The automatically is enabled by default in this
+            NOTE:  The auto-mounter is enabled by default in this
             configuration.
 
          c. Then you can run the media player like:
@@ -4060,30 +4060,27 @@ Configurations
        recognized.
 
        The USB keyboard is configured to replace the NSH stdin device some
-       that NSH will take input from the USB keyboard.  These are the
-       relevant configuration options:
+       that NSH will take input from the USB keyboard.  This has to be
+       done a little differently for the case of NxWM::CNxConsoles than
+       in the standard NSH configuration.  Here the relevant configuration
+       options are:
 
-         CONFIG_NSH_USBKBD=y
-         CONFIG_NSH_USBKBD_DEVNAME="/dev/kbda"
+         CONFIG_NXWM_KEYBOARD_USBHOST=y
+         CONFIG_NXWM_KEYBOARD_DEVPATH="/dev/kbda"
 
-       When NSH comes up, it will attempt to open /dev/kbda and replace
-       stdin with that device.  If no USB keyboard is connected when you
-       start the NxConsole, you will see:
-
-         Waiting for a keyboard...
-
-       NSH will then automatically start when the keyboard is attached:
+       NSH will then automatically start when the NxConsole is started:
 
          NuttShell (NSH) NuttX-7.3
          nsh>
 
-       If the keyboard is detached, NSH will stop and wait for you to
-       re-attach the keyboard:
+       When the NxConsole comes up, it will attempt to use /dev/kbda device
+       for input.  Obviously, you cannot enter text if there is no keyboard
+       but otherwise you will not see any indication whether a keyboard is
+       connected or not.
 
-         nsh> nsh: nsh_session: readline failed: 1
-         Please re-connect the keyboard...
-
-       And the session will restart when the keyboard is reconnected.
+       If the keyboard is detached, you not be able to enter text until the
+       keyboard is reconnected.  Again, there is no other special indication
+       of the keyboard state.
 
        The keyboard is currently configured to poll at 80 MSec intervals.
        That might not be fast enough for you if you are a fast typist.  This
@@ -4114,8 +4111,12 @@ Configurations
             writing).  That SD card should be inserted in the HSMCI0 media
             slot A (best done before powering up).
 
-         b. Then from NSH prompt, you need to mount the media volume from
-            an NSH session like:
+         b. If the NuttX auto-mounter is enabled and properly configured,
+            then the FAT file system appear at /mnt/sdcard.  If the auto-
+            mounter is not enabled, then you need to perform the following
+            steps to manually mount the FAT file system:
+
+             Then from NSH prompt, you need to mount the media volume like:
 
               nsh> mount -t vfat /dev/mmcsd0 /mnt/sdcard
 
@@ -4132,10 +4133,8 @@ Configurations
               nsh> exit
               Connection closed by foreign host.
 
-            NOTE:  The SAMA5D4-EK board support allows an application to
-            connect to the SD card detect signal.  That application could
-            then auto-mount the SD card.  The capability is, however, not
-            implemented in this demo.
+            NOTE:  The auto-mounter is enabled by default in this
+            configuration.
 
          c. Then if you close the old media player window and bring up a
             new one, you should see the .WAV files on the SD card in the lis
@@ -4216,14 +4215,10 @@ To-Do List
    endpoint support in the EHCI driver is untested (but works in similar
    EHCI drivers).
 
-2) HSCMI TX DMA support is currently commented out.  There were problems at
-   one time (on the SAMA5D3) and the temporary workaround was simply to
-   disable TX DMA.  There have been several fixes to both HSMCI and DMA
-   support since then and TX DMA is very likely okay now.  But this needs
-   to be verified by re-enabled HSMCI TX DMA.
-
-   Also, CONFIG_MMCSD_MULTIBLOCK_DISABLE=y is set to disable multi-block
-   transfers.
+2) HSCMI. CONFIG_MMCSD_MULTIBLOCK_DISABLE=y is set to disable multi-block
+   transfers because of some issues that I saw during testing.  The is very
+   low priority to me but might be important to you if you are need very
+   high performance SD card accesses.
 
 3) There is a kludge in place in the Ethernet code to work around a problem
    that I see.  The problem that I see is as follows:

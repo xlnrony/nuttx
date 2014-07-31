@@ -328,14 +328,15 @@ static int automount_unmount(FAR struct automounter_state_s *priv)
             }
         }
 
-      /* Successfully unmounted */
-
-      priv->mounted = false;
-      return OK;
+      /* Fall through */
 
     case OK_NOENT:
-      /* I suppose this is okay */
+      /* The mountpoint is not present.  This is normal behavior in the
+       * case where the user manually un-mounted the volume before removing
+       * media.  Nice job, Mr. user.
+       */
 
+      priv->mounted = false;
       return OK;
 
     default:
@@ -387,7 +388,7 @@ static void automount_timeout(int argc, uint32_t arg1, ...)
   ret = work_queue(LPWORK, &priv->work, automount_worker, priv, 0);
   if (ret < 0)
     {
-      /* NOTE: Currently, work_cancel only returns success */
+      /* NOTE: Currently, work_queue only returns success */
 
       fdbg("ERROR: Failed to schedule work: %d\n", ret);
     }
@@ -501,7 +502,7 @@ static int automount_interrupt(FAR const struct automount_lower_s *lower,
                    priv->lower->ddelay);
   if (ret < 0)
     {
-      /* NOTE: Currently, work_cancel only returns success */
+      /* NOTE: Currently, work_queue only returns success */
 
       fdbg("ERROR: Failed to schedule work: %d\n", ret);
     }
@@ -579,7 +580,7 @@ FAR void *automount_initialize(FAR const struct automount_lower_s *lower)
                    priv->lower->ddelay);
   if (ret < 0)
     {
-      /* NOTE: Currently, work_cancel only returns success */
+      /* NOTE: Currently, work_queue only returns success */
 
       fdbg("ERROR: Failed to schedule work: %d\n", ret);
     }
