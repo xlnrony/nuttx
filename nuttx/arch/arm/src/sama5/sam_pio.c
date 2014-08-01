@@ -2,7 +2,7 @@
  * arch/arm/src/sama5/sam_pio.c
  * General Purpose Input/Output (PIO) logic for the SAMA5
  *
- *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,7 +245,7 @@ static void sam_pio_disableclk(pio_pinset_t cfgset)
     {
       /* Get the base address of the PIO port */
 
-      base = g_piobase[port];
+      base = sam_pion_vbase(port);
 
       /* Are any pins configured as PIO inputs?
        *

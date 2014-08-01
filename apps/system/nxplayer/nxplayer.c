@@ -1,8 +1,15 @@
 /****************************************************************************
  * apps/system/nxplayer/nxplayer.c
  *
+ * Developed by:
+ *
  *   Copyright (C) 2013 Ken Pettit. All rights reserved.
  *   Author: Ken Pettit <pettitkd@gmail.com>
+ *
+ * With ongoing support:
+ *
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
+ *   Author: Greory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -482,24 +489,32 @@ static int nxplayer_mediasearch(FAR struct nxplayer_s *pPlayer,
  ****************************************************************************/
 
 static int nxplayer_enqueuebuffer(FAR struct nxplayer_s *pPlayer,
-                                  FAR struct ap_buffer_s* pBuf)
+                                  FAR struct ap_buffer_s* apb)
 {
   struct audio_buf_desc_s bufdesc;
   int ret;
 
-  /* Validate the file is still open */
+  /* Validate the file is still open.  It will be closed automatically when
+   * we encounter the end of file (or, perhaps, a read error that we cannot
+   * handle.
+   */
 
   if (pPlayer->fileFd == NULL)
     {
-      return OK;
+      /* Return -ENODATA to indicate that there is nothing more to read from
+       * the file.
+       */
+
+      return -ENODATA;
     }
 
   /* Read data into the buffer. */
 
-  pBuf->nbytes  = fread(&pBuf->samp, 1, pBuf->nmaxbytes, pPlayer->fileFd);
-  pBuf->curbyte = 0;
+  apb->nbytes  = fread(&apb->samp, 1, apb->nmaxbytes, pPlayer->fileFd);
+  apb->curbyte = 0;
+  apb->flags   = 0;
 
-  if (pBuf->nbytes < pBuf->nmaxbytes)
+  if (apb->nbytes < apb->nmaxbytes)
     {
       int errcode   = errno;
       int readerror = ferror(pPlayer->fileFd);
@@ -508,23 +523,30 @@ static int nxplayer_enqueuebuffer(FAR struct nxplayer_s *pPlayer,
        * event.
        */
 
+      audvdbg("Closing audio file, nbytes=%d readerr=%d\n",
+              apb->nbytes, readerror);
+
       fclose(pPlayer->fileFd);
       pPlayer->fileFd = NULL;
 
+      /* Set a flag to indicate that this is the final buffer in the stream */
+
+      apb->flags |= AUDIO_APB_FINAL;
+
       /* Was this a file read error */
 
-      if (pBuf->nbytes == 0 && readerror)
+      if (apb->nbytes == 0 && readerror)
         {
           DEBUGASSERT(errcode > 0);
 
           auddbg("ERROR: fread failed: %d\n", errcode);
-          return errcode;
+          return -errcode;
         }
     }
 
   /* Do nothing more if this was the end-of-file with nothing read */
 
-  if (pBuf->nbytes > 0)
+  if (apb->nbytes > 0)
     {
       /* Now enqueue the buffer with the audio device.  If the number of
        * bytes in the file happens to be an exact multiple of the audio
@@ -536,8 +558,8 @@ static int nxplayer_enqueuebuffer(FAR struct nxplayer_s *pPlayer,
 #ifdef CONFIG_AUDIO_MULTI_SESSION
       bufdesc.session   = pPlayer->session;
 #endif
-      bufdesc.numbytes  = pBuf->nbytes;
-      bufdesc.u.pBuffer = pBuf;
+      bufdesc.numbytes  = apb->nbytes;
+      bufdesc.u.pBuffer = apb;
 
       ret = ioctl(pPlayer->devFd, AUDIOIOC_ENQUEUEBUFFER,
                   (unsigned long)&bufdesc);
@@ -547,11 +569,19 @@ static int nxplayer_enqueuebuffer(FAR struct nxplayer_s *pPlayer,
           DEBUGASSERT(errcode > 0);
 
           auddbg("ERROR: AUDIOIOC_ENQUEUEBUFFER ioctl failed: %d\n", errcode);
-          return errcode;
+          return -errcode;
         }
+
+      /* Return OK to indicate that we successfully read data from the file
+       * (and we are not yet at the end of file)
+       */
+
+      return OK;
     }
 
-  return OK;
+  /* Return -ENODATA if we are at the end of file */
+
+  return -ENODATA;
 }
 
 /****************************************************************************
@@ -569,7 +599,7 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
   struct audio_buf_desc_s     buf_desc;
   ssize_t                     size;
   uint8_t                     running = true;
-  uint8_t                     playing = true;
+  uint8_t                     streaming = true;
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
   struct ap_buffer_info_s     buf_info;
   FAR struct ap_buffer_s**    pBuffers;
@@ -580,7 +610,7 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
   int                         x;
   int                         ret;
 
-  auddbg("Entry\n");
+  audvdbg("Entry\n");
 
   /* Query the audio device for it's preferred buffer size / qty */
 
@@ -589,6 +619,7 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
           (unsigned long) &buf_info)) != OK)
     {
       /* Driver doesn't report it's buffer size.  Use our default. */
+
       buf_info.buffer_size = CONFIG_AUDIO_BUFFER_NUMBYTES;
       buf_info.nbuffers = CONFIG_AUDIO_NUM_BUFFERS;
     }
@@ -634,13 +665,14 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
       buf_desc.numbytes = CONFIG_AUDIO_BUFFER_NUMBYTES;
 #endif
       buf_desc.u.ppBuffer = &pBuffers[x];
+
       ret = ioctl(pPlayer->devFd, AUDIOIOC_ALLOCBUFFER,
-          (unsigned long) &buf_desc);
+                  (unsigned long) &buf_desc);
       if (ret != sizeof(buf_desc))
         {
           /* Buffer alloc Operation not supported or error allocating! */
 
-          auddbg("nxplayer_playthread: can't alloc buffer %d\n", x);
+          auddbg("ERROR: Could not allocate buffer %d\n", x);
           running = false;
           goto err_out;
         }
@@ -667,12 +699,17 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
             }
           else
             {
-              playing = false;
+              /* We are no longer streaming data from the file */
+
+              streaming = false;
             }
 
           break;
         }
     }
+
+  audvdbg("%d buffers queued, running=%d streaming=%d\n",
+          x, running, streaming);
 
   /* Start the audio device */
 
@@ -682,6 +719,7 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
 #else
   ret = ioctl(pPlayer->devFd, AUDIOIOC_START, 0);
 #endif
+
   if (ret < 0)
     {
       /* Error starting the audio stream!  */
@@ -693,21 +731,31 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
 
   pPlayer->state = NXPLAYER_STATE_PLAYING;
 
-  /* Set parameters such as volume, bass, etc. */
+  /* Set initial parameters such as volume, bass, etc.
+   * REVISIT:  Shouldn't this actually be done BEFORE we start playing?
+   */
 
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
   (void)nxplayer_setvolume(pPlayer, pPlayer->volume);
 #endif
+
 #ifndef CONFIG_AUDIO_EXCLUDE_BALANCE
   nxplayer_setbalance(pPlayer, pPlayer->balance);
 #endif
+
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
   nxplayer_setbass(pPlayer, pPlayer->bass);
   nxplayer_settreble(pPlayer, pPlayer->treble);
 #endif
 
-  /* Loop until we specifically break */
+  /* Loop until we specifically break.  running == true means that we are
+   * still looping waiting for the playback to complete.  All of the file
+   * data may have been sent (if streaming == false), but the playback is
+   * not complete until we get the AUDIO_MSG_COMPLETE (or AUDIO_MSG_STOP)
+   * message
+   */
 
+  audvdbg("%s\n", running ? "Playing..." : "Not runnning");
   while (running)
     {
       /* Wait for a signal either from the Audio driver that it needs
@@ -723,6 +771,7 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
         {
           /* Interrupted by a signal? What to do? */
 
+          continue;
         }
 
       /* Perform operation based on message id */
@@ -732,21 +781,22 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
           /* An audio buffer is being dequeued by the driver */
 
           case AUDIO_MSG_DEQUEUE:
-            /* Read data from the file directly into this buffer
-             * and re-enqueue it.
+            /* Read data from the file directly into this buffer and
+             * re-enqueue it.  streaming == true means that we have
+             * not yet hit the end-of-file.
              */
 
-            if (playing)
+            if (streaming)
               {
                 ret = nxplayer_enqueuebuffer(pPlayer, msg.u.pPtr);
                 if (ret != OK)
                   {
-                    /* Out of data.  Stay in the loop until the
-                     * device sends us a COMPLETE message, but stop
-                     * trying to play more data.
+                    /* Out of data.  Stay in the loop until the device sends
+                     * us a COMPLETE message, but stop trying to play more
+                     * data.
                      */
 
-                    playing = false;
+                    streaming = false;
                   }
               }
             break;
@@ -756,19 +806,22 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
           case AUDIO_MSG_STOP:
             /* Send a stop message to the device */
 
+            audvdbg("Stopping!\n");
+
 #ifdef CONFIG_AUDIO_MULTI_SESSION
             ioctl(pPlayer->devFd, AUDIOIOC_STOP,
                 (unsigned long) pPlayer->session);
 #else
             ioctl(pPlayer->devFd, AUDIOIOC_STOP, 0);
 #endif
-            playing = false;
+            streaming = false;
             running = false;
             break;
 
           /* Message indicating the playback is complete */
 
           case AUDIO_MSG_COMPLETE:
+            audvdbg("Play complete\n");
             running = false;
             break;
 
@@ -782,6 +835,8 @@ static void *nxplayer_playthread(pthread_addr_t pvarg)
   /* Release our audio buffers and unregister / release the device */
 
 err_out:
+  audvdbg("Clean-up and exit\n");
+
   /* Unregister the message queue and release the session */
 
   ioctl(pPlayer->devFd, AUDIOIOC_UNREGISTERMQ, (unsigned long) pPlayer->mq);
@@ -799,7 +854,7 @@ err_out:
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
   if (pBuffers != NULL)
     {
-      auddbg("Freeing buffers\n");
+      audvdbg("Freeing buffers\n");
       for (x = 0; x < buf_info.nbuffers; x++)
         {
           /* Fill in the buffer descriptor struct to issue a free request */
@@ -816,7 +871,7 @@ err_out:
       free(pBuffers);
     }
 #else
-    auddbg("Freeing buffers\n");
+    audvdbg("Freeing buffers\n");
     for (x = 0; x < CONFIG_AUDIO_NUM_BUFFERS; x++)
       {
         /* Fill in the buffer descriptor struct to issue a free request */
@@ -851,7 +906,7 @@ err_out:
 
   nxplayer_release(pPlayer);
 
-  auddbg("Exit\n");
+  audvdbg("Exit\n");
 
   return NULL;
 }
@@ -1459,9 +1514,9 @@ int nxplayer_playfile(FAR struct nxplayer_s *pPlayer,
       return -EBUSY;
     }
 
-  auddbg("==============================\n");
-  auddbg("Playing file %s\n", pFilename);
-  auddbg("==============================\n");
+  audvdbg("==============================\n");
+  audvdbg("Playing file %s\n", pFilename);
+  audvdbg("==============================\n");
 
   /* Test that the specified file exists */
 
@@ -1519,7 +1574,7 @@ int nxplayer_playfile(FAR struct nxplayer_s *pPlayer,
     {
       /* Hmmm, it's some unknown / unsupported type */
 
-      auddbg("BERROR: Unsupported format: %d \n", filefmt);
+      auddbg("ERROR: Unsupported format: %d \n", filefmt);
       ret = -ENOSYS;
       goto err_out_nodev;
     }
@@ -1609,7 +1664,7 @@ int nxplayer_playfile(FAR struct nxplayer_s *pPlayer,
                        (pthread_addr_t) pPlayer);
   if (ret != OK)
     {
-      auddbg("Error %d creating playthread\n", ret);
+      auddbg("ERROR: Failed to create playthread: %d\n", ret);
       goto err_out;
     }
 
@@ -1735,9 +1790,12 @@ void nxplayer_release(FAR struct nxplayer_s* pPlayer)
 
   while ((ret = sem_wait(&pPlayer->sem)) != OK)
     {
-      if (ret != -EINTR)
+      int errcode = errno;
+      DEBUGASSERT(errcode > 0);
+
+      if (errcode != EINTR)
         {
-          auddbg("Error getting semaphore\n");
+          auddbg("ERROR: sem_wait failed: %d\n", errcode);
           return;
         }
     }
@@ -1749,11 +1807,15 @@ void nxplayer_release(FAR struct nxplayer_s* pPlayer)
       sem_post(&pPlayer->sem);
       pthread_join(pPlayer->playId, &value);
       pPlayer->playId = 0;
+
       while ((ret = sem_wait(&pPlayer->sem)) != OK)
         {
-          if (ret != -EINTR)
+          int errcode = errno;
+          DEBUGASSERT(errcode > 0);
+
+          if (errcode != -EINTR)
             {
-              auddbg("Error getting semaphore\n");
+              auddbg("ERROR: sem_wait failed: %d\n", errcode);
               return;
             }
         }
@@ -1790,9 +1852,12 @@ void nxplayer_reference(FAR struct nxplayer_s* pPlayer)
 
   while ((ret = sem_wait(&pPlayer->sem)) != OK)
     {
-      if (ret != -EINTR)
+      int errcode = errno;
+      DEBUGASSERT(errcode > 0);
+
+      if (errcode != -EINTR)
         {
-          auddbg("Error getting semaphore\n");
+          auddbg("ERROR: sem_wait failed: %d\n", errcode);
           return;
         }
     }
@@ -1826,9 +1891,12 @@ void nxplayer_detach(FAR struct nxplayer_s* pPlayer)
 
   while ((ret = sem_wait(&pPlayer->sem)) != OK)
     {
-      if (ret != -EINTR)
+      int errcode = errno;
+      DEBUGASSERT(errcode > 0);
+
+      if (errcode != -EINTR)
         {
-          auddbg("Error getting semaphore\n");
+          auddbg("ERROR: sem_wait failed: %d\n", errcode);
           return;
         }
     }

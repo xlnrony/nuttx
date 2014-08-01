@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_pioirq.c
  *
- *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,10 +53,11 @@
 #include "up_arch.h"
 #include "up_internal.h"
 
-#include "sam_pio.h"
-#include "sam_periphclks.h"
 #include "chip/sam_pio.h"
 #include "chip/sam_pmc.h"
+
+#include "sam_pio.h"
+#include "sam_periphclks.h"
 
 #ifdef CONFIG_SAMA5_PIO_IRQ
 
