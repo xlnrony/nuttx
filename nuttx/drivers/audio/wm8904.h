@@ -47,6 +47,10 @@
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
 
+#include <pthread.h>
+#include <mqueue.h>
+
+#include <nuttx/wqueue.h>
 #include <nuttx/fs/ioctl.h>
 
 #ifdef CONFIG_AUDIO
@@ -54,6 +58,15 @@
 /****************************************************************************
  * Pre-Processor Definitions
  ****************************************************************************/
+/* So far, I have not been able to get FLL lock interrupts. Worse, I have
+ * been able to get the FLL to claim that it is locked at all even when
+ * polling.  What am I doing wrong?
+ *
+ * Hmmm.. seems unnecessary anyway
+ */
+
+#undef WM8904_USE_FFLOCK_INT
+#undef WM8904_USE_FFLOCK_POLL
 
 /* Registers Addresses ******************************************************/
 
@@ -153,9 +166,13 @@
 #define WM8904_EQ22                  0x9b /* EQ22 */
 #define WM8904_EQ23                  0x9c /* EQ23 */
 #define WM8904_EQ24                  0x9d /* EQ24 */
+#define WM8904_CTRLIF_TEST_1         0xa1 /* Control Interface Test 1 */
 #define WM8904_ADC_TEST              0xc6 /* ADC Test  */
+#define WM8904_ANA_OUT_BIAS_0        0xCC /* Analogue Output Bias 0 */
 #define WM8904_FLL_NCO_TEST0         0xf7 /* FLL NCO Test 0 */
 #define WM8904_FLL_NCO_TEST1         0xf8 /* FLL NCO Test 1 */
+
+#define WM8904_DUMMY                 0xff /* Dummy register address */
 
 /* Register Default Values **************************************************/
 /* Registers have some undocumented bits set on power up.  These probably
@@ -256,8 +273,10 @@
 #define WM8904_EQ22_DEFAULT            0x0564
 #define WM8904_EQ23_DEFAULT            0x0559
 #define WM8904_EQ24_DEFAULT            0x4000
-#define WM8904_ADC_TEST_DEFAULT        0x0000
+#define WM8904_CTRLIF_TEST_1_DEFAULT   0x0000
 #define WM8904_FLL_NCO_TEST0_DEFAULT   0x0000
+#define WM8904_ANA_OUT_BIAS_0_DEFAULT  0x0000
+#define WM8904_ADC_TEST_DEFAULT        0x0000
 #define WM8904_FLL_NCO_TEST1_DEFAULT   0x0019
 
 /* Register Bit Definitions *************************************************/
@@ -331,6 +350,8 @@
 #define WM8904_TOCLK_RATE_DIV16      (1 << 14) /* Bit 14: TOCLK Rate Divider (/16) */
 #define WM8904_TOCLK_RATE_X4         (1 << 13) /* Bit 13: TOCLK Rate Multiplier */
 #define WM8904_MCLK_DIV              (1 << 0)  /* Bit 0:  Enables divide by 2 on MCLK */
+#  define WM8904_MCLK_DIV1           (0)       /*         0: SYSCLK = MCLK */
+#  define WM8904_MCLK_DIV2           (1 << 0)  /*         1: SYSCLK = MCLK/2*/
 
 /* 0x15 Clock Rates 1 */
 
@@ -359,6 +380,8 @@
 
 #define WM8904_MCLK_INV              (1 << 15) /* Bit 15: MCLK invert */
 #define WM8904_SYSCLK_SRC            (1 << 14) /* Bit 14: SYSCLK source select */
+#  define WM8904_SYSCLK_SRCMCLK      (0)       /*         0: MCLK */
+#  define WM8904_SYSCLK_SRCFLL       (1 << 14) /*         1: FLL Output */
 #define WM8904_TOCLK_RATE            (1 << 12) /* Bit 12: TOCLK rate divider (/2) */
 #define WM8904_OPCLK_ENA             (1 << 3)  /* Bit 3:  GPIO clock output enable */
 #define WM8904_CLK_SYS_ENA           (1 << 2)  /* Bit 2:  System clock enable */
@@ -422,6 +445,7 @@
 #  define WM8904_OPCLK_DIV16         (8 << WM8904_OPCLK_DIV_SHIFT) /* SYSCLK / 16 */
 #define WM8904_BCLK_DIV_SHIFT        (0)       /* Bits 0-4: BCLK Frequency (Master Mode) */
 #define WM8904_BCLK_DIV_MASK         (31 << WM8904_BCLK_DIV_SHIFT)
+#  define WM8904_BCLK_DIV(n)         ((uint16_t)(n) << WM8904_BCLK_DIV_SHIFT)
 #  define WM8904_BCLK_DIV1           (0 << WM8904_BCLK_DIV_SHIFT) /* SYSCLK */
 #  define WM8904_BCLK_DIV1p5         (1 << WM8904_BCLK_DIV_SHIFT) /* SYSCLK / 1.5 */
 #  define WM8904_BCLK_DIV2           (2 << WM8904_BCLK_DIV_SHIFT) /* SYSCLK / 2 */
@@ -814,6 +838,7 @@
 #  define WM8904_FLL_CTRL_RATE(n)    ((uint16_t)((n)-1) << WM8904_FLL_CTRL_RATE_SHIFT)
 #define WM8904_FLL_FRATIO_SHIFT      (0)      /* Bits 0-2: FVCO clock divider */
 #define WM8904_FLL_FRATIO_MASK       (7 << WM8904_FLL_FRATIO_SHIFT)
+#  define WM8904_FLL_FRATIO(n)       ((uint32_t)(n) << WM8904_FLL_FRATIO_SHIFT)
 #  define WM8904_FLL_FRATIO_DIV1     (0 << WM8904_FLL_FRATIO_SHIFT) /* Divide by 1 */
 #  define WM8904_FLL_FRATIO_DIV2     (1 << WM8904_FLL_FRATIO_SHIFT) /* Divide by 2 */
 #  define WM8904_FLL_FRATIO_DIV4     (2 << WM8904_FLL_FRATIO_SHIFT) /* Divide by 4 */
@@ -847,7 +872,7 @@
 #  define WM8904_FLL_CLK_REF_DIV4    (2 << WM8904_FLL_CLK_REF_DIV_SHIFT) /* MCLK / 4 */
 #  define WM8904_FLL_CLK_REF_DIV8    (3 << WM8904_FLL_CLK_REF_DIV_SHIFT) /* MCLK / 8 */
 #define WM8904_FLL_CLK_REF_SRC_SHIFT   (0)      /* Bits 0-2: FLL clock source */
-#define WM8904_FLL_CLK_REF_SRC_MASK    (3) << WM8904_FLL_CLK_REF_SRC_SHIFT)
+#define WM8904_FLL_CLK_REF_SRC_MASK    (3 << WM8904_FLL_CLK_REF_SRC_SHIFT)
 #  define WM8904_FLL_CLK_REF_SRC_MCLK  (0 << WM8904_FLL_CLK_REF_SRC_SHIFT)
 #  define WM8904_FLL_CLK_REF_SRC_BCLK  (1 << WM8904_FLL_CLK_REF_SRC_SHIFT)
 #  define WM8904_FLL_CLK_REF_SRC_LRCLK (2 << WM8904_FLL_CLK_REF_SRC_SHIFT)
@@ -938,16 +963,18 @@
 /* 0x81 Interrupt Polarity */
 /* 0x82 Interrupt Debounce */
 
-#define WM8904_GPIO_BCLK_EINT        (1 << 9)  /* Bit 9:  GPIO4 interrupt */
-#define WM8904_WSEQ_EINT             (1 << 8)  /* Bit 8:  Write Sequence interrupt */
-#define WM8904_GPIO3_EINT            (1 << 7)  /* Bit 7:  GPIO3 interrupt */
-#define WM8904_GPIO2_EINT            (1 << 6)  /* Bit 6:  GPIO2 interrupt */
-#define WM8904_GPIO1_EINT            (1 << 5)  /* Bit 5:  GPIO1 interrupt */
-#define WM8904_GPI8_EINT             (1 << 4)  /* Bit 4:  GPI8 interrupt */
-#define WM8904_GPI7_EINT             (1 << 3)  /* Bit 3:  GPI7 interrupt */
-#define WM8904_FLL_LOCK_EINT         (1 << 2)  /* Bit 2:  FLL Lock interrupt */
-#define WM8904_MIC_SHRT_EINT         (1 << 1)  /* Bit 1:  MICBIAS short circuit interrupt */
-#define WM8904_MIC_DET_EINT          (1 << 0)  /* Bit 0:  MICBIAS short circuit interrupt */
+#define WM8904_GPIO_BCLK_INT         (1 << 9)  /* Bit 9:  GPIO4 interrupt */
+#define WM8904_WSEQ_INT              (1 << 8)  /* Bit 8:  Write Sequence interrupt */
+#define WM8904_GPIO3_INT             (1 << 7)  /* Bit 7:  GPIO3 interrupt */
+#define WM8904_GPIO2_INT             (1 << 6)  /* Bit 6:  GPIO2 interrupt */
+#define WM8904_GPIO1_INT             (1 << 5)  /* Bit 5:  GPIO1 interrupt */
+#define WM8904_GPI8_INT              (1 << 4)  /* Bit 4:  GPI8 interrupt */
+#define WM8904_GPI7_INT              (1 << 3)  /* Bit 3:  GPI7 interrupt */
+#define WM8904_FLL_LOCK_INT          (1 << 2)  /* Bit 2:  FLL Lock interrupt */
+#define WM8904_MIC_SHRT_INT          (1 << 1)  /* Bit 1:  MICBIAS short circuit interrupt */
+#define WM8904_MIC_DET_INT           (1 << 0)  /* Bit 0:  MICBIAS short circuit interrupt */
+
+#define WM8904_ALL_INTS              (0x03ff)
 
 /* 0x7f Interrupt Status (only) */
 
@@ -960,28 +987,146 @@
 /* 0x87-0x8b EQ2-EQ6:   5 bit equalizer value */
 /* 0x8c-0x9d EQ7-EQ24: 16-bit equalizer value */
 
+/* 0xa1 Control Interface Test 1 */
+
+#define WM8904_USER_KEY              0x0002
+
 /* 0xc6 ADC Test  */
 
 #define WM8904_ADC_128_OSR_TST_MODE  (1 << 2)  /* Bit 2:  ADC bias control (1) */
 #define WM8904_ADC_BIASX1P5          (1 << 0)  /* Bit 0:  ADC bias control (2) */
 
+/* 0xcc Analogue Output Bias 0 */
+
+#define WM8904_ANA_OUT_BIAS_SHIFT    (4)       /* Bits 4-6: */
+#define WM8904_ANA_OUT_BIAS_MASK     (7 << WM8904_ANA_OUT_BIAS_SHIFT)
+#  define WM8904_ANA_OUT_BIAS(n)     ((uint16_t)(n) << WM8904_ANA_OUT_BIAS_SHIFT)
+
 /* 0xf7 FLL NCO Test 0 */
 
 #define WM8904_FLL_FRC_NCO           (1 << 0)  /* Bit 0: FLL Forced control select  */
 
-/* 0xf8 FLL NCO Test 1 (16-bit FLL forced oscillator value */
+/* 0xf8 FLL NCO Test 1 */
+
+#define WM8904FLL_FRC_NCO_SHIFT      (0)       /* Bits 0-5: FLL forced oscillator value */
+#define WM8904FLL_FRC_NCO_MASK       (0x3f << WM8904FLL_FRC_NCO_SHIFT)
+#  define WM8904FLL_FRC_NCO_VAL(n)   ((uint16_t)(n) << WM8904FLL_FRC_NCO_SHIFT)
+
+/* FLL Configuration *********************************************************/
+/* Default FLL configuration */
+
+#define WM8904_DEFAULT_SAMPRATE      11025     /* Initial sample rate */
+#define WM8904_DEFAULT_NCHANNELS     1         /* Initial number of channels */
+#define WM8904_DEFAULT_BPSAMP        16        /* Initial bits per sample */
+
+#define WM8904_NFLLRATIO_DIV1        0         /* Values of the FLL_RATIO field */
+#define WM8904_NFLLRATIO_DIV2        1
+#define WM8904_NFLLRATIO_DIV4        2
+#define WM8904_NFLLRATIO_DIV8        3
+#define WM8904_NFLLRATIO_DIV16       4
+#define WM8904_NFLLRATIO             5          /* Number of FLL_RATIO values */
+
+#define WM8904_MINOUTDIV             4          /* Minimum FLL_OUTDIV divider */
+#define WM8904_MAXOUTDIV             64         /* Maximum FLL_OUTDIV divider */
+
+#define WM8904_BCLK_MAXDIV           20         /* Maximum BCLK divider */
+
+#define WM8904_FVCO_MIN              90000000   /* Minimum value of Fvco */
+#define WM8904_FVCO_MAX              100000000  /* Maximum value of Fvco */
+
+#define WM8904_FRAMELEN8              14        /* Bits per frame for 8-bit data */
+#define WM8904_FRAMELEN16             32        /* Bits per frame for 16-bit data */
+
+/* Commonly defined and redefined macros */
+
+#ifndef MIN
+#  define MIN(a,b)                   (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#  define MAX(a,b)                   (((a) > (b)) ? (a) : (b))
+#endif
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
+struct wm8904_dev_s
+{
+  /* We are an audio lower half driver (We are also the upper "half" of
+   * the WM8904 driver with respect to the board lower half driver).
+   *
+   * Terminology: Our "lower" half audio instances will be called dev for the
+   * publicly visible version and "priv" for the version that only this driver
+   * knows.  From the point of view of this driver, it is the board lower
+   * "half" that is referred to as "lower".
+   */
+
+  struct audio_lowerhalf_s dev;             /* WM8904 audio lower half (this device) */
+
+  /* Our specific driver data goes here */
+
+  const FAR struct wm8904_lower_s *lower;   /* Pointer to the board lower functions */
+  FAR struct i2c_dev_s   *i2c;              /* I2C driver to use */
+  FAR struct i2s_dev_s   *i2s;              /* I2S driver to use */
+  struct dq_queue_s       pendq;            /* Queue of pending buffers to be sent */
+  struct dq_queue_s       doneq;            /* Queue of sent buffers to be returned */
+  mqd_t                   mq;               /* Message queue for receiving messages */
+  char                    mqname[16];       /* Our message queue name */
+  pthread_t               threadid;         /* ID of our thread */
+  uint32_t                bitrate;          /* Actual programmed bit rate */
+  sem_t                   pendsem;          /* Protect pendq */
+#ifdef WM8904_USE_FFLOCK_INT
+  struct work_s           work;             /* Interrupt work */
+#endif
+  uint16_t                samprate;         /* Configured samprate (samples/sec) */
+#ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
+#ifndef CONFIG_AUDIO_EXCLUDE_BALANCE
+  uint16_t                balance;          /* Current balance level (b16) */
+#endif  /* CONFIG_AUDIO_EXCLUDE_BALANCE */
+  uint8_t                 volume;           /* Current volume level {0..63} */
+#endif  /* CONFIG_AUDIO_EXCLUDE_VOLUME */
+  uint8_t                 nchannels;        /* Number of channels (1 or 2) */
+  uint8_t                 bpsamp;           /* Bits per sample (8 or 16) */
+  volatile uint8_t        inflight;         /* Number of audio buffers in-flight */
+#ifdef WM8904_USE_FFLOCK_INT
+  volatile bool           locked;           /* FLL is locked */
+#endif
+  bool                    running;          /* True: Worker thread is running */
+  bool                    paused;           /* True: Playing is paused */
+  bool                    mute;             /* True: Output is muted */
+#ifndef CONFIG_AUDIO_EXCLUDE_STOP
+  bool                    terminating;      /* True: Stop requested */
+#endif
+  bool                    reserved;         /* True: Device is reserved */
+  volatile int            result;           /* The result of the last transfer */
+};
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
+#ifdef CONFIG_WM8904_CLKDEBUG
+extern const uint8_t g_sysclk_scaleb1[WM8904_BCLK_MAXDIV+1];
+extern const uint8_t g_fllratio[WM8904_NFLLRATIO];
+#endif
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: wm8904_readreg
+ *
+ * Description
+ *    Read the specified 16-bit register from the WM8904 device.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_WM8904_REGDUMP) || defined(CONFIG_WM8904_CLKDEBUG)
+struct wm8904_dev_s;
+uint16_t wm8904_readreg(FAR struct wm8904_dev_s *priv, uint8_t regaddr);
+#endif
 
 #endif /* CONFIG_AUDIO */
 #endif /* __DRIVERS_AUDIO_WM8904_H */

@@ -91,6 +91,7 @@ Contents
   - Watchdog Timer
   - TRNG and /dev/random
   - Touchscreen Testing
+  - Tickless OS
   - OV2640 Camera Interface
   - I2S Audio Support
   - SAMA5D3x-EK Configuration Options
@@ -2644,6 +2645,85 @@ Touchscreen Testing
 
   Defaults should be okay for all related settings.
 
+Tickless OS
+===========
+
+  Background
+  ----------
+  By default, a NuttX configuration uses a periodic timer interrupt that
+  drives all system timing. The timer is provided by architecture-specifi
+  code that calls into NuttX at a rate controlled by CONFIG_USEC_PER_TICK.
+  The default value of CONFIG_USEC_PER_TICK is 10000 microseconds which
+  corresponds to a timer interrupt rate of 100 Hz.
+
+  An option is to configure NuttX to operation in a "tickless" mode. Some
+  limitations of default system timer are, in increasing order of
+  importance:
+
+  - Overhead: Although the CPU usage of the system timer interrupt at 100Hz
+    is really very low, it is still mostly wasted processing time. One most
+    timer interrupts, there is really nothing that needs be done other than
+    incrementing the counter.
+  - Resolution: Resolution of all system timing is also determined by
+    CONFIG_USEC_PER_TICK. So nothing that be time with resolution finer than
+    10 milliseconds be default. To increase this resolution,
+    CONFIG_USEC_PER_TICK an be reduced. However, then the system timer
+    interrupts use more of the CPU bandwidth processing useless interrupts.
+  - Power Usage: But the biggest issue is power usage. When the system is
+    IDLE, it enters a light, low-power mode (for ARMs, this mode is entered
+    with the wfi or wfe instructions for example). But each interrupt
+    awakens the system from this low power mode. Therefore, higher rates
+    of interrupts cause greater power consumption.
+
+  The so-called Tickless OS provides one solution to issue. The basic
+  concept here is that the periodic, timer interrupt is eliminated and
+  replaced with a one-shot, interval timer. It becomes event driven
+  instead of polled: The default system timer is a polled design. On
+  each interrupt, the NuttX logic checks if it needs to do anything
+  and, if so, it does it.
+
+  Using an interval timer, one can anticipate when the next interesting
+  OS event will occur, program the interval time and wait for it to fire.
+  When the interval time fires, then the scheduled activity is performed.
+
+  Configuration
+  -------------
+  The following configuration options will enable support for the Tickless
+  OS for the SAMA5D platforms using TC0 channels 0-3 (other timers or
+  timer channels could be used making the obvious substitutions):
+
+    RTOS Features -> Clocks and Timers
+      CONFIG_SCHED_TICKLESS=y          : Configures the RTOS in tickless mode
+
+    System Type -> SAMA5 Peripheral Support
+      CONFIG_SAMA5_TC0=y               : Enable TC0 (TC channels 0-3
+
+    System Type -> Timer/counter Configuration
+      CONFIG_SAMA5_ONESHOT=y           : Enables one-shot timer wrapper
+      CONFIG_SAMA5_FREERUN=y           : Enabled free-running timer wrapper
+      CONFIG_SAMA5_TICKLESS_ONESHOT=0  : Selects TC0 channel 0 for the one-shot
+      CONFIG_SAMA5_TICKLESS_FREERUN=1  : Selects TC0 channel 1 for the free-
+                                       : running timer
+
+  SAMA5 Timer Usage
+  -----------------
+  This current implementation uses two timers:  A one-shot timer to
+  provide the timed events and a free running timer to provide the current
+  time.  Since timers are a limited resource, that could be an issue on
+  some systems.
+
+  We could do the job with a single timer if we were to keep the single
+  timer in a free-running at all times.  The SAMA5 timer/counters have
+  32-bit counters with the capability to generate a compare interrupt when
+  the timer matches a compare value but also to continue counting without
+  stopping (giving another, different interrupt when the timer rolls over
+  from 0xffffffff to zero).  So we could potentially just set the compare
+  at the number of ticks you want PLUS the current value of timer.  Then
+  you could have both with a single timer:  An interval timer and a free-
+  running counter with the same timer!
+
+  Patches are welcome!
+
 OV2640 Camera Interface
 =======================
 
@@ -2697,20 +2777,21 @@ I2S Audio Support
   WM8904 Audio CODEC Interface
   ----------------------------
 
-    ------------- ---------------- -----------------
-    WM8904        SAMA5D3          NuttX Pin Name
-    ------------- ---------------- -----------------
-     3 SDA        PA30 TWD0        PIO_TWI0_D
-     2 SCLK       PA31 TWCK0       PIO_TWI0_CK
-    28 MCLK       PD30 PCK0        PIO_PMC_PCK0
-    29 BCLK/GPIO4 PC16 TK          PIO_SSC0_TK
-    "" "        " PC19 RK          PIO_SSC0_RK
-    30 LRCLK      PC17 TF          PIO_SSC0_TF
-    "" "   "      PC20 RF          PIO_SSC0_RF
-    31 ADCDAT     PC21 RD          PIO_SSC0_RD
-    32 DACDAT     PC18 TD          PIO_SSC0_TD
-     1 IRQ/GPIO1  PD16 INT_AUDIO   N/A
-    ------------- ---------------- -----------------
+    ------------- ---------------- ----------------- ----------------------
+    WM8904        SAMA5D3          NuttX Pin Name    External Access
+    ------------- ---------------- ----------------- ----------------------
+     3 SDA        PA30 TWD0        PIO_TWI0_D        J1 Pin 34
+     2 SCLK       PA31 TWCK0       PIO_TWI0_CK       J1 Pin 36
+    28 MCLK       PD30 PCK0        PIO_PMC_PCK0      (Not available)
+    29 BCLK/GPIO4 PC16 TK          PIO_SSC0_TK       J2 Pin 6
+    "" "        " PC19 RK          PIO_SSC0_RK       J2 Pin 12
+    30 LRCLK      PC17 TF          PIO_SSC0_TF       J2 Pin 8
+    "" "   "      PC20 RF          PIO_SSC0_RF       J2 Pin 14
+    31 ADCDAT     PC21 RD          PIO_SSC0_RD       J2 Pin 16
+    32 DACDAT     PC18 TD          PIO_SSC0_TD       J2 Pin 10
+     1 IRQ/GPIO1  PD16 INT_AUDIO   N/A               (Not available)
+    ------------- ---------------- ----------------- ----------------------
+                                                     Ground at Pins 3,4,37,38
 
   WM8904 Configuration
   --------------------
@@ -2733,9 +2814,14 @@ I2S Audio Support
       CONFIG_SAMA5_SSC_MAXINFLIGHT=16       : Up to 16 pending DMA transfers
       CONFIG_SAMA5_SSC0_DATALEN=16          : 16-bit data
       CONFIG_SAMA5_SSC0_RX=y                : Support a receiver (although it is not used!)
-      CONFIG_SAMA5_SSC0_TX_TKINPUT=y        : Receiver gets clock the RK0 input
+      CONFIG_SAMA5_SSC0_RX_RKINPUT=y        : Receiver gets clock the RK0 input
+      CONFIG_SAMA5_SSC0_RX_FSLEN=1          : Minimal frame sync length
+      CONFIG_SAMA5_SSC0_RX_STTDLY=1         : Start delay
       CONFIG_SAMA5_SSC0_TX=y                : Support a transmitter
-      CONFIG_SAMA5_SSC0_TX_TKINPUT=y        : Transmitter gets clock the TK0 input
+      CONFIG_SAMA5_SSC0_TX_RXCLK=y          : Transmitter gets clock the RXCLCK
+      CONFIG_SAMA5_SSC0_TX_FSLEN=0          : Disable frame synch generation
+      CONFIG_SAMA5_SSC0_TX_STTDLY=1         : Start delay
+      CONFIG_SAMA5_SSC0_TX_TKOUTPUT_NONE=y  : No output
 
     Audio
       CONFIG_AUDIO=y                        : Audio support needed
@@ -2750,6 +2836,7 @@ I2S Audio Support
 
     Board Selection
       CONFIG_SAMA5D3xEK_WM8904_I2CFREQUENCY=400000
+      CONFIG_SAMA5D3xEK_WM8904_SRCMAIN=y    : WM8904 MCLK is the SAMA5D Main Clock
 
     Library Routines
       CONFIG_SCHED_WORKQUEUE=y              : MW8904 driver needs work queue support
@@ -2813,8 +2900,10 @@ I2S Audio Support
       CONFIG_SAMA5_SSC0_DATALEN=16     : 16-bit data
       CONFIG_SAMA5_SSC0_RX=y           : Support a receiver
       CONFIG_SAMA5_SSC0_RX_RKINPUT=y   : Receiver gets clock from RK input
+      CONFIG_SAMA5_SSC0_RX_FSLEN=2     : Pick some matching frame synch length
       CONFIG_SAMA5_SSC0_TX=y           : Support a transmitter
       CONFIG_SAMA5_SSC0_TX_MCKDIV=y    : Transmitter gets clock from MCK/2
+      CONFIG_SAMA5_SSC0_TX_FSLEN=2     : Pick some matching frame synch length
       CONFIG_SAMA5_SSC0_MCKDIV_SAMPLERATE=48000 : Sampling at 48K samples/sec
       CONFIG_SAMA5_SSC0_TX_TKOUTPUT_XFR=y  : Outputs clock on TK when transferring data
       CONFIG_SAMA5_SSC0_LOOPBACK=y     : Loopmode mode connects RD/TD and RK/TK
@@ -3238,7 +3327,7 @@ Configurations
        card slots:  (1) a full size SD card slot (J7 labelled MCI0), and (2)
        a microSD memory card slot (J6 labelled MCI1).  The full size SD card
        slot connects via HSMCI0; the microSD connects vi HSMCI1.  Relevant
-       configuration settings can be found in the section entitle "HSMCI
+       configuration settings can be found in the section entitled "HSMCI
        Card Slots" above.
 
     9. Support the USB high-speed device (UDPHS) driver is enabled.  See the
@@ -3642,12 +3731,10 @@ To-Do List
    low priority to me but might be important to you if you are need very
    high performance SD card accesses.
 
-   The last time I used HSMCI with a SAMA5D3, I had to disable TX DMA
-   in the HSMCI driver.  Much has changed since then and I have reverified
-   that TX DMA transfers are functional using a SAMA5D4.  The SAMA5D4,
-   however, has a different DMA subsystem.  So... if you suspect issues
-   HSMCI writes, you might try disabling the TX DMA again in the
-   sam_hsmci.c driver.
+   HCMDI TX DMA is currently disabled for the SAMA5D3.  There is some
+   issue with the TX DMA setup (HSMCI TX DMA the same driver works with
+   the SAMA5D4 which has a different DMA subsystem).  This is a bug that
+   needs to be resolved.
 
 4) I believe that there is an issue when the internal AT25 FLASH is
    formatted by NuttX.  That format works fine with Linux, but does not

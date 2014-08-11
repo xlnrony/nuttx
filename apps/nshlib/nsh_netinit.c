@@ -42,6 +42,7 @@
 
 #include <nuttx/config.h>
 
+#include <pthread.h>
 #include <debug.h>
 
 #include <net/if.h>
@@ -95,36 +96,46 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nsh_netinit
+ * Name: nsh_netinit_thread
  *
  * Description:
  *   Initialize the network per the selected NuttX configuration
  *
  ****************************************************************************/
 
-int nsh_netinit(void)
+pthread_addr_t nsh_netinit_thread(pthread_addr_t arg)
 {
- struct in_addr addr;
+  struct in_addr addr;
 #if defined(CONFIG_NSH_DHCPC)
- FAR void *handle;
+  FAR void *handle;
 #endif
 #if (defined(CONFIG_NSH_DHCPC) || defined(CONFIG_NSH_NOMAC)) && !defined(CONFIG_NET_SLIP)
- uint8_t mac[IFHWADDRLEN];
+  uint8_t mac[IFHWADDRLEN];
 #endif
 
-/* Many embedded network interfaces must have a software assigned MAC */
+  nvdbg("Entry\n");
+
+  /* Many embedded network interfaces must have a software assigned MAC */
 
 #if defined(CONFIG_NSH_NOMAC) && !defined(CONFIG_NET_SLIP)
-  mac[0] = 0x00;
-  mac[1] = 0xe0;
-  mac[2] = 0xde;
-  mac[3] = 0xad;
-  mac[4] = 0xbe;
-  mac[5] = 0xef;
+#ifdef CONFIG_NSH_ARCHMAC
+  /* Let platform-specific logic assign the MAC address. */
+
+  (void)nsh_arch_macaddress(mac);
+
+#else
+  /* Use the configured, fixed MAC address */
+
+  mac[0] = (CONFIG_NSH_MACADDR >> (8 * 5)) & 0xff;
+  mac[1] = (CONFIG_NSH_MACADDR >> (8 * 4)) & 0xff;
+  mac[2] = (CONFIG_NSH_MACADDR >> (8 * 3)) & 0xff;
+  mac[3] = (CONFIG_NSH_MACADDR >> (8 * 2)) & 0xff;
+  mac[4] = (CONFIG_NSH_MACADDR >> (8 * 1)) & 0xff;
+  mac[5] = (CONFIG_NSH_MACADDR >> (8 * 0)) & 0xff;
+#endif
+
+  /* Set the MAC address */
+
   netlib_setmacaddr(NET_DEVNAME, mac);
 #endif
 
@@ -195,7 +206,65 @@ int nsh_netinit(void)
     }
 #endif
 
+  nvdbg("Exit\n");
   return OK;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: nsh_netinit
+ *
+ * Description:
+ *   Initialize the network per the selected NuttX configuration
+ *
+ ****************************************************************************/
+
+int nsh_netinit(void)
+{
+#ifdef CONFIG_NSH_NETINIT_THREAD
+  struct sched_param  sparam;
+  pthread_attr_t      attr;
+  pthread_t           tid;
+  void               *value;
+  int                 ret;
+
+  /* Start the network initialization thread to perform the network bring-up
+   * asynchronously.
+   */
+
+  pthread_attr_init(&attr);
+  sparam.sched_priority = CONFIG_NSH_NETINIT_THREAD_PRIORITY;
+  (void)pthread_attr_setschedparam(&attr, &sparam);
+  (void)pthread_attr_setstacksize(&attr, CONFIG_NSH_NETINIT_THREAD_STACKSIZE);
+
+  nvdbg("Starting netinit thread\n");
+  ret = pthread_create(&tid, &attr, nsh_netinit_thread, NULL);
+  if (ret != OK)
+    {
+      ndbg("ERROR: Failed to create netinit thread: %d\n", ret);
+      (void)nsh_netinit_thread(NULL);
+    }
+  else
+    {
+      /* Detach the thread because we will not be joining to it */
+
+      (void)pthread_detach(tid);
+
+      /* Name the thread */
+
+      pthread_setname_np(tid, "netinit");
+    }
+
+  return OK;
+
+#else
+  /* Perform network initialization sequentially */
+
+  (void)nsh_netinit_thread(NULL);
+#endif
 }
 
 #endif /* CONFIG_NET */

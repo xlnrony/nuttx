@@ -66,6 +66,8 @@
  * CONFIG_WM8904_NUM_BUFFERS - Preferred number of buffers
  * CONFIG_WM8904_WORKER_STACKSIZE - Stack size to use when creating the the
  *   WM8904 worker thread.
+ * CONFIG_WM8904_REGDUMP - Enable logic to dump all WM8904 registers to
+ *   the SYSLOG device.
  */
 
 /* Pre-requisites */
@@ -126,6 +128,7 @@
 #define WM8904_DETACH(s)         ((s)->attach(s,NULL,NULL))
 #define WM8904_ENABLE(s)         ((s)->enable(s,true))
 #define WM8904_DISABLE(s)        ((s)->enable(s,false))
+#define WM8904_RESTORE(s,e)      ((s)->enable(s,e))
 
 /****************************************************************************
  * Public Types
@@ -150,10 +153,16 @@ typedef CODE int (*wm8904_handler_t)(FAR const struct wm8904_lower_s *lower,
 
 struct wm8904_lower_s
 {
-  /* Device characterization */
+  /* I2C characterization */
 
   uint32_t frequency;  /* Initial I2C frequency */
-  uint8_t address;     /* 7-bit I2C address (only bits 0-6 used) */
+  uint8_t  address;    /* 7-bit I2C address (only bits 0-6 used) */
+
+  /* Clocking is provided via MCLK.  The WM8904 driver will need to know
+   * the frequency of MCLK in order to generate the correct bitrates.
+   */
+
+  uint32_t mclk;       /* W8904 Master clock frequency */
 
   /* IRQ/GPIO access callbacks.  These operations all hidden behind
    * callbacks to isolate the WM8904 driver from differences in GPIO
@@ -163,12 +172,13 @@ struct wm8904_lower_s
    *
    * attach  - Attach or detach the WM8904 interrupt handler to the GPIO
    *           interrupt
-   * enable  - Enable or disable the GPIO interrupt
+   * enable  - Enable or disable the GPIO interrupt.  Returns the
+   *           previous interrupt state.
    */
 
   CODE int  (*attach)(FAR const struct wm8904_lower_s *lower,
                       wm8904_handler_t isr, FAR void *arg);
-  CODE void (*enable)(FAR const struct wm8904_lower_s *lower, bool enable);
+  CODE bool (*enable)(FAR const struct wm8904_lower_s *lower, bool enable);
 };
 
 /****************************************************************************
@@ -211,6 +221,56 @@ struct audio_lowerhalf_s; /* Forward reference. Defined in nuttx/audio/audio.h *
 FAR struct audio_lowerhalf_s *
   wm8904_initialize(FAR struct i2c_dev_s *i2c, FAR struct i2s_dev_s *i2s,
                     FAR const struct wm8904_lower_s *lower);
+
+/****************************************************************************
+ * Name: wm8904_dump_registers
+ *
+ * Description:
+ *   Dump the contents of all WM8904 registers to the syslog device
+ *
+ * Input Parameters:
+ *   dev - The device instance returned by wm8904_initialize
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_WM8904_REGDUMP
+void wm8904_dump_registers(FAR struct audio_lowerhalf_s *dev,
+                           FAR const char *msg);
+#else
+  /* This eliminates the need for any conditional compilation in the
+   * including file.
+   */
+
+#  define wm8904_dump_registers(d,m)
+#endif
+
+/****************************************************************************
+ * Name: wm8904_clock_analysis
+ *
+ * Description:
+ *   Analyze the settings in the clock chain and dump to syslog.
+ *
+ * Input Parameters:
+ *   dev - The device instance returned by wm8904_initialize
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_WM8904_CLKDEBUG
+void wm8904_clock_analysis(FAR struct audio_lowerhalf_s *dev,
+                           FAR const char *msg);
+#else
+  /* This eliminates the need for any conditional compilation in the
+   * including file.
+   */
+
+#  define wm8904_clock_analysis(d,m)
+#endif
 
 #undef EXTERN
 #ifdef __cplusplus

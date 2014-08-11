@@ -154,8 +154,8 @@
 
 #define STM32_READY_DELAY         200000 /* In loop counts */
 #define STM32_FLUSH_DELAY         200000 /* In loop counts */
-#define STM32_SETUP_DELAY         (5000 / MSEC_PER_TICK) /* 5 seconds in system ticks */
-#define STM32_DATANAK_DELAY       (5000 / MSEC_PER_TICK) /* 5 seconds in system ticks */
+#define STM32_SETUP_DELAY         SEC2TICK(5) /* 5 seconds in system ticks */
+#define STM32_DATANAK_DELAY       SEC2TICK(5) /* 5 seconds in system ticks */
 
 /* Ever-present MIN/MAX macros */
 
@@ -3811,7 +3811,7 @@ static int stm32_ctrlout(FAR struct usbhost_driver_s *drvr,
               /* Start DATA out transfer (only one DATA packet) */
 
               priv->chan[priv->ep0out].outdata1 = true;
-              ret = stm32_ctrl_senddata(priv, NULL, 0);
+              ret = stm32_ctrl_senddata(priv, buffer, buflen);
               if (ret < 0)
                 {
                   usbhost_trace1(OTGFS_TRACE1_SENDDATA, -ret);

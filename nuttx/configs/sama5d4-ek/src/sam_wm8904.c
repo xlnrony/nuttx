@@ -99,7 +99,7 @@ struct sama5d4ek_mwinfo_s
 
 static int  wm8904_attach(FAR const struct wm8904_lower_s *lower,
                           wm8904_handler_t isr, FAR void *arg);
-static void wm8904_enable(FAR const struct wm8904_lower_s *lower,
+static bool wm8904_enable(FAR const struct wm8904_lower_s *lower,
                           bool enable);
 
 /****************************************************************************
@@ -114,12 +114,17 @@ static void wm8904_enable(FAR const struct wm8904_lower_s *lower,
  * by the driver and is presumed to persist while the driver is active.
  */
 
-static struct sama5d4ek_mwinfo_s g_mxtinfo =
+static struct sama5d4ek_mwinfo_s g_wm8904info =
 {
   .lower =
   {
     .address   = WM8904_I2C_ADDRESS,
     .frequency = CONFIG_SAMA5D4EK_WM8904_I2CFREQUENCY,
+#ifdef CONFIG_SAMA5D4EK_WM8904_SRCSCK
+    .mclk      = BOARD_SLOWCLK_FREQUENCY,
+#else
+    .mclk      = BOARD_MAINCK_FREQUENCY,
+#endif
 
     .attach    = wm8904_attach,
     .enable    = wm8904_enable,
@@ -153,41 +158,60 @@ static int wm8904_attach(FAR const struct wm8904_lower_s *lower,
        */
 
       audvdbg("Attaching %p\n", isr);
-      g_mxtinfo.handler = isr;
-      g_mxtinfo.arg = arg;
+      g_wm8904info.handler = isr;
+      g_wm8904info.arg = arg;
     }
   else
     {
-      audvdbg("Detaching %p\n", g_mxtinfo.handler);
-      wm8904_enable(lower, false);
-      g_mxtinfo.handler = NULL;
-      g_mxtinfo.arg = NULL;
+      audvdbg("Detaching %p\n", g_wm8904info.handler);
+      (void)wm8904_enable(lower, false);
+      g_wm8904info.handler = NULL;
+      g_wm8904info.arg = NULL;
     }
 
   return OK;
 }
 
-static void wm8904_enable(FAR const struct wm8904_lower_s *lower, bool enable)
+static bool wm8904_enable(FAR const struct wm8904_lower_s *lower, bool enable)
 {
-  /* Enable or disable interrupts */
+  static bool enabled;
+  irqstate_t flags;
+  bool ret;
 
-  if (enable && g_mxtinfo.handler)
+  /* Has the interrupt state changed */
+
+  flags = irqsave();
+  if (enable != enabled)
     {
-      sam_pioirqenable(IRQ_INT_WM8904);
+      /* Enable or disable interrupts */
+
+      if (enable && g_wm8904info.handler)
+        {
+          audvdbg("Enabling\n");
+          sam_pioirqenable(IRQ_INT_WM8904);
+          enabled = true;
+        }
+      else
+        {
+          audvdbg("Disabling\n");
+          sam_pioirqdisable(IRQ_INT_WM8904);
+          enabled = false;
+        }
     }
-  else
-    {
-      sam_pioirqdisable(IRQ_INT_WM8904);
-    }
+
+  ret = enabled;
+  irqrestore(flags);
+  return ret;
 }
 
 static int wm8904_interrupt(int irq, FAR void *context)
 {
   /* Just forward the interrupt to the WM8904 driver */
 
-  if (g_mxtinfo.handler)
+  audvdbg("handler %p\n", g_wm8904info.handler);
+  if (g_wm8904info.handler)
     {
-      return g_mxtinfo.handler(&g_mxtinfo.lower, g_mxtinfo.arg);
+      return g_wm8904info.handler(&g_wm8904info.lower, g_wm8904info.arg);
     }
 
   /* We got an interrupt with no handler.  This should not
@@ -264,28 +288,24 @@ int sam_wm8904_initialize(int minor)
           goto errout_with_i2c;
         }
 
-      /* Now we can use these I2C and I2S interfaces to initialize the
-       * MW8904 which will return an audio interface.
-       */
-
-      wm8904 = wm8904_initialize(i2c, i2s, &g_mxtinfo.lower);
-      if (!wm8904)
-        {
-          auddbg("Failed to initialize the WM8904\n");
-          ret = -ENODEV;
-          goto errout_with_i2s;
-        }
-
       /* Configure the DAC master clock.  This clock is provided by PCK2 (PB10)
        * that is connected to the WM8904 MCLK.
        */
 
+#ifdef CONFIG_SAMA5D4EK_WM8904_SRCSCK
+      /* Drive the DAC with the slow clock (32.768 KHz) */
+
       sam_sckc_enable(true);
       (void)sam_pck_configure(PCK2, PCKSRC_SCK, BOARD_SLOWCLK_FREQUENCY);
+#else
+      /* Drive the DAC with the main clock (12 MHz) */
+
+      (void)sam_pck_configure(PCK0, PCKSRC_MAINCK, BOARD_MAINCK_FREQUENCY);
+#endif
 
       /* Enable the DAC master clock */
 
-      sam_pck_enable(PCK0, true);
+      sam_pck_enable(PCK2, true);
 
       /* Configure WM8904 interrupts */
 
@@ -294,7 +314,19 @@ int sam_wm8904_initialize(int minor)
       if (ret < 0)
         {
           auddbg("ERROR: Failed to attach WM8904 interrupt: %d\n", ret);
-          goto errout_with_audio;
+          goto errout_with_i2s;
+        }
+
+      /* Now we can use these I2C and I2S interfaces to initialize the
+       * MW8904 which will return an audio interface.
+       */
+
+      wm8904 = wm8904_initialize(i2c, i2s, &g_wm8904info.lower);
+      if (!wm8904)
+        {
+          auddbg("Failed to initialize the WM8904\n");
+          ret = -ENODEV;
+          goto errout_with_irq;
         }
 
       /* No we can embed the WM8904/I2C/I2S conglomerate into a PCM decoder
@@ -307,7 +339,7 @@ int sam_wm8904_initialize(int minor)
         {
           auddbg("ERROR: Failed create the PCM decoder\n");
           ret = -ENODEV;
-          goto errout_with_irq;
+          goto errout_with_wm8904;
         }
 
       /* Create a device name */
@@ -338,9 +370,9 @@ int sam_wm8904_initialize(int minor)
    */
 
 errout_with_pcm:
+errout_with_wm8904:
 errout_with_irq:
   irq_detach(IRQ_INT_WM8904);
-errout_with_audio:
 errout_with_i2s:
 errout_with_i2c:
 errout:

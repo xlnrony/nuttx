@@ -94,6 +94,7 @@ Contents
   - TRNG and /dev/random
   - Audio Support
   - TM7000 LCD/Touchscreen
+  - Tickless OS
   - SAMA4D4-EK Configuration Options
   - Configurations
   - To-Do List
@@ -1385,6 +1386,21 @@ Networking
   This delay will be especially long if the board is not connected to
   a network.  On the order of a minute!  You will probably think that
   NuttX has crashed!
+
+  There is a configuration option enabled by CONFIG_NSH_NETINIT_THREAD
+  that will do the NSH network bring-up asynchronously in parallel on
+  a separate thread.  This eliminates the (visible) networking delay
+  altogether.  This current implementation, however, has some limitations:
+
+    - If no network is connected, the network bring-up will fail and
+      the network initialization thread will simply exit.  There are no
+      retries and no mechanism to know if the network initialization was
+      successful (it could perform a network Ioctl to see if the link is
+      up and it now, keep trying, but it does not do that now).
+
+    - Furthermore, there is currently no support for detecting loss of
+      network connection and recovery of the connection (similarly, this
+      thread could poll periodically for network status, but does not).
 
 AT25 Serial FLASH
 =================
@@ -2788,9 +2804,14 @@ Audio Support
       CONFIG_SAMA5_SSC_MAXINFLIGHT=16       : Up to 16 pending DMA transfers
       CONFIG_SAMA5_SSC0_DATALEN=16          : 16-bit data
       CONFIG_SAMA5_SSC0_RX=y                : Support a receiver (although it is not used!)
-      CONFIG_SAMA5_SSC0_TX_TKINPUT=y        : Receiver gets clock the RK0 input
+      CONFIG_SAMA5_SSC0_RX_RKINPUT=y        : Receiver gets clock the RK0 input
+      CONFIG_SAMA5_SSC0_RX_FSLEN=1          : Minimal frame sync length
+      CONFIG_SAMA5_SSC0_RX_STTDLY=1         : Start delay
       CONFIG_SAMA5_SSC0_TX=y                : Support a transmitter
-      CONFIG_SAMA5_SSC0_TX_TKINPUT=y        : Transmitter gets clock the TK0 input
+      CONFIG_SAMA5_SSC0_TX_RXCLK=y          : Transmitter gets clock the RXCLCK
+      CONFIG_SAMA5_SSC0_TX_FSLEN=0          : Disable frame synch generation
+      CONFIG_SAMA5_SSC0_TX_STTDLY=1         : Start delay
+      CONFIG_SAMA5_SSC0_TX_TKOUTPUT_NONE=y  : No output
 
     Audio
       CONFIG_AUDIO=y                        : Audio support needed
@@ -2805,6 +2826,7 @@ Audio Support
 
     Board Selection
       CONFIG_SAMA5D4EK_WM8904_I2CFREQUENCY=400000
+      CONFIG_SAMA5D4EK_WM8904_SRCMAIN=y    : WM8904 MCLK is the SAMA5D Main Clock
 
     Library Routines
       CONFIG_SCHED_WORKQUEUE=y              : MW8904 driver needs work queue support
@@ -3086,6 +3108,85 @@ TM7000 LCD/Touchscreen
   LCD
   ---
   To be provided.
+
+Tickless OS
+===========
+
+  Background
+  ----------
+  By default, a NuttX configuration uses a periodic timer interrupt that
+  drives all system timing. The timer is provided by architecture-specifi
+  code that calls into NuttX at a rate controlled by CONFIG_USEC_PER_TICK.
+  The default value of CONFIG_USEC_PER_TICK is 10000 microseconds which
+  corresponds to a timer interrupt rate of 100 Hz.
+
+  An option is to configure NuttX to operation in a "tickless" mode. Some
+  limitations of default system timer are, in increasing order of
+  importance:
+
+  - Overhead: Although the CPU usage of the system timer interrupt at 100Hz
+    is really very low, it is still mostly wasted processing time. One most
+    timer interrupts, there is really nothing that needs be done other than
+    incrementing the counter.
+  - Resolution: Resolution of all system timing is also determined by
+    CONFIG_USEC_PER_TICK. So nothing that be time with resolution finer than
+    10 milliseconds be default. To increase this resolution,
+    CONFIG_USEC_PER_TICK an be reduced. However, then the system timer
+    interrupts use more of the CPU bandwidth processing useless interrupts.
+  - Power Usage: But the biggest issue is power usage. When the system is
+    IDLE, it enters a light, low-power mode (for ARMs, this mode is entered
+    with the wfi or wfe instructions for example). But each interrupt
+    awakens the system from this low power mode. Therefore, higher rates
+    of interrupts cause greater power consumption.
+
+  The so-called Tickless OS provides one solution to issue. The basic
+  concept here is that the periodic, timer interrupt is eliminated and
+  replaced with a one-shot, interval timer. It becomes event driven
+  instead of polled: The default system timer is a polled design. On
+  each interrupt, the NuttX logic checks if it needs to do anything
+  and, if so, it does it.
+
+  Using an interval timer, one can anticipate when the next interesting
+  OS event will occur, program the interval time and wait for it to fire.
+  When the interval time fires, then the scheduled activity is performed.
+
+  Configuration
+  -------------
+  The following configuration options will enable support for the Tickless
+  OS for the SAMA5D platforms using TC0 channels 0-3 (other timers or
+  timer channels could be used making the obvious substitutions):
+
+    RTOS Features -> Clocks and Timers
+      CONFIG_SCHED_TICKLESS=y          : Configures the RTOS in tickless mode
+
+    System Type -> SAMA5 Peripheral Support
+      CONFIG_SAMA5_TC0=y               : Enable TC0 (TC channels 0-3
+
+    System Type -> Timer/counter Configuration
+      CONFIG_SAMA5_ONESHOT=y           : Enables one-shot timer wrapper
+      CONFIG_SAMA5_FREERUN=y           : Enabled free-running timer wrapper
+      CONFIG_SAMA5_TICKLESS_ONESHOT=0  : Selects TC0 channel 0 for the one-shot
+      CONFIG_SAMA5_TICKLESS_FREERUN=1  : Selects TC0 channel 1 for the free-
+                                       : running timer
+
+  SAMA5 Timer Usage
+  -----------------
+  This current implementation uses two timers:  A one-shot timer to
+  provide the timed events and a free running timer to provide the current
+  time.  Since timers are a limited resource, that could be an issue on
+  some systems.
+
+  We could do the job with a single timer if we were to keep the single
+  timer in a free-running at all times.  The SAMA5 timer/counters have
+  32-bit counters with the capability to generate a compare interrupt when
+  the timer matches a compare value but also to continue counting without
+  stopping (giving another, different interrupt when the timer rolls over
+  from 0xffffffff to zero).  So we could potentially just set the compare
+  at the number of ticks you want PLUS the current value of timer.  Then
+  you could have both with a single timer:  An interval timer and a free-
+  running counter with the same timer!
+
+  Patches are welcome!
 
 SAMA4D4-EK Configuration Options
 =================================
@@ -3804,13 +3905,23 @@ Configurations
        10.0.0.1 in places.  You can reconfigure to enabled DHCPC or to
        change these addresses as you see fit.
 
-       Since networking is enabled, you will see some boot-up delays until
-       the network connection is established.  These delays can be quite
-       large if no network is attached (A production design would bring up
-       the network asynchronously to avoid these start up delays).
+       See also the "kludge" for EMAC that is documented in the To-Do list
+       at the end of this README file.
 
-       See the "kludge" for EMAC that is documented in the To-Do list at
-       the end of this README file.
+       The configuration option CONFIG_NSH_NETINIT_THREAD is enabled so
+       that NSH network bring-up asynchronously and in parallel on a
+       separate thread.  This eliminates the (visible) networking bring-up
+       delay.  This current implementation, however, has some limitations:
+
+        - If no network is connected, the network bring-up will fail and
+          the network initialization thread will simply exit.  There are no
+          retries and no mechanism to know if the network initialization was
+          successful (it could perform a network Ioctl to see if the link is
+          up and it now, keep trying, but it does not do that now).
+
+        - Furthermore, there is currently no support for detecting loss of
+          network connection and recovery of the connection (similarly, this
+          thread could poll periodically for network status, but does not).
 
    14. I2C Tool. This configuration enables TWI0 (only) as an I2C master
        device.  This configuration also supports the I2C tool at
@@ -3981,6 +4092,10 @@ Configurations
          windows.
        - Obviously, the nx and touchscreen built in applications cannot
          be supported.
+
+       Refer to the NOTES for the nsh configuration.  Those also apply
+       for the nxwm configuration (other than the differences noted
+       above).
 
     3. Here is the quick summary of the build steps.  These steps assume
        that you have the entire NuttX GIT in some directory ~/nuttx-git.
