@@ -7521,7 +7521,7 @@
 	* arch/arm/src/sam34 and include/sam34:  Add support for the SAM4CM
 	  family.  From Max Neklyudov (2014-6-25).
 
-7.4 2014-xx-xx Gregory Nutt <gnutt@nuttx.org>
+7.4 2014-08-15 Gregory Nutt <gnutt@nuttx.org>
 
 	* arch/arm/src/stm32/stm32_i2c.c:  Fix missing configuration of
 	  GPIO pins in I2C driver.  Fix from Alex D. (2014-6-25).
@@ -7539,7 +7539,7 @@
 	  debug disabled (2014-6-26).
 	* configs/sama5d4-ek/dramboot and src/dram_main.c:  Add a boot loader that
 	  runs from ISRAM and loads an Intel HEX file into DRAM (2014-6-26).
-	* configs/sama5d4-ek/nsh and scripts/: Setup the SAMA5D4-EK NSHi
+	* configs/sama5d4-ek/nsh and scripts/: Setup the SAMA5D4-EK NSH
 	  configuration to use the DRAMBOOT loader by default (2014-6-26).
 	* binfmt: Various changes associated with symbol tables.  Most from Pelle
 	  Windestam (2014-6-27).
@@ -7822,7 +7822,7 @@
 	* arch/arm/src/lpc17xx/lpc17_ethernet.c: Added option to use the kernel
 	  worker thread to do most of the workload with CONFIG_NET_WORKER_THREAD
 	  option in Kconfig.  Eliminated a problem with PHY DP83848C : it doesn't
-	  need a specific initialization on mbed. Critical bufix: From time to
+	  need a specific initialization on mbed. Critical bugfix: From time to
 	  time (after some hours) the Ethernet receiver would lose one receive
 	  interrupt and the IP stack never recover because there is no receive
 	  watchdog as the transmit watchdog.  From Max (2013-7-24).
@@ -7923,7 +7923,7 @@
 	  inside the OS may not be supported in the future (2014-7-31).
 	* drivers/audio/audio_null.c, vs1053.c, wm8904.c, include/nuttx/audio/audio.h,
 	  libc/audio/lib_buffer.c: Change how the end of the audio stream is
-	  detected by the leaf audio component.  This used by be done by looking
+	  detected by the leaf audio component.  This used to be done by looking
 	  for the first partial buffer.  That does not work with the in-place
 	  sub-sampling performed by the PCM decoder:  That always reduces the
 	  size of the buffer so that all buffers only partially filled by the
@@ -7979,7 +7979,7 @@
 	* SAMA5D3x-EK and SAMA4D4-EK: Add/update usage documents for media
 	  players (2014-8-4).
 	* drivers/audio/wm8904.c and .h:  Add reset logic to put the part back
-	  in its initial state after playing each WAV file.  Base samles per
+	  in its initial state after playing each WAV file.  Base samples per
 	  second on frame length, not bits-per-sample.  Use a different frame
 	  length for 8-bit and 16-bit data (2014-8-4).
 	* arch/arm/src/sama5/sam_hsmci.c:  TX DMA is again disabled for the
@@ -8099,3 +8099,90 @@
 	  debug output updated in additional files (2014-8-10).
 	* sched/wdog/wd_start.c: Correct a bug in Tickless OS support: logic to
 	  detect changes in head of timer list was wrong (2014-5-10).
+	* sched/sched/sched_timerexperation.c, sched.h, and wdog/wd_start.c:  In
+	  tickless mode, need to stop the interval timer before inserted a new
+	  delay into the timer list.  Otherwise, the time is incorrect on the
+	  first entry of the list (2014-8-11).
+	* arch/arm/src/sama5/sam_freerun.c and sam_oneshot.c:  Correct bad time
+	  conversion, 1000000 not 1000 to convert seconds to microseconds
+	  (2014-8-11).
+	* sched/sched/sched_timerexpiration.c:  Fix inaccurate time conversion.
+	  Remove MSEC_PER_TICK from calculation and convert uint32_t to uin64_t
+	  (2014-8-11).
+	* libc/time/lib_localtime.c, private.h, tzfile.h and several header and
+	  make-related files:  Adds support for localtime.  From Max Neklyudov
+	  (2014-8-12)
+
+7.5 2014-xx-xx Gregory Nutt <gnutt@nuttx.org>
+
+	* clock/clock_systimespec.c and sched/clock/clock_gettime.c:  When
+	  reading the system timer, don't read a struct timespec, convert it
+	  to a fake tick count, then back to a timespec (2014-8-15).
+	* sched/clock/Make.defs, clock_gettime.c, clock_settime.c, include/time.h,
+	  nuttx/clock.h, configs/vsn/src/sif.c: Remove CLOCK_ACTIVETIME. It is non-
+	  standard, unused, and gets in the way of maintaining clocks (2014-8-15).
+	* libc/time/lib_localtime.c:  Modified to that the coding style is much
+	  closer to NuttX coding style.  The local header files private.h and
+	  tzfile.h were removed and incorporated into lib_localtime.c.  All
+	  conditional compilation within lib_localtime.c that unconditionally
+	  evaluated to FALSE was removed (2014-8-15).
+	* drivers/net/Kconfig and include/nuttx/arch.h: Standardize a PHY
+	  interrupt attachment interface (2014-8-16).
+	* configs/Kconfig, sama5d3-xplained, sama5d3x-ek, and sama5d4-ek:
+	  Convert existing board specific PHY interrupt interfaces to use newly
+	  defined standard interface (2014-8-16).
+	* include/net/slip.h:  Move SLIP prototypes from net.h to slip.h
+	  (2014-8-16).
+	* include/net/net.h and net/: Fix some missing function headers
+	  (2014-8-16).
+	* drivers/net/phy_notify.c, include/nuttxarch.h, net/phy.h, and
+	  ioctl.h: Add support for an ioctl that can be used to notify an
+	  application when there is a change in the network status signalled
+	  by a PHY interrupt (2014-8-16).
+	* drivers/net/phy_notify.c, include/net/if.h, ioctl.h, netdev.h, phy.h,
+	  and net/netdev/netdev_ioctl.c: Finishes the ioctl definition to
+	  subscribe to PHY events. Revamp network ioctl signature to support
+	  arguments other than struct mii_ioctl_data (2014-8-16). 
+	* arch/arm/src/stm32/stm32_eth.c: Modified to support the change to the
+	  network ioctl signature changes.  Also add support for new ioctl to
+	  setup PHY event notifications (2014-8-16).
+	* arch/arm/src/sama5/sam_emaca.c, sam_emacb.c, and sam_gmac.c: Implement
+	  all network ioctls, including the new ioctl to setup PHY event
+	  notifications (2014-8-16).
+	* include/net/if.h:  Add some helper macros to make the code that uses
+	  the ioctls a little more compact (2014-8-17).
+	* libc/stdio/lib_sscanf.c: NuttX libc tried to guess how many characters
+	  to parse, extracted them into a buffer, then ran strtol() on that
+	  buffer. That guess is often wrong. A better approach would be to
+	  call strtol() directly on the input data, using the endptr return
+	  value to determine how many characters to skip after parsing.  From
+	  Kosma Moczek (2014-8-18).
+	* net/arp/arp_dump.c:  Add missing configuration option to select
+	  dumping of ARP packet headers.  Move ARP dumping logic from
+	  arp_inout.c to its own file (2014-8-18).
+	* net/arp/arp_out.c: Move arp_out() from arp_inout.c to its own file
+	  (2014-8-18).
+	* net/arp/arp_arpin.c: Move arp_arpin() from arp_inout.c to its own file
+	  (2014-8-18).
+	* net/arp/arp_ipin.c: Rename arp_inout.c to arpipin.c because that is
+	  all that is left in the file (2014-8-18).
+	* net/arp/arp_format.c: Move the logic that formats an ARP packet into a
+	  separate file where it can be re-used.  (2014-8-18).
+	* net/arp/arp_out.c and net/pkt/pkt_send.c:  Change how the IFF_NOARP
+	  flag is handled.  This should be set only when data is moved into the
+	  buffer and cleared after tested by the ARP logic.  Setting it globally
+	  can cause packets to be sent with no valid MAC addresses (2014-8-18).
+	* net/arp/arp_send.c: Partial implementation of logic to send ARP
+	  requests to assure that an IP address mapping is present in the ARP
+	  table (2014-8-18).
+	* net/arp/arp_poll.c: Finished the implementation of logic to send ARP
+	  requests.  Complete, fully hooked into the networking logic, and ready
+	  for test (but still untested) (2014-8-18).
+	* net/icmp/icmp_ping.c, net/socket/net_sendfile.c, sendto.c,
+	  net/tcp/tcp_send_buffered.c, and tcp_send_unbuffered.c:  If
+	  CONFIG_NET_ARP_SEND is enabled, then all ICMP, TCP, and UDP send
+	  operations will call arp_send() before attempting the real send
+	  operation.  arp_send() will check if the the IP address mapping is in
+	  the ARP table and, if not send ARP requests periodically until it is.
+	  This eliminates losing the first outgoing message because there is not
+	  mapping in the ARP table (2014-8-18).

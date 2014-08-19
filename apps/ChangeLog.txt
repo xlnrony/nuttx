@@ -940,7 +940,7 @@
 	* netutils/webserver: httpd_fs_open() should return OK on success and
 	  ERROR on failure, not 1 and 0 (2014-6-23)
 
-7.4 2014-xx-xx Gregory Nutt <gnutt@nuttx.org>
+7.4 2014-08-15 Gregory Nutt <gnutt@nuttx.org>
 
 	* apps/system/mdio:  PHY tool from Daniel Lazlo Sizter (2014-6-27).
 	* apps/nshlib:  Networking logic modified to handler the case of SLIP
@@ -953,7 +953,7 @@
 	  instead of uip_. (2014-7-2).
 	* apps/nshlib/nsh_usbkeyboard.c:  Add a configuration to use a USB
 	  keyboard for the stdin device (2014-7-3).
-	* apps/neturils/webclient/webclient.c:  Fix to offset caculation from
+	* apps/neturils/webclient/webclient.c:  Fix to offset calculation from
 	  Rony Xln.  Prevents 0x0a at the beginning of lines (2014-7-7).
 	* netutils/webserver (and other files):  Fix some configuration usage:
 	  CONFIG_NETUTILS_HTTPD_SENDFILE was missing from Kconfig; CONFIG_NET_HAVE_SOLINGER
@@ -1001,3 +1001,13 @@
 	  thread.  Since the network bring-up is asynchronous, there are not
 	  serial console start-up delays due to the network negotiation time
 	  (2014-8-6).
+	* apps/system/sudoku:  Add a sudoku game (2014-8-11).
+
+7.5 2014-xx-xx Gregory Nutt <gnutt@nuttx.org>
+
+	* apps/nshlib/Kconfig, nsh.h, and nsh_netinit.c:  Extend the NSH network
+	  initialization logic.  There is now an option that will create a
+	  network monitor thread that will monitor the state of the link.  When
+	  the link goes down, the code will attempt to gracefully put the
+	  Ethernet driver in a down state; When the link comes back, the code
+	  will attempt to bring the network back up (2014-8-17).

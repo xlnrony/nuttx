@@ -105,7 +105,7 @@
 #include <arch/arch.h>
 
 /****************************************************************************
- * Definitions
+ * Pre-processor definitions
  ****************************************************************************/
 
 /****************************************************************************
@@ -113,6 +113,7 @@
  ****************************************************************************/
 
 typedef CODE void (*sig_deliver_t)(FAR struct tcb_s *tcb);
+typedef CODE void (*phy_enable_t)(bool enable);
 
 /****************************************************************************
  * Public Variables
@@ -950,15 +951,31 @@ int up_prioritize_irq(int irq, int priority);
  *     early in the intialization sequence (by up_intialize()).
  *   int up_timer_gettime(FAR struct timespec *ts):  Returns the current
  *     time from the platform specific time source.
+ *
+ * The tickless option can be supported either via a simple interval timer
+ * (plus elapsed time) or via an alarm.  The interval timer allows programming
+ * events to occur after an interval.  With the alarm, you can set a time in
+ * the future and get an event when that alarm goes off.
+ *
+ *   int up_alarm_cancel(void):  Cancel the alarm.
+ *   int up_alarm_start(FAR const struct timespec *ts): Enable (or re-anable
+ *     the alarm.
+ * #else
  *   int up_timer_cancel(void):  Cancels the interval timer.
  *   int up_timer_start(FAR const struct timespec *ts): Start (or re-starts)
  *     the interval timer.
+ * #endif
  *
  * The RTOS will provide the following interfaces for use by the platform-
  * specific interval timer implementation:
  *
+ * #ifdef CONFIG_SCHED_TICKLESS_ALARM
+ *   void sched_alarm_expiration(FAR const struct timespec *ts):  Called
+ *     by the platform-specific logic when the alarm expires.
+ * #else
  *   void sched_timer_expiration(void):  Called by the platform-specific
  *     logic when the interval timer expires.
+ * #endif
  *
  ****************************************************************************/
 
@@ -1029,6 +1046,72 @@ int up_timer_gettime(FAR struct timespec *ts);
 #endif
 
 /****************************************************************************
+ * Name: up_alarm_cancel
+ *
+ * Description:
+ *   Cancel the alarm and return the time of cancellation of the alarm.
+ *   These two steps need to be as nearly atomic as possible.
+ *   sched_alarm_expiration() will not be called unless the alarm is
+ *   restarted with up_alarm_start().
+ *
+ *   If, as a race condition, the alarm has already expired when this
+ *   function is called, then time returned is the current time.
+ *
+ *   NOTE: This function may execute at a high rate with no timer running (as
+ *   when pre-emption is enabled and disabled).
+ *
+ *   Provided by platform-specific code and called from the RTOS base code.
+ *
+ * Input Parameters:
+ *   ts - Location to return the expiration time.  The current time should
+ *        returned if the alarm is not active.  ts may be NULL in which
+ *        case the time is not returned.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success.  A call to up_alarm_cancel() when
+ *   the timer is not active should also return success; a negated errno
+ *   value is returned on any failure.
+ *
+ * Assumptions:
+ *   May be called from interrupt level handling or from the normal tasking
+ *   level.  Interrupts may need to be disabled internally to assure
+ *   non-reentrancy.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SCHED_TICKLESS) && defined(CONFIG_SCHED_TICKLESS_ALARM)
+int up_alarm_cancel(FAR struct timespec *ts);
+#endif
+
+/****************************************************************************
+ * Name: up_alarm_start
+ *
+ * Description:
+ *   Start the alarm.  sched_alarm_expiration() will be called when the
+ *   alarm occurs (unless up_alaram_cancel is called to stop it).
+ *
+ *   Provided by platform-specific code and called from the RTOS base code.
+ *
+ * Input Parameters:
+ *   ts - The time in the future at the alarm is expected to occur.  When
+ *        the alarm occurs the timer logic will call sched_alarm_expiration().
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure.
+ *
+ * Assumptions:
+ *   May be called from interrupt level handling or from the normal tasking
+ *   level.  Interrupts may need to be disabled internally to assure
+ *   non-reentrancy.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SCHED_TICKLESS) && defined(CONFIG_SCHED_TICKLESS_ALARM)
+int up_alarm_start(FAR const struct timespec *ts);
+#endif
+
+/****************************************************************************
  * Name: up_timer_cancel
  *
  * Description:
@@ -1064,7 +1147,7 @@ int up_timer_gettime(FAR struct timespec *ts);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SCHED_TICKLESS
+#if defined(CONFIG_SCHED_TICKLESS) && !defined(CONFIG_SCHED_TICKLESS_ALARM)
 int up_timer_cancel(FAR struct timespec *ts);
 #endif
 
@@ -1093,7 +1176,7 @@ int up_timer_cancel(FAR struct timespec *ts);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SCHED_TICKLESS
+#if defined(CONFIG_SCHED_TICKLESS) && !defined(CONFIG_SCHED_TICKLESS_ALARM)
 int up_timer_start(FAR const struct timespec *ts);
 #endif
 
@@ -1195,7 +1278,7 @@ void sched_process_timer(void);
  * Description:
  *   if CONFIG_SCHED_TICKLESS is defined, then this function is provided by
  *   the RTOS base code and called from platform-specific code when the
- *   interval timer used to implemented the tick-less OS expires.
+ *   interval timer used to implement the tick-less OS expires.
  *
  * Input Parameters:
  *   None
@@ -1209,8 +1292,32 @@ void sched_process_timer(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SCHED_TICKLESS
+#if defined(CONFIG_SCHED_TICKLESS) && !defined(CONFIG_SCHED_TICKLESS_ALARM)
 void sched_timer_expiration(void);
+#endif
+
+/****************************************************************************
+ * Name:  sched_alarm_expiration
+ *
+ * Description:
+ *   if CONFIG_SCHED_TICKLESS is defined, then this function is provided by
+ *   the RTOS base code and called from platform-specific code when the
+ *   alarm used to implement the tick-less OS expires.
+ *
+ * Input Parameters:
+ *   ts - The time that the alarm expired
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   Base code implementation assumes that this function is called from
+ *   interrupt handling logic with interrupts disabled.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SCHED_TICKLESS) && defined(CONFIG_SCHED_TICKLESS_ALARM)
+void sched_alarm_expiration(FAR const struct *ts);
 #endif
 
 /************************************************************************
@@ -1338,6 +1445,73 @@ uint8_t board_buttons(void);
 
 #ifdef CONFIG_ARCH_IRQBUTTONS
 xcpt_t board_button_irq(int id, xcpt_t irqhandler);
+#endif
+
+/****************************************************************************
+ * Name: arch_phy_irq
+ *
+ * Description:
+ *   This function may be called to register an interrupt handler that will
+ *   be called when a PHY interrupt occurs.  This function both attaches
+ *   the interrupt handler and enables the interrupt if 'handler' is non-
+ *   NULL.  If handler is NULL, then the interrupt is detached and disabled
+ *   instead.
+ *
+ *   The PHY interrupt is always disabled upon return.  The caller must
+ *   call back through the enable function point to control the state of
+ *   the interrupt.
+ *
+ *   This interrupt may or may not be available on a given platform depending
+ *   on how the network hardware architecture is implemented.  In a typical
+ *   case, the PHY interrupt is provided to board-level logic as a GPIO
+ *   interrupt (in which case this is a board-specific interface and really
+ *   should be called board_phy_irq()); In other cases, the PHY interrupt
+ *   may be cause by the chip's MAC logic (in which case arch_phy_irq()) is
+ *   an appropriate name.  Other other boards, there may be no PHY interrupts
+ *   available at all.  If client attachable PHY interrupts are available
+ *   from the board or from the chip, then CONFIG_ARCH_PHY_INTERRUPT should
+ *   be defined to indicate that fact.
+ *
+ *   Typical usage:
+ *   a. OS service logic (not application logic*) attaches to the PHY
+ *      PHY interrupt and enables the PHY interrupt.
+ *   b. When the PHY interrupt occurs:  (1) the interrupt should be
+ *      disabled and () work should be scheduled on the worker thread (or
+ *      perhaps a dedicated application thread).
+ *   c. That worker thread should use the SIOCGMIIPHY, SIOCGMIIREG,
+ *      and SIOCSMIIREG ioctl calls** to communicate with the PHY,
+ *      determine what network event took place (Link Up/Down?), and
+ *      take the appropriate actions.
+ *   d. It should then interact the the PHY to clear any pending
+ *      interrupts, then re-enable the PHY interrupt.
+ *
+ *    * This is an OS internal interface and should not be used from
+ *      application space.  Rather applications should use the SIOCMIISIG
+ *      ioctl to receive a signal when a PHY event occurs.
+ *   ** This interrupt is really of no use if the Ethernet MAC driver
+ *      does not support these ioctl calls.
+ *
+ * Input Parameters:
+ *   intf    - Identifies the network interface.  For example "eth0".  Only
+ *             useful on platforms that support multiple Ethernet interfaces
+ *             and, hence, multiple PHYs and PHY interrupts.
+ *   handler - The client interrupt handler to be invoked when the PHY
+ *             asserts an interrupt.  Must reside in OS space, but can
+ *             signal tasks in user space.  A value of NULL can be passed
+ *             in order to detach and disable the PHY interrupt.
+ *   enable  - A function pointer that be unsed to enable or disable the
+ *             PHY interrupt.
+ *
+ * Returned Value:
+ *   The previous PHY interrupt handler address is returned.  This allows you
+ *   to temporarily replace an interrupt handler, then restore the original
+ *   interrupt handler.  NULL is returned if there is was not handler in
+ *   place when the call was made.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_PHY_INTERRUPT
+xcpt_t arch_phy_irq(FAR const char *intf, xcpt_t handler, phy_enable_t *enable);
 #endif
 
 /************************************************************************************

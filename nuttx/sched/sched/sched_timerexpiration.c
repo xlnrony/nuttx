@@ -58,6 +58,22 @@
 /************************************************************************
  * Pre-processor Definitions
  ************************************************************************/
+/* In the original design, it was planned that sched_timer_reasses() be
+ * called whenever there was a change at the head of the ready-to-run
+ * list.  That call was intended to establish a new time-slice or to
+ * stop an old time-slice timer.  However, it turns out that that
+ * solution is too fragile:  The system is too vulnerable at the time
+ * that the read-to-run list is modified in order to muck with timers.
+ *
+ * The kludge/work-around is simple to keep the timer running all of the
+ * time with an interval of no more than the timeslice interval.  If we
+ * this, then there is really no need to do anything when on context
+ * switches.
+ */
+
+#if CONFIG_RR_INTERVAL > 0
+#  define KEEP_ALIVE_HACK 1
+#endif
 
 #ifndef MIN
 #  define MIN(a,b) (((a) < (b)) ? (a) : (b))
@@ -85,9 +101,104 @@
 
 static unsigned int g_timer_interval;
 
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+/* This is the time that the timer was stopped.  All future times are
+ * calculated against this time.  It must be valid at all times when
+ * the timer is not running.
+ */
+
+static struct timespec g_stop_time;
+#endif
+
 /************************************************************************
  * Private Functions
  ************************************************************************/
+/************************************************************************
+ * Name:  sched_timespec_add
+ *
+ * Description:
+ *   Add timespec ts1 to to2 and return the result in ts3
+ *
+ * Inputs:
+ *   ts1 and ts2: The two timespecs to be added
+ *   t23: The location to return the result (may be ts1 or ts2)
+ *
+ * Return Value:
+ *   None
+ *
+ ************************************************************************/
+
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+static void sched_timespec_add(FAR const struct timespec *ts1,
+                               FAR const struct timespec *ts2,
+                               FAR struct timespec ts3)
+{
+  time_t sec = ts1->tv_sec + ts2->tv_sec;
+  long nsec  = ts1->tv_nsec + ts2->tv_nsec;
+
+  if (nsec >= NSEC_PER_SEC)
+    {
+      nsec -= NSEC_PER_SEC
+      sec++;
+    }
+
+  ts3->tv_sec  = sec;
+  ts3->tv_nsec = nsec;
+}
+#endif
+
+/************************************************************************
+ * Name:  sched_timespec_subtract
+ *
+ * Description:
+ *   Subtract timespec ts2 from to1 and return the result in ts3.
+ *   Zero is returned if the time difference is negative.
+ *
+ * Inputs:
+ *   ts1 and ts2: The two timespecs to be subtracted (ts1 - ts2)
+ *   t23: The location to return the result (may be ts1 or ts2)
+ *
+ * Return Value:
+ *   None
+ *
+ ************************************************************************/
+
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+static void sched_timespec_subtract(FAR const struct timespec *ts1,
+                                    FAR const struct timespec *ts2,
+                                    FAR struct timespec ts3)
+{
+  time_t sec;
+  long nsec;
+
+  if (ts1->tv_sec < ts2->tv_sec)
+    {
+      sec  = 0;
+      nsec = 0;
+    }
+  else if (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec <= ts2->tv_nsec)
+    {
+      sec  = 0;
+      nsec = 0;
+    }
+  else
+    {
+      sec = ts1->tv_sec + ts2->tv_sec;
+      if (ts1->tv_nsec < ts2->tv_nsec)
+        {
+          nsec = (ts1->tv_nsec + NSEC_PER_SEC) - ts2->tv_nsec;
+          sec--;
+        }
+      else
+        {
+          nsec = ts1->tv_nsec - ts2->tv_nsec;
+        }
+    }
+
+  ts3->tv_sec = sec;
+  ts3->tv_nsec = sec;
+}
+#endif
 
 /************************************************************************
  * Name:  sched_process_timeslice
@@ -117,7 +228,11 @@ static unsigned int
 sched_process_timeslice(unsigned int ticks, bool noswitches)
 {
   FAR struct tcb_s *rtcb  = (FAR struct tcb_s*)g_readytorun.head;
+#ifdef KEEP_ALIVE_HACK
+  unsigned int ret = MSEC2TICK(CONFIG_RR_INTERVAL);
+#else
   unsigned int ret = 0;
+#endif
   int decr;
 
   /* Check if the currently executing task uses round robin
@@ -198,13 +313,22 @@ sched_process_timeslice(unsigned int ticks, bool noswitches)
                    */
   
                   rtcb = (FAR struct tcb_s*)g_readytorun.head;
+
+                  /* Check if the new task at the head of the ready-to-run
+                   * supports round robin scheduling.
+                   */
+
                   if ((rtcb->flags & TCB_FLAG_ROUND_ROBIN) != 0)
                     {
                       /* The new task at the head of the ready to run
                        * list does not support round robin scheduling.
                        */
 
+#ifdef KEEP_ALIVE_HACK
+                      ret = MSEC2TICK(CONFIG_RR_INTERVAL);
+#else
                       ret = 0;
+#endif
                     }
                   else
                     {
@@ -235,28 +359,28 @@ sched_process_timeslice(unsigned int ticks, bool noswitches)
  *   noswitches - True: Can't do context switches now.
  *
  * Returned Value:
- *   Base code implementation assumes that this function is called from
- *   interrupt handling logic with interrupts disabled.
+ *   The number of ticks to use when setting up the next timer.  Zero if
+ *   there is no interesting event to be timed.
  *
  ****************************************************************************/
 
-static void sched_timer_process(unsigned int ticks, bool noswitches)
+static unsigned int sched_timer_process(unsigned int ticks, bool noswitches)
 {
-  unsigned int nextime = UINT_MAX;
-  bool needtimer = false;
-  uint32_t msecs;
-  uint32_t secs;
-  uint32_t nsecs;
+#if CONFIG_RR_INTERVAL > 0
+  unsigned int cmptime = UINT_MAX;
+#endif
+  unsigned int rettime  = 0;
   unsigned int tmp;
-  int ret;
 
   /* Process watchdogs */
 
   tmp = wd_timer(ticks);
   if (tmp > 0)
     {
-      nextime   = tmp;
-      needtimer = true;
+#if CONFIG_RR_INTERVAL > 0
+      cmptime = tmp;
+#endif
+      rettime  = tmp;
     }
 
 #if CONFIG_RR_INTERVAL > 0
@@ -265,34 +389,77 @@ static void sched_timer_process(unsigned int ticks, bool noswitches)
    */
 
   tmp = sched_process_timeslice(ticks, noswitches);
-  if (tmp > 0 && tmp < nextime)
+  if (tmp > 0 && tmp < cmptime)
     {
-      nextime   = tmp;
-      needtimer = true;
+      rettime  = tmp;
     }
 #endif
+
+  return rettime;
+}
+
+/****************************************************************************
+ * Name:  sched_timer_start
+ *
+ * Description:
+ *   Start the interval timer.
+ *
+ * Input Parameters:
+ *   ticks - The number of ticks defining the timer interval to setup.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+static void sched_timer_start(unsigned int ticks)
+{
+#ifdef CONFIG_HAVE_LONG_LONG
+  uint64_t usecs;
+  uint64_t secs;
+#else
+  uint64_t usecs;
+  uint64_t secs;
+#endif
+  uint32_t nsecs;
+  int ret;
 
   /* Set up the next timer interval (or not) */
 
   g_timer_interval = 0;
-  if (needtimer)
+  if (ticks > 0)
     {
       struct timespec ts;
 
       /* Save new timer interval */
 
-      g_timer_interval = nextime;
+      g_timer_interval = ticks;
 
       /* Convert ticks to a struct timespec that up_timer_start() can
        * understand.
+       *
+       * REVISIT: Calculations may not have an acceptable range if uint64_t
+       * is not supported(?)
        */
 
-      msecs = TICK2MSEC(nextime);
-      secs  = msecs / MSEC_PER_SEC;
-      nsecs = (msecs - (secs * MSEC_PER_SEC)) * NSEC_PER_MSEC;
+#ifdef CONFIG_HAVE_LONG_LONG
+      usecs = TICK2USEC((uint64_t)ticks);
+#else
+      usecs = TICK2USEC(ticks);
+#endif
+      secs  = usecs / USEC_PER_SEC;
+      nsecs = (usecs - (secs * USEC_PER_SEC)) * NSEC_PER_USEC;
 
       ts.tv_sec  = (time_t)secs;
       ts.tv_nsec = (long)nsecs;
+
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+      /* Convert the delay to a time in the future (with respect
+       * to the time when last stopped the timer).
+       */
+
+      sched_timespec_add(&g_stop_time, &ts, &ts);
+#endif
 
       /* [Re-]start the interval timer */
 
@@ -310,12 +477,57 @@ static void sched_timer_process(unsigned int ticks, bool noswitches)
  ************************************************************************/
 
 /****************************************************************************
+ * Name:  sched_alarm_expiration
+ *
+ * Description:
+ *   if CONFIG_SCHED_TICKLESS is defined, then this function is provided by
+ *   the RTOS base code and called from platform-specific code when the
+ *   alarm used to implement the tick-less OS expires.
+ *
+ * Input Parameters:
+ *   ts - The time that the alarm expired
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   Base code implementation assumes that this function is called from
+ *   interrupt handling logic with interrupts disabled.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+void sched_alarm_expiration(FAR const struct *ts);
+{
+  unsigned int elapsed;
+  unsigned int nexttime;
+
+  DEBUGASSERT(ts);
+
+  /* Save the time that the alarm occurred */
+
+  g_stop_time.tv_sec  = ts->tv_sec;
+  g_stop_time.tv_nsec = ts->tv_nsec;
+
+  /* Get the interval associated with last expiration */
+
+  elapsed          = g_timer_interval;
+  g_timer_interval = 0;
+
+  /* Process the timer ticks and set up the next interval (or not) */
+
+  nexttime = sched_timer_process(elapsed, false);
+  sched_timer_start(nexttime);
+}
+#endif
+
+/****************************************************************************
  * Name: sched_timer_expiration
  *
  * Description:
  *   if CONFIG_SCHED_TICKLESS is defined, then this function is provided by
  *   the RTOS base code and called from platform-specific code when the
- *   interval timer used to implemented the tick-less OS expires.
+ *   interval timer used to implement the tick-less OS expires.
  *
  * Input Parameters:
  *
@@ -325,40 +537,80 @@ static void sched_timer_process(unsigned int ticks, bool noswitches)
  *
  ****************************************************************************/
 
+#ifndef CONFIG_SCHED_TICKLESS_ALARM
 void sched_timer_expiration(void)
 {
   unsigned int elapsed;
+  unsigned int nexttime;
+
+  /* Get the interval associated with last expiration */
 
   elapsed          = g_timer_interval;
   g_timer_interval = 0;
-  sched_timer_process(elapsed, false);
+
+  /* Process the timer ticks and set up the next interval (or not) */
+
+  nexttime = sched_timer_process(elapsed, false);
+  sched_timer_start(nexttime);
 }
+#endif
 
 /****************************************************************************
- * Name:  sched_timer_reassess
+ * Name:  sched_timer_cancel
  *
  * Description:
- *   It is necessary to re-assess the timer interval in several
- *   circumstances:
+ *   Stop the current timing activity.  This is currently called just before
+ *   a new entry is inserted at the head of a timer list and also as part
+ *   of the processing of sched_timer_reassess().
  *
- *   - If the watchdog at the head of the expiration list changes (or if its
- *     delay changes.  This can occur as a consequence of the actions of
- *     wd_start() or wd_cancel().
- *   - Any context switch occurs, changing the task at the head of the
- *     ready-to-run list.  The task at the head of list may require
- *     different timeslice processing (or no timeslice at all).
- *   - When pre-emption is re-enabled.  A previous time slice may have
- *     expired while pre-emption was enabled and now needs to be executed.
+ *   This function(1) cancels the current timer, (2) determines how much of
+ *   the interval has elapsed, (3) completes any partially timed events
+ *   (including updating the delay of the timer at the head of the timer
+ *   list), and (2) returns the number of ticks that would be needed to
+ *   resume timing and complete this delay.
  *
  * Input Parameters:
  *   None
  *
  * Returned Value:
- *   None
+ *   Number of timer ticks that would be needed to complete the delay (zero
+ *   if the timer was not active).
  *
  ****************************************************************************/
 
-void sched_timer_reassess(void)
+#ifdef CONFIG_SCHED_TICKLESS_ALARM
+unsigned int sched_timer_cancel(void)
+{
+  struct timespec ts;
+  unsigned int elapsed;
+
+  /* Cancel the alarm and and get the time that the alarm was cancelled.
+   * If the alarm was not enabled (or, perhaps, just expired since
+   * interrupts were disabled), up_timer_cancel() will return the
+   * current time.
+   */
+
+  ts.tv_sec        = g_stop_time.tv_sec;
+  ts.tv_nsec       = g_stop_time.tv_nsec;
+  g_timer_interval = 0;
+
+  (void)up_timer_cancel(&g_stop_time);
+
+  /* Convert this to the elapsed time */
+
+  sched_timespec_subtract(&g_stop_time, &ts, &ts);
+
+  /* Convert to ticks */
+
+  elapsed  = SEC2TICK(ts.tv_sec);
+  elapsed += NSEC2TICK(ts.tv_nsec);
+
+  /* Process the timer ticks and return the next interval */
+
+  return sched_timer_process(elapsed, true);
+}
+#else
+unsigned int sched_timer_cancel(void)
 {
   struct timespec ts;
   unsigned int ticks;
@@ -382,6 +634,87 @@ void sched_timer_reassess(void)
 
   elapsed          = g_timer_interval - ticks;
   g_timer_interval = 0;
-  sched_timer_process(elapsed, true);
+
+  /* Process the timer ticks and return the next interval */
+
+  return sched_timer_process(elapsed, true);
+}
+#endif
+
+/****************************************************************************
+ * Name:  sched_timer_resume
+ *
+ * Description:
+ *   Re-assess the next deadline and restart the interval timer.  This is
+ *   called from wd_start() after it has inserted a new delay into the
+ *   timer list.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None.
+ *
+ * Assumptions:
+ *   This function is called right after sched_timer_cancel().  If
+ *   CONFIG_SCHED_TICKLESS_ALARM=y, then g_stop_time must be the value time
+ *   when the timer was cancelled.
+ *
+ ****************************************************************************/
+
+void sched_timer_resume(void)
+{
+  unsigned int nexttime;
+
+  /* Reassess the next deadline (by simply processing a zero ticks expired)
+   * and set up the next interval (or not).
+   */
+
+  nexttime = sched_timer_process(0, true);
+  sched_timer_start(nexttime);
+}
+
+/****************************************************************************
+ * Name:  sched_timer_reassess
+ *
+ * Description:
+ *   It is necessary to re-assess the timer interval in several
+ *   circumstances:
+ *
+ *   - If the watchdog at the head of the expiration list changes (or if its
+ *     delay changes.  This can occur as a consequence of the actions of
+ *     wd_start() or wd_cancel().
+ *   - When pre-emption is re-enabled.  A previous time slice may have
+ *     expired while pre-emption was enabled and now needs to be executed.
+ *
+ *   In the original design, it was also planned that sched_timer_reasses()
+ *   be called whenever there was a change at the head of the ready-to-run
+ *   list.  That call was intended to establish a new time-slice for the
+ *   newly activated task or to stop the timer if time-slicing is no longer
+ *   needed.  However, it turns out that that solution is too fragile:  The
+ *   system is too vulnerable at the time that the read-to-run list is
+ *   modified in order to muck with timers.
+ *
+ *   The kludge/work-around is simple to keep the timer running all of the
+ *   time with an interval of no more than the timeslice interval.  If we
+ *   this, then there is really no need to do anything when on context
+ *   switches.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void sched_timer_reassess(void)
+{
+  unsigned int nexttime;
+
+  /* Cancel and restart the timer */
+
+  nexttime = sched_timer_cancel();
+  sched_timer_start(nexttime);
 }
 #endif /* CONFIG_SCHED_TICKLESS */

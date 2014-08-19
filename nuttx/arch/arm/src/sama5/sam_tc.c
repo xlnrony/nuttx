@@ -184,8 +184,8 @@ static int sam_tc678_interrupt(int irq, void *context);
 #ifdef SAMA5_HAVE_PMC_PCR_DIV
 static int sam_tc_mckdivider(uint32_t mck);
 #endif
-static int sam_tc_freqdiv(uint32_t ftc, int ndx);
-static uint32_t sam_tc_divfreq(uint32_t ftc, int ndx);
+static int sam_tc_freqdiv_lookup(uint32_t ftcin, int ndx);
+static uint32_t sam_tc_divfreq_lookup(uint32_t ftcin, int ndx);
 static inline struct sam_chan_s *sam_tc_initialize(int channel);
 
 /****************************************************************************
@@ -822,28 +822,33 @@ static int sam_tc_mckdivider(uint32_t mck)
 #endif
 
 /****************************************************************************
- * Name: sam_tc_freqdiv
+ * Name: sam_tc_freqdiv_lookup
  *
  * Description:
- *  Given the TC input frequency (Ftc) and a divider index, return the value of
- *  the Ftc divider.
+ *  Given the TC input frequency (Ftcin) and a divider index, return the value of
+ *  the Ftcin divider.
  *
  * Input Parameters:
- *   ftc - TC input frequency
- *   ndx - Divider index
+ *   ftcin - TC input frequency
+ *   ndx   - Divider index
  *
  * Returned Value:
- *   The ftc input divider value
+ *   The Ftcin input divider value
  *
  ****************************************************************************/
 
-static int sam_tc_freqdiv(uint32_t ftc, int ndx)
+static int sam_tc_freqdiv_lookup(uint32_t ftcin, int ndx)
 {
   /* The final option is to use the SLOW clock */
 
   if (ndx >= TC_NDIVIDERS)
     {
-      return ftc / BOARD_SLOWCLK_FREQUENCY;
+      /* Not really a divider.  In this case, the board is actually driven
+       * by the 32.768KHz slow clock.  This returns a value that looks like
+       * correct divider if MCK were the input.
+       */
+
+      return ftcin / BOARD_SLOWCLK_FREQUENCY;
     }
   else
     {
@@ -852,22 +857,22 @@ static int sam_tc_freqdiv(uint32_t ftc, int ndx)
 }
 
 /****************************************************************************
- * Name: sam_tc_divfreq
+ * Name: sam_tc_divfreq_lookup
  *
  * Description:
- *  Given the TC input frequency (Ftc) and a divider index, return the value of
- *  the divided frequency
+ *  Given the TC input frequency (Ftcin) and a divider index, return the
+ *  value of the divided frequency
  *
  * Input Parameters:
- *   ftc - TC input frequency
- *   ndx - Divider index
+ *   ftcin - TC input frequency
+ *   ndx   - Divider index
  *
  * Returned Value:
  *   The divided frequency value
  *
  ****************************************************************************/
 
-static uint32_t sam_tc_divfreq(uint32_t ftc, int ndx)
+static uint32_t sam_tc_divfreq_lookup(uint32_t ftcin, int ndx)
 {
   /* The final option is to use the SLOW clock */
 
@@ -877,7 +882,7 @@ static uint32_t sam_tc_divfreq(uint32_t ftc, int ndx)
     }
   else
     {
-      return ftc >> g_log2divider[ndx];
+      return ftcin >> g_log2divider[ndx];
     }
 }
 
@@ -1180,6 +1185,14 @@ void sam_tc_start(TC_HANDLE handle)
   tcvdbg("Starting channel %d inuse=%d\n", chan->chan, chan->inuse);
   DEBUGASSERT(chan && chan->inuse);
 
+  /* Read the SR to clear any pending interrupts on this channel */
+
+  (void)sam_chan_getreg(chan, SAM_TC_SR_OFFSET);
+
+  /* Then enable the timer (by setting the CLKEN bit).  Setting SWTRIG
+   * will also reset the timer counter and starting the timer.
+   */
+
   sam_chan_putreg(chan, SAM_TC_CCR_OFFSET, TC_CCR_CLKEN | TC_CCR_SWTRG);
   sam_regdump(chan, "Started");
 }
@@ -1308,7 +1321,7 @@ void sam_tc_setregister(TC_HANDLE handle, int regid, uint32_t regval)
 
   DEBUGASSERT(chan && regid < TC_NREGISTERS);
 
-  tcvdbg("Channel %d: Set register RC%d to 0x08lx\n",
+  tcvdbg("Channel %d: Set register RC%d to %08lx\n",
          chan->chan, regid, (unsigned long)regval);
 
   sam_chan_putreg(chan, g_regoffset[regid], regval);
@@ -1359,10 +1372,10 @@ uint32_t sam_tc_getcounter(TC_HANDLE handle)
 }
 
 /****************************************************************************
- * Name: sam_tc_frequency
+ * Name: sam_tc_infreq
  *
  * Description:
- *   Return the timer input frequency (Ftc), that is, the MCK frequency
+ *   Return the timer input frequency (Ftcin), that is, the MCK frequency
  *   divided down so that the timer/counter is driven within its maximum
  *   frequency.
  *
@@ -1374,7 +1387,7 @@ uint32_t sam_tc_getcounter(TC_HANDLE handle)
  *
  ****************************************************************************/
 
-uint32_t sam_tc_frequency(void)
+uint32_t sam_tc_infreq(void)
 {
 #ifdef SAMA5_HAVE_PMC_PCR_DIV
   uint32_t mck = BOARD_MCK_FREQUENCY;
@@ -1386,18 +1399,54 @@ uint32_t sam_tc_frequency(void)
 }
 
 /****************************************************************************
+ * Name: sam_tc_divfreq
+ *
+ * Description:
+ *   Return the divided timer input frequency that is currently driving the
+ *   the timer counter.
+ *
+ * Input Parameters:
+ *   handle Channel handle previously allocated by sam_tc_allocate()
+ *
+ * Returned Value:
+ *  The timer counter frequency.
+ *
+ ****************************************************************************/
+
+uint32_t sam_tc_divfreq(TC_HANDLE handle)
+{
+  struct sam_chan_s *chan = (struct sam_chan_s *)handle;
+  uint32_t ftcin = sam_tc_infreq();
+  uint32_t regval;
+  int tcclks;
+
+  DEBUGASSERT(chan);
+
+  /* Get the the TC_CMR register contents for this channel and extract the
+   * TCCLKS index.
+   */
+
+  regval = sam_chan_getreg(chan, SAM_TC_CMR_OFFSET);
+  tcclks = (regval & TC_CMR_TCCLKS_MASK) >> TC_CMR_TCCLKS_SHIFT;
+
+  /* And use the TCCLKS index to calculate the timer counter frequency */
+
+  return sam_tc_divfreq_lookup(ftcin, tcclks);
+}
+
+/****************************************************************************
  * Name: sam_tc_divisor
  *
  * Description:
  *   Finds the best MCK divisor given the timer frequency and MCK.  The
  *   result is guaranteed to satisfy the following equation:
  *
- *     (Ftc / (div * 65536)) <= freq <= (Ftc / dev)
+ *     (Ftcin / (div * 65536)) <= freq <= (Ftcin / dev)
  *
  *   where:
- *     freq - the desired frequency
- *     Ftc  - The timer/counter input frequency
- *     div  - With DIV being the highest possible value.
+ *     freq  - the desired frequency
+ *     Ftcin - The timer/counter input frequency
+ *     div   - With DIV being the highest possible value.
  *
  * Input Parameters:
  *   frequency  Desired timer frequency.
@@ -1412,17 +1461,17 @@ uint32_t sam_tc_frequency(void)
 
 int sam_tc_divisor(uint32_t frequency, uint32_t *div, uint32_t *tcclks)
 {
-  uint32_t ftc = sam_tc_frequency();
+  uint32_t ftcin = sam_tc_infreq();
   int ndx = 0;
 
   tcvdbg("frequency=%d\n", frequency);
 
   /* Satisfy lower bound.  That is, the value of the divider such that:
    *
-   *   frequency >= tc_input_frequency / divider.
+   *   frequency >= (tc_input_frequency * 65536) / divider.
    */
 
-  while (frequency < (sam_tc_divfreq(ftc, ndx) >> 16))
+  while (frequency < (sam_tc_divfreq_lookup(ftcin, ndx) >> 16))
     {
       if (++ndx > TC_NDIVOPTIONS)
         {
@@ -1441,7 +1490,7 @@ int sam_tc_divisor(uint32_t frequency, uint32_t *div, uint32_t *tcclks)
 
   for (; ndx < (TC_NDIVOPTIONS-1); ndx++)
     {
-      if (frequency > sam_tc_divfreq(ftc, ndx + 1))
+      if (frequency > sam_tc_divfreq_lookup(ftcin, ndx + 1))
         {
           break;
         }
@@ -1451,7 +1500,7 @@ int sam_tc_divisor(uint32_t frequency, uint32_t *div, uint32_t *tcclks)
 
   if (div)
     {
-      uint32_t value = sam_tc_freqdiv(ftc, ndx);
+      uint32_t value = sam_tc_freqdiv_lookup(ftcin, ndx);
       tcvdbg("return div=%lu\n", (unsigned long)value);
       *div = value;
     }
@@ -1460,8 +1509,8 @@ int sam_tc_divisor(uint32_t frequency, uint32_t *div, uint32_t *tcclks)
 
   if (tcclks)
     {
-      tcvdbg("return tcclks=%d\n", ndx);
-      *tcclks = ndx;
+      tcvdbg("return tcclks=%08lx\n", (unsigned long)TC_CMR_TCCLKS(ndx));
+      *tcclks = TC_CMR_TCCLKS(ndx);
     }
 
   return OK;

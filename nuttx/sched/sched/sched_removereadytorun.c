@@ -92,6 +92,7 @@
 
 bool sched_removereadytorun(FAR struct tcb_s *rtcb)
 {
+  FAR struct tcb_s *ntcb = NULL;
   bool ret = false;
 
   /* Check if the TCB to be removed is at the head of the ready to run list.
@@ -102,19 +103,21 @@ bool sched_removereadytorun(FAR struct tcb_s *rtcb)
     {
       /* There must always be at least one task in the list (the idle task) */
 
-      ASSERT(rtcb->flink != NULL);
+      ntcb = (FAR struct tcb_s *)rtcb->flink;
+      DEBUGASSERT(ntcb != NULL);
 
       /* Inform the instrumentation layer that we are switching tasks */
 
-      sched_note_switch(rtcb, rtcb->flink);
-
-      rtcb->flink->task_state = TSTATE_TASK_RUNNING;
+      sched_note_switch(rtcb, ntcb);
+      ntcb->task_state = TSTATE_TASK_RUNNING;
       ret = true;
     }
 
   /* Remove the TCB from the ready-to-run list */
 
-  dq_rem((FAR dq_entry_t*)rtcb, (dq_queue_t*)&g_readytorun);
+  dq_rem((FAR dq_entry_t *)rtcb, (FAR dq_queue_t *)&g_readytorun);
+
+  /* Since the TCB is not in any list, it is now invalid */
 
   rtcb->task_state = TSTATE_TASK_INVALID;
   return ret;
