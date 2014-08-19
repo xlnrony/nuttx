@@ -46,6 +46,7 @@
 
 #include <arch/irq.h>
 #include <nuttx/sched.h>
+#include <nuttx/userspace.h>
 
 #ifdef CONFIG_NUTTX_KERNEL
 #  include <syscall.h>

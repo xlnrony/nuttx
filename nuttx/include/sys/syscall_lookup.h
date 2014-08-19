@@ -65,22 +65,10 @@ SYSCALL_LOOKUP(builtin_uninitialize,	builtin_uninitialize,	0,	STUB_builtin_unini
 SYSCALL_LOOKUP(clearenv,	clearenv,	0,	STUB_clearenv)
 #endif /* !defined(CONFIG_DISABLE_ENVIRON) */
 
-#if !defined(CONFIG_DISABLE_CLOCK)
 SYSCALL_LOOKUP(clock_getres,	clock_getres,	2,	STUB_clock_getres)
-#endif /* !defined(CONFIG_DISABLE_CLOCK) */
-
-#if !defined(CONFIG_DISABLE_CLOCK)
 SYSCALL_LOOKUP(clock_gettime,	clock_gettime,	2,	STUB_clock_gettime)
-#endif /* !defined(CONFIG_DISABLE_CLOCK) */
-
-#if !defined(CONFIG_DISABLE_CLOCK)
 SYSCALL_LOOKUP(clock_settime,	clock_settime,	2,	STUB_clock_settime)
-#endif /* !defined(CONFIG_DISABLE_CLOCK) */
-
-#if !defined(CONFIG_DISABLE_CLOCK)
 SYSCALL_LOOKUP(clock_systimer,	clock_systimer,	0,	STUB_clock_systimer)
-#endif /* !defined(CONFIG_DISABLE_CLOCK) */
-
 #if CONFIG_NSOCKET_DESCRIPTORS > 0 || CONFIG_NFILE_DESCRIPTORS > 0
 SYSCALL_LOOKUP(close,	close,	1,	STUB_close)
 #endif /* CONFIG_NSOCKET_DESCRIPTORS > 0 || CONFIG_NFILE_DESCRIPTORS > 0 */
@@ -152,10 +140,7 @@ SYSCALL_LOOKUP(getpid,	getpid,	0,	STUB_getpid)
 SYSCALL_LOOKUP(getsockopt,	getsockopt,	5,	STUB_getsockopt)
 #endif /* CONFIG_NSOCKET_DESCRIPTORS > 0 && defined(CONFIG_NET) */
 
-#if !defined(CONFIG_DISABLE_CLOCK)
 SYSCALL_LOOKUP(gettimeofday,	gettimeofday,	2,	STUB_gettimeofday)
-#endif /* !defined(CONFIG_DISABLE_CLOCK) */
-
 #if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS)
 SYSCALL_LOOKUP(icmp_ping,	icmp_ping,	5,	STUB_icmp_ping)
 #endif /* defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING) && !defined(CONFIG_DISABLE_CLOCK) && !defined(CONFIG_DISABLE_SIGNALS) */

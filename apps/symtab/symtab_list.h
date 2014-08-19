@@ -185,18 +185,10 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if !defined(CONFIG_DISABLE_ENVIRON)
   { "clearenv", (FAR const void *)clearenv },
 #endif
-#if !defined(CONFIG_DISABLE_CLOCK)
   { "clock_getres", (FAR const void *)clock_getres },
-#endif
-#if !defined(CONFIG_DISABLE_CLOCK)
   { "clock_gettime", (FAR const void *)clock_gettime },
-#endif
-#if !defined(CONFIG_DISABLE_CLOCK)
   { "clock_settime", (FAR const void *)clock_settime },
-#endif
-#if !defined(CONFIG_DISABLE_CLOCK)
   { "clock_systimer", (FAR const void *)clock_systimer },
-#endif
 #if CONFIG_NSOCKET_DESCRIPTORS > 0 || CONFIG_NFILE_DESCRIPTORS > 0
   { "close", (FAR const void *)close },
 #endif
@@ -384,9 +376,7 @@ struct symtab_s CONFIG_EXECFUNCS_SYMTAB[] =
 #if CONFIG_NSOCKET_DESCRIPTORS > 0 && defined(CONFIG_NET)
   { "getsockopt", (FAR const void *)getsockopt },
 #endif
-#if !defined(CONFIG_DISABLE_CLOCK)
   { "gettimeofday", (FAR const void *)gettimeofday },
-#endif
   { "gmtime", (FAR const void *)gmtime },
   { "gmtime_r", (FAR const void *)gmtime_r },
   { "htonl", (FAR const void *)htonl },
