@@ -4390,7 +4390,7 @@ FAR struct usbhost_connection_s *stm32_otgfs1host_initialize(void)
 
   stm32_configgpio(GPIO_OTGFS_DM);
   stm32_configgpio(GPIO_OTGFS_DP);
-  stm32_configgpio(GPIO_OTGFS_ID);    /* Only needed for OTG */
+//  stm32_configgpio(GPIO_OTGFS_ID);    /* Only needed for OTG */
 
   /* SOF output pin configuration is configurable */
 
