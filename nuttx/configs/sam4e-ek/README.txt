@@ -231,7 +231,7 @@ Atmel Studio 6.1
 
   - Debugging the NuttX Object File:
 
-    1) Rename object file from nutt to nuttx.elf.  That is an extension that
+    1) Rename object file from nuttx to nuttx.elf.  That is an extension that
        will be recognized by the file menu.
 
     2) Select the project name, the full path to the NuttX object (called
@@ -963,7 +963,7 @@ ILI9325-Based LCD
      21  PC11  RD
      22  PC8   WR
      23  PC19  RS
-     24  PD18  CS        Via J8, pulled high.  Connects to NRST.
+     24  PD18  CS        Via J8, pulled high.
      25        RESET     Connects to NSRST
      26        IM0       Pulled high
      27        IM1       Grounded
@@ -1025,6 +1025,10 @@ ILI9325-Based LCD
   STATUS:
     2014-05-14:  Fully implemented.  There is still a bug in in the LCD
     communications.  The LCD ID is read as 0x0000 instead of 0x9325.
+
+    2014-8-19:  Updated.  The LCD ID is bad because the on-board LCD is
+    *not* an ILI9325.  It is an ILI9341.  The ID lies in a different
+    address and is 0x00009341. Need to write a new driver.
 
     The LCD backlight appears to be functional.
 
@@ -1300,7 +1304,7 @@ Configurations
        configuration settings above in the section entitled "Networking").
 
        NOTE: In boot-up sequence is very simple in this example; all
-       initialization is done sequential (vs. in parallel) and so you will
+       initialization is done sequentially (vs. in parallel) and so you will
        not see the NSH prompt until all initialization is complete.  The
        network bring-up in particular will add some delay before the NSH
        prompt appears.  In a real application, you would probably want to
@@ -1309,7 +1313,7 @@ Configurations
 
        This delay will be especially long if the board is not connected to
        a network because additional time will be required to fail with
-       timeout errors.
+       timeout errors.  This delay can be eliminated, however, if you enable an NSH initialization option as described above in a paragraph entitled, "Network Initialization Thread."
 
        STATUS:
        2014-3-13: The basic NSH serial console is working.  Network support
@@ -1357,18 +1361,11 @@ Configurations
                   does not mount on either the Linux or Windows host.  This
                   needs to be retested.
 
-    8. This configuration can be used to verify the touchscreen on on the
-       SAM4E-EK LCD.  See the instructions above in the paragraph entitled
-       "Touchscreen".
-
-       STATUS:
-         2014-3-21:  The touchscreen has not yet been tested.
-
-    9. Enabling HSMCI support. The SAM3U-KE provides a an SD memory card
+    8. Enabling HSMCI support. The SAM3U-KE provides a an SD memory card
        slot.  Support for the SD slot can be enabled following the
        instructions provided above in the paragraph entitled "HSMCI."
 
-   11. This configuration has been used for verifying the touchscreen on
+    9. This configuration has been used for verifying the touchscreen on
        on the SAM4E-EK LCD module.
 
        The NSH configuration can be used to verify the ADS7843E touchscreen on
@@ -1415,7 +1412,7 @@ Configurations
          CONFIG_DEBUG_VERBOSE=y            : Enable verbose debug output
          CONFIG_DEBUG_INPUT=y              : Enable debug output from input devices
 
-   11. This configuration can be re-configured to test the on-board LCD
+   10. This configuration can be re-configured to test the on-board LCD
        module.
 
        System Type -> AT91SAM3/4 Configuration Options
@@ -1445,8 +1442,8 @@ Configurations
 
        Graphics Support -> Font Selections
          CONFIG_NXFONTS_CHARBITS=7
-         CONFIG_NXFONT_SANS22X29B=y
          CONFIG_NXFONT_SANS23X27=y
+         CONFIG_NXFONT_SANS22X29B=y
 
        Application Configuration -> Examples
          CONFIG_EXAMPLES_NXLINES=y
