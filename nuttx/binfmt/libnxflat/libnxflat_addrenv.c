@@ -68,11 +68,9 @@
  * Name: nxflat_addrenv_alloc
  *
  * Description:
- *   Allocate memory for the ELF image (elfalloc). If CONFIG_ADDRENV=n,
- *   elfalloc will be allocated using kuzalloc().  If CONFIG_ADDRENV-y, then
- *   elfalloc will be allocated using up_addrenv_create().  In either case,
- *   there will be a unique instance of elfalloc (and stack) for each
- *   instance of a process.
+ *   Allocate data memory for the NXFLAT image. If CONFIG_ARCH_ADDRENV=n,
+ *   memory will be allocated using kzalloc().  If CONFIG_ARCH_ADDRENV-y,
+ *   then memory will be allocated using up_addrenv_create().
  *
  * Input Parameters:
  *   loadinfo - Load state information
@@ -87,9 +85,9 @@
 int nxflat_addrenv_alloc(FAR struct nxflat_loadinfo_s *loadinfo, size_t envsize)
 {
   FAR struct dspace_s *dspace;
-#ifdef CONFIG_ADDRENV
-  FAR void *vaddr;
-  hw_addrenv_t oldenv;
+#ifdef CONFIG_ARCH_ADDRENV
+  FAR void *vdata;
+  save_addrenv_t oldenv;
   int ret;
 #endif
 
@@ -104,7 +102,7 @@ int nxflat_addrenv_alloc(FAR struct nxflat_loadinfo_s *loadinfo, size_t envsize)
       return -ENOMEM;
     }
 
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
   /* Create a D-Space address environment for the new NXFLAT task */
 
   ret = up_addrenv_create(envsize, &loadinfo->addrenv);
@@ -120,10 +118,10 @@ int nxflat_addrenv_alloc(FAR struct nxflat_loadinfo_s *loadinfo, size_t envsize)
    * selected.
    */
 
-  ret = up_addrenv_vaddr(loadinfo->addrenv, &vaddr);
+  ret = up_addrenv_vdata(&loadinfo->addrenv, 0, &vdata);
   if (ret < 0)
     {
-      bdbg("ERROR: up_addrenv_vaddr failed: %d\n", ret);
+      bdbg("ERROR: up_addrenv_vdata failed: %d\n", ret);
       goto errout_with_addrenv;
     }
 
@@ -138,7 +136,7 @@ int nxflat_addrenv_alloc(FAR struct nxflat_loadinfo_s *loadinfo, size_t envsize)
       goto errout_with_addrenv;
     }
 
-  memset(vaddr, 0, envsize);
+  memset(vdata, 0, envsize);
 
   ret = up_addrenv_restore(oldenv);
   if (ret < 0)
@@ -151,11 +149,11 @@ int nxflat_addrenv_alloc(FAR struct nxflat_loadinfo_s *loadinfo, size_t envsize)
 
   loadinfo->dspace = dspace;
   dspace->crefs    = 1;
-  dspace->region   = (FAR uint8_t *)vaddr;
+  dspace->region   = (FAR uint8_t *)vdata;
   return OK;
 
 errout_with_addrenv:
-  (void)up_addrenv_destroy(loadinfo->addrenv);
+  (void)up_addrenv_destroy(&loadinfo->addrenv);
   loadinfo->addrenv = 0;
 
 errout_with_dspace:
@@ -198,7 +196,7 @@ errout_with_dspace:
 void nxflat_addrenv_free(FAR struct nxflat_loadinfo_s *loadinfo)
 {
   FAR struct dspace_s *dspace;
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
   int ret;
 #endif
 
@@ -207,7 +205,7 @@ void nxflat_addrenv_free(FAR struct nxflat_loadinfo_s *loadinfo)
 
   if (dspace)
     {
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
       /* Destroy the address environment */
 
       ret = up_addrenv_destroy(loadinfo->addrenv);

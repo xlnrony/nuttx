@@ -8191,3 +8191,70 @@
 	  network responses to ARP requests quickly (2014-8-19).
 	* include/nuttx/lcd/ili9341.h: \Add a register definition header file
 	  for the ILI9341 LCD (2014-8-19).
+	* net/arp/Kconfig: ARP request logic is no longer EXPERIMENTAL
+	  (2014-8-20).
+	* net/arp/arp_send.c: ARP request logic needs to do the right thing if
+	  (1) the address is a broadcast or multicast address, and (2) if the
+	  IP address lies outside of the network.  Problem noted by Manuel Stuehn
+	  (2014-8-20).
+	* configs/sam4e-ek/src/Kconfig and src/sam_ili9341.c: Add ILI9341-based
+	  LCD driver.  Fully functional (2014-8-20).
+	* configs/sam4e-ek/nxwm:  Add an NxWM configuration for the SAM4E-EK
+	  (2014-8-21).
+	* configs/viewtool-stm32f107: Refresh some configurations (2014-8-20).
+	* nuttx/sched/wdog: If we run out of pre-allocated watchdog times, the
+	  logic will allocate additional timers from the heap.  A reserve of
+	  pre-allocated watchdog timers is maintained so that there will always
+	  be timers available for interrupt handlers (2014-8-21).
+	* include/nuttx/wdog.h (and many affected files):  wdog.h does not
+	  contain any application interface, only internal OS interface.
+	  Further, it is non-standard.  Move wdog.h from include/ to
+	  include/nuttx (2014-8-21).
+	* Documentation/NuttxPortingGuide.h:  For the same reason as above, move
+	  the description of the watchdog timer interfaces from the Users Guide
+	  to the Porting Guide (2014-8-21).
+	* arch/arm/src/stm32/stm32_uart.h: STM32 F401: Correct support for
+	  USART6 on this chip.  From Freddie Chopin (2014-8-22).
+	* nuttx/sched/wdog and include/nuttx/wdog.h:  Add support for statically
+	  allocated watchdog timer (also eliminate some unconvential typing)
+	  (2014-8-22).
+	* configs/p112/ostest and tools/mkdeps.c:  Changes to try to get P112 to
+	  compile with laster SDCC (it still does not) (2014-8-22).
+	* sched/group/group_leave.c: Need to release the address environment when
+	  the task group is released (2014-8-22).
+	* mm/mm_granreserve.c and and mm_granmark.c: gran_reserve():  Add a
+	  new function to reserve unallocatable regions in the granule heap
+	  (2014-8-23).
+	* include/nuttx/pgalloc.h and mm/mm_pgalloc.c:  Add a simple page
+	  allocator based on the existing NuttX granule allocator.  I am not
+	  certain if the granule allocator is sufficiently deterministic for
+	  long range use, but it gets get a page allocator in place for testing
+	  very quickly (2014-8-23).
+	* ARMv7-A: Add skeleton implementation and build support for process
+	  address environments (2014-8-23).
+	* Many files: Change CONFIG_ADDRENV to CONFIG_ARCH_ADDRENV; change how
+	  it is selected -- the architecture must first declare support
+	  (2014-8-24).
+	* include/nuttx/addrenv.h, arch/arm/include/arch.h, armv7-a/irq.h, and
+	  other files:  Add addrenv.h; First cut at Cortex-A address environment
+	  structures; Add configuration options to setup address environment
+	  (2014-8-24).
+	* addrenv interface changes: up_addrenv_create() may need to create
+	  .text and .bss/.data separately because of differing access privileges
+	  (read/execute vs read/write).  And, as a consequence, up_addrenv_vaddr()
+	  needs to be split into up_addrenv_vtext() and up_addrenv_vdata().
+	  Affects several files (2014-8-24).
+	* arch/arm/src/armv7-a/arch_coherent_cache.c:  New file.  These cache
+	  operations are called from the ELF loader in order to flush D-cache
+	  and invalidate I-cache after an ELF module has been loaded into memory.
+	  With this change, ELF modules work correcttly on the SAMA5/Cortex-A
+	  platform (2014-8-24).
+	* configs/sim: Add build support for ELF modules.  Useless at the moment
+	  because there is no x86 relocation logic support (2014-8-25).
+	* configs/sim: Update some sim/ defconfig files.  This now automatically
+	  switches them to x86_64 builds (2014-8-25).
+	* arch/arm/include/arch.h, armv7-a/irq.h, src/armv7-a/arm_addrenv.c,
+	  armv7-a/arm_mmu.c/.h, sama5/Kconfig, Make.defs, sam_pgalloc.c,
+	  include/nuttx/addrenv.h, arch.h, pgalloc.h, mm/Kconfig, mm_pgalloc.c,
+	  sched/init/os_start.c: Cortex-A/SAMA5 address environment support is
+	  code complete (untested) (2014-8-25).

@@ -1,7 +1,7 @@
 /****************************************************************************
  * binfmt/libelf/libelf_bind.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -195,12 +195,12 @@ static int elf_relocate(FAR struct elf_loadinfo_s *loadinfo, int relidx,
 
       addr = dstsec->sh_addr + rel.r_offset;
 
-      /* If CONFIG_ADDRENV=y, then 'addr' lies in a virtual address space that
+      /* If CONFIG_ARCH_ADDRENV=y, then 'addr' lies in a virtual address space that
        * may not be in place now.  elf_addrenv_select() will temporarily
        * instantiate that address space.
        */
 
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
       ret = elf_addrenv_select(loadinfo);
       if (ret < 0)
         {
@@ -211,10 +211,10 @@ static int elf_relocate(FAR struct elf_loadinfo_s *loadinfo, int relidx,
 
       /* Now perform the architecture-specific relocation */
 
-      ret = arch_relocate(&rel, &sym, addr);
+      ret = up_relocate(&rel, &sym, addr);
       if (ret < 0)
         {
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
           (void)elf_addrenv_restore(loadinfo);
 #endif
           bdbg("ERROR: Section %d reloc %d: Relocation failed: %d\n", ret);
@@ -223,7 +223,7 @@ static int elf_relocate(FAR struct elf_loadinfo_s *loadinfo, int relidx,
 
       /* Restore the original address environment */
 
-#ifdef CONFIG_ADDRENV
+#ifdef CONFIG_ARCH_ADDRENV
       ret = elf_addrenv_restore(loadinfo);
       if (ret < 0)
         {
@@ -323,10 +323,13 @@ int elf_bind(FAR struct elf_loadinfo_s *loadinfo,
         }
     }
 
-  /* Flush the instruction cache before starting the newly loaded module */
+#ifdef CONFIG_ARCH_HAVE_COHERENT_DCACHE
+  /* Ensure that the I and D caches are coherent before starting the newly
+   * loaded module by cleaning the D cache (i.e., flushing the D cache
+   * contents to memory and invalidating the I cache.
+   */
 
-#ifdef CONFIG_ELF_ICACHE
-  arch_flushicache((FAR void*)loadinfo->elfalloc, loadinfo->elfsize);
+  up_coherent_dcache(loadinfo->textalloc, loadinfo->textsize);
 #endif
 
   return ret;

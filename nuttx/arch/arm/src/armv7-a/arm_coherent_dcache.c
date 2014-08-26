@@ -1,7 +1,7 @@
 /****************************************************************************
- * include/wdog.h
+ * arch/arm/src/armv7/up_coherent_dcache.c
  *
- *   Copyright (C) 2007-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,78 +33,62 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_WDOG_H
-#define __INCLUDE_WDOG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
+#include <sys/types.h>
 #include <stdint.h>
-#include <sched.h>
+
+#include "cp15_cacheops.h"
+
+#include <nuttx/binfmt/elf.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Global Type Declarations
+ * Private Data
  ****************************************************************************/
 
-/* The arguments are passed as uint32_t values.  For systems where the
- * sizeof(pointer) < sizeof(uint32_t), the following union defines the
- * alignment of the pointer within the uint32_t.  For example, the SDCC
- * MCS51 general pointer is 24-bits, but uint32_t is 32-bits (of course).
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: up_coherent_dcache
  *
- * For systems where sizeof(pointer) > sizeof(uint32_t), we will have to do
- * some redesign.
- */
-
-union wdparm_u
-{
-  FAR void     *pvarg;
-  FAR uint32_t *dwarg;
-};
-
-typedef union wdparm_u wdparm_t;
-
-/* This is the form of the function that is called when the
- * watchdog function expires.  Up to four parameters may be passed.
- */
-
-typedef CODE void (*wdentry_t)(int argc, uint32_t arg1, ...);
-
-/* Watchdog 'handle' */
-
-typedef FAR struct wdog_s *WDOG_ID;
-
-/****************************************************************************
- * Global Variables
+ * Description:
+ *   Ensure that the I and D caches are coherent within specified region
+ *   by cleaning the D cache (i.e., flushing the D cache contents to memory
+ *   and invalidating the I cache. This is typically used when code has been
+ *   written to a memory region, and will be executed.
+ *
+ * Input Parameters:
+ *   addr - virtual start address of region
+ *   len  - Size of the address region in bytes
+ *
+ * Returned Value:
+ *   None
+ *
  ****************************************************************************/
 
-/****************************************************************************
- * Global Function Prototypes
- ****************************************************************************/
-
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
+void up_coherent_dcache(uintptr_t addr, size_t len)
 {
-#else
-#define EXTERN extern
+  /* Perform the operation on the L1 cache */
+
+  cp15_coherent_dcache(addr, addr+len);
+
+#ifdef CONFIG_ARCH_L2CACHE
+  /* If we have an L2 cache, then there more things that need to done */
+
+#  warning This is insufficient
 #endif
-
-WDOG_ID wd_create(void);
-int     wd_delete(WDOG_ID wdog);
-int     wd_start(WDOG_ID wdog, int delay, wdentry_t wdentry, int argc, ...);
-int     wd_cancel(WDOG_ID wdog);
-int     wd_gettime(WDOG_ID wdog);
-
-#undef EXTERN
-#ifdef __cplusplus
 }
-#endif
-
-#endif /* _WDOG_H_ */

@@ -63,19 +63,19 @@
 
 #ifdef CONFIG_CPP_HAVE_VARARGS
 #  ifdef CONFIG_DEBUG_GRAM
-#    define gramdbg(format, ...)       dbg(format, ##__VA_ARGS__)
-#    define gramvdbg(format, ...)      vdbg(format, ##__VA_ARGS__)
+#    define grandbg(format, ...)       dbg(format, ##__VA_ARGS__)
+#    define granvdbg(format, ...)      vdbg(format, ##__VA_ARGS__)
 #  else
-#    define gramdbg(format, ...)       mdbg(format, ##__VA_ARGS__)
-#    define gramvdbg(format, ...)      mvdbg(format, ##__VA_ARGS__)
+#    define grandbg(format, ...)       mdbg(format, ##__VA_ARGS__)
+#    define granvdbg(format, ...)      mvdbg(format, ##__VA_ARGS__)
 #  endif
 #else
 #  ifdef CONFIG_DEBUG_GRAM
-#    define gramdbg                    dbg
-#    define gramvdbg                   vdbg
+#    define grandbg                    dbg
+#    define granvdbg                   vdbg
 #  else
-#    define gramdbg                    (void)
-#    define gramvdbg                   (void)
+#    define grandbg                    (void)
+#    define granvdbg                   (void)
 #  endif
 #endif
 
@@ -83,7 +83,7 @@
  * Public Types
  ****************************************************************************/
 
-/* This structure represents the state of on granual allocation */
+/* This structure represents the state of on granule allocation */
 
 struct gran_s
 {
@@ -128,5 +128,24 @@ extern FAR struct gran_s *g_graninfo;
 
 void gran_enter_critical(FAR struct gran_s *priv);
 void gran_leave_critical(FAR struct gran_s *priv);
+
+/****************************************************************************
+ * Name: gran_mark_allocated
+ *
+ * Description:
+ *   Mark a range of granules as allocated.
+ *
+ * Input Parameters:
+ *   priv  - The granule heap state structure.
+ *   alloc - The address of the allocation.
+ *   ngranules - The number of granules allocated
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void gran_mark_allocated(FAR struct gran_s *priv, uintptr_t alloc,
+                         unsigned int ngranules);
 
 #endif /* __MM_MM_GRAN_H */

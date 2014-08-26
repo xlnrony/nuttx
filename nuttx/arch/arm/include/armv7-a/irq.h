@@ -49,6 +49,7 @@
 
 #ifndef __ASSEMBLY__
 #  include <stdint.h>
+#  include <arch/arch.h>
 #endif
 
 /****************************************************************************
@@ -239,6 +240,18 @@ struct xcptcontext
 
 #ifdef CONFIG_PAGING
   uintptr_t far;
+#endif
+
+#ifdef CONFIG_ARCH_ADDRENV
+  /* This table holds the physical address of the level 2 page table used
+   * to map the thread's stack memory.  This array will be initially of
+   * zeroed and would be back-up up with pages during page fault exception
+   * handling to support dynamically sized stacks for each thread.
+   */
+
+#if 0 /* Not yet implemented */
+  FAR uint32_t *stack[ARCH_STACK_NSECTS];
+#endif
 #endif
 };
 #endif

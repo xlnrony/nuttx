@@ -84,8 +84,12 @@ CMN_CSRCS += arm_allocpage.c arm_checkmapping.c arm_pginitialize.c
 CMN_CSRCS += arm_va2pte.c
 endif
 
+ifeq ($(CONFIG_ARCH_ADDRENV),y)
+CMN_CSRCS += arm_addrenv.c
+endif
+
 ifeq ($(CONFIG_ELF),y)
-CMN_CSRCS += arm_elf.c
+CMN_CSRCS += arm_elf.c arm_coherent_dcache.c
 endif
 
 ifeq ($(CONFIG_ARCH_FPU),y)
@@ -108,6 +112,10 @@ CHIP_CSRCS += sam_lowputc.c sam_memories.c sam_pck.c sam_pio.c sam_pmc.c
 CHIP_CSRCS += sam_sckc.c sam_serial.c
 
 # Configuration dependent C and assembly language files
+
+ifeq ($(CONFIG_MM_PGALLOC),y)
+CHIP_CSRCS += sam_pgalloc.c
+endif
 
 ifneq ($(CONFIG_SCHED_TICKLESS),y)
 CHIP_CSRCS += sam_timerisr.c

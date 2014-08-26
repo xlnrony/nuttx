@@ -3525,6 +3525,7 @@ Configurations
     dramboot: This is a little program to help debug of code in DRAM.  See
       the description below and the section above entitled "Creating and
       Using DRAMBOOT" for more information
+    elf:  Demonstrates execution of ELF file from a file system.
     nsh:  This is an NuttShell (NSH) configuration that supports extensive
       functionality as possible (unlike the minimal ramtest configuration).
       See the detailed description below for a summary of the feature
@@ -3653,6 +3654,54 @@ Configurations
     putting DRAMBOOT on a microSD card (as boot.bin).  The RomBOOT loader does
     boot that image without issue.
 
+  elf:
+
+    Demonstrates execution of ELF file from a file system using
+    apps/examples/elf.  This is a very simple configuration so there is not
+    really much that needs to be said.
+
+    NOTES:
+
+    1. This configuration uses the the USART3 for the serial console
+       which is available at the "DBGU" RS-232 connector (J24).  That
+       is easily changed by reconfiguring to (1) enable a different
+       serial peripheral, and (2) selecting that serial peripheral as
+       the console device.
+
+    2. By default, this configuration is set up to build on Windows
+       under either a Cygwin or MSYS environment using a recent, Windows-
+       native, generic ARM EABI GCC toolchain (such as the CodeSourcery
+       toolchain).  Both the build environment and the toolchain
+       selection can easily be changed by reconfiguring:
+
+       CONFIG_HOST_WINDOWS=y                   : Windows operating system
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
+       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+
+       If you are running on Linux, make *certain* that you have
+       CONFIG_HOST_LINUX=y *before* the first make or you will create a
+       corrupt configuration that may not be easy to recover from. See
+       the warning in the section "Information Common to All Configurations"
+       for further information.
+
+    3. This configuration currently has Cortex-A address environments selected for testing.  With this option, the MMU is used to create a custom address environment for each ELF program.  This option can be disabled in which case the ELF programs will simply execute out normal memory allocated from the heap.  To disable this feature:
+
+      System Type -> Architecture Options
+        CONFIG_ARCH_ADDRENV=n                  : Disable address environment support
+
+      System Type -> Heap Configuration
+        CONFIG_SAMA5_DDRCS_RESERVE=n           : Don't reserve any page cache memory
+        CONFIG_SAMA5_DDRCS_PGHEAP=n            : Don't try to set up the page allocator
+
+      Memory Management
+        CONFIG_GRAN=n                          : Disable the granule allocator 
+        CONFIG_MM_PGALLOC=n                    : Disable the page allocator
+
+    STATUS:
+      2014-8024: This configuration works with the address environment
+                 option disable.
+      2014-8-25: But still does not even build successfully with the
+                 address environment option enabled.
   nsh:
 
     This configuration directory provide the NuttShell (NSH).  This is a

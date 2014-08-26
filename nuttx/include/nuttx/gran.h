@@ -2,7 +2,7 @@
  * include/nuttx/gran.h
  * General purpose granule memory allocator.
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@
  * Pre-Processor Definitions
  ****************************************************************************/
 /* Configuration ************************************************************/
-/* CONFIG_GRAN - Enable granual allocator support
+/* CONFIG_GRAN - Enable granule allocator support
  * CONFIG_GRAN_SINGLE - Select if there is only one instance of the
  *   granule allocator (i.e., gran_initialize will be called only once.
  *   In this case, (1) there are a few optimizations that can can be done
@@ -62,7 +62,7 @@
  *   mutual exclusion logic will disable interrupts.  While this options is
  *   more invasive to system performance, it will also support use of the
  *   granule allocator from interrupt level logic.
- * CONFIG_DEBUG_GRAN - Just like CONFIG_DEBUG_MM, but only generates ouput
+ * CONFIG_DEBUG_GRAN - Just like CONFIG_DEBUG_MM, but only generates output
  *   from the gran allocation logic.
  */
 
@@ -80,7 +80,8 @@ typedef FAR void *GRAN_HANDLE;
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
-extern "C" {
+extern "C"
+{
 #else
 #define EXTERN extern
 #endif
@@ -94,16 +95,17 @@ extern "C" {
  *   granule size (log2gran). Larger granules will give better performance
  *   and less overhead but more losses of memory due to quantization waste.
  *   Additional memory waste can occur from alignment; log2align should be
- *   set to 0 unless you are using the granule allocator to manage DMA memory
- *   and your hardware has specific memory alignment requirements.
+ *   set to 0 unless you are using the granule allocator to manage DMA
+ *   or page-aligned memory and your hardware has specific memory alignment
+ *   requirements.
  *
- *   Geneneral Usage Summary.  This is an example using the GCC section
+ *   General Usage Summary.  This is an example using the GCC section
  *   attribute to position a DMA heap in memory (logic in the linker script
  *   would assign the section .dmaheap to the DMA memory.
  *
  *     FAR uint32_t g_dmaheap[DMAHEAP_SIZE] __attribute__((section(.dmaheap)));
  *
- *   The heap is created by calling gran_initialize.  Here the granual size
+ *   The heap is created by calling gran_initialize.  Here the granule size
  *   is set to 64 bytes and the alignment to 16 bytes:
  *
  *     GRAN_HANDLE handle = gran_initialize(g_dmaheap, DMAHEAP_SIZE, 6, 4);
@@ -124,9 +126,9 @@ extern "C" {
  *   heapstart - Start of the granule allocation heap
  *   heapsize  - Size of heap in bytes
  *   log2gran  - Log base 2 of the size of one granule.  0->1 byte,
- *               1->2 bytes, 2->4 bytes, 3-> 8 bytes, etc.
+ *               1->2 bytes, 2->4 bytes, 3->8 bytes, etc.
  *   log2align - Log base 2 of required alignment.  0->1 byte,
- *               1->2 bytes, 2->4 bytes, 3-> 8 bytes, etc.  Note that
+ *               1->2 bytes, 2->4 bytes, 3->8 bytes, etc.  Note that
  *               log2gran must be greater than or equal to log2align
  *               so that all contiguous granules in memory will meet
  *               the minimum alignment requirement. A value of zero
@@ -134,16 +136,44 @@ extern "C" {
  *
  * Returned Value:
  *   On success, a non-NULL handle is returned that may be used with other
- *   granual allocator interfaces.
+ *   granule allocator interfaces.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_GRAN_SINGLE
-EXTERN int gran_initialize(FAR void *heapstart, size_t heapsize,
-                           uint8_t log2gran, uint8_t log2align);
+int gran_initialize(FAR void *heapstart, size_t heapsize, uint8_t log2gran,
+                    uint8_t log2align);
 #else
-EXTERN GRAN_HANDLE gran_initialize(FAR void *heapstart, size_t heapsize,
-                                   uint8_t log2gran, uint8_t log2align);
+GRAN_HANDLE gran_initialize(FAR void *heapstart, size_t heapsize,
+                            uint8_t log2gran, uint8_t log2align);
+#endif
+
+/****************************************************************************
+ * Name: gran_reserve
+ *
+ * Description:
+ *   Reserve memory in the granule heap.  This will reserve the granules
+ *   that contain the start and end addresses plus all of the granules
+ *   in between.  This should be done early in the initialization sequence
+ *   before any other allocations are made.
+ *
+ *   Reserved memory can never be allocated (it can be freed however which
+ *   essentially unreserves the memory).
+ *
+ * Input Parameters:
+ *   handle - The handle previously returned by gran_initialize
+ *   start  - The address of the beginning of the region to be reserved.
+ *   size   - The size of the region to be reserved
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_GRAN_SINGLE
+void gran_reserve(uintptr_t start, size_t size);
+#else
+void gran_reserve(GRAN_HANDLE handle, uintptr_t start, size_t size);
 #endif
 
 /****************************************************************************
@@ -167,9 +197,9 @@ EXTERN GRAN_HANDLE gran_initialize(FAR void *heapstart, size_t heapsize,
  ****************************************************************************/
 
 #ifdef CONFIG_GRAN_SINGLE
-EXTERN FAR void *gran_alloc(size_t size);
+FAR void *gran_alloc(size_t size);
 #else
-EXTERN FAR void *gran_alloc(GRAN_HANDLE handle, size_t size);
+FAR void *gran_alloc(GRAN_HANDLE handle, size_t size);
 #endif
 
 /****************************************************************************
@@ -180,7 +210,7 @@ EXTERN FAR void *gran_alloc(GRAN_HANDLE handle, size_t size);
  *
  * Input Parameters:
  *   handle - The handle previously returned by gran_initialize
- *   memory - A pointer to memory previoiusly allocated by gran_alloc.
+ *   memory - A pointer to memory previously allocated by gran_alloc.
  *
  * Returned Value:
  *   None
@@ -188,9 +218,9 @@ EXTERN FAR void *gran_alloc(GRAN_HANDLE handle, size_t size);
  ****************************************************************************/
 
 #ifdef CONFIG_GRAN_SINGLE
-EXTERN void gran_free(FAR void *memory, size_t size);
+void gran_free(FAR void *memory, size_t size);
 #else
-EXTERN void gran_free(GRAN_HANDLE handle, FAR void *memory, size_t size);
+void gran_free(GRAN_HANDLE handle, FAR void *memory, size_t size);
 #endif
 
 #undef EXTERN

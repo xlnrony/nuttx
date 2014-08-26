@@ -124,8 +124,8 @@ struct binary_s
    *   used to manage the tasks address space.
    */
 
-#ifdef CONFIG_ADDRENV
-  task_addrenv_t addrenv;              /* Task address environment */
+#ifdef CONFIG_ARCH_ADDRENV
+  group_addrenv_t addrenv;             /* Task group address environment */
 #endif
 
   size_t mapsize;                      /* Size of the mapped address region (needed for munmap) */
