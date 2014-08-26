@@ -262,8 +262,8 @@
  * (See the README.txt file for other options)
  */
 
-#define GPIO_USART2_RX GPIO_USART2_RX_2
-#define GPIO_USART2_TX GPIO_USART2_TX_2
+#define GPIO_USART1_RX GPIO_USART1_RX_1
+#define GPIO_USART1_TX GPIO_USART1_TX_1
 
 /* Ethernet:
  *
